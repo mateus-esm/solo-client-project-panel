@@ -1,0 +1,58 @@
+thinks
+Este é um projeto estratégico para elevar o LTV (Lifetime Value) da Solo Energia. O conceito de "Lifestyle com Dados" é o diferencial: transformamos uma obra de engenharia em uma experiência de tecnologia e liberdade financeira.
+Abaixo, apresento o PRD (Product Requirements Document) estruturado para um MVP funcional no Replit, utilizando tecnologias modernas que você já domina.
+🚀 PRD: Portal do Cliente Solo Energia (MVP)
+1. Visão Geral
+ * Objetivo: Eliminar a "caixa preta" do pós-venda, dando ao cliente controle total sobre o status da instalação, documentos e equipamentos.
+ * Público-alvo: Clientes que acabaram de assinar o contrato de energia solar.
+ * KPI Principal: Redução de 40% nas chamadas de suporte para "status de projeto".
+2. User Experience (IDV Solo Energia)
+ * Estética: Dark Mode (conforme o vídeo do Bill Clarifier), detalhes em Laranja Solar (#FF5722 ou similar) e Verde Eficiência.
+ * Tom de voz: Tecnológico, preciso, mas próximo. "Sua usina está ganhando vida."
+3. Funcionalidades do MVP (Escopo)
+A. Autenticação & Onboarding (OAuth/Magic Link)
+ * Integração via API com seu ERP/CRM. Assim que o contrato é assinado, o n8n dispara um convite.
+ * Login simplificado (E-mail + Token ou Google Auth).
+B. Dashboard de Jornada (O Coração)
+ * Pipeline Visual: 5 fases (Engenharia, Homologação, Logística, Instalação, Ativação).
+ * Status da Entrega: Integração com transportadora ou input manual de rastreio dos painéis/inversor.
+C. Central de Documentos
+ * Upload de documentos pendentes pelo cliente (ex: RG, IPTU).
+ * Download de Notas Fiscais e Projetos assinado pela engenharia.
+D. Notificações Push/WhatsApp
+ * Gatilhos automáticos via n8n para cada mudança de fase.
+E. Handover para Monitoramento
+ * Botão final: "Ativar Monitoramento Solo", que redireciona para a ferramenta de análise de fatura e gráficos de geração.
+4. Stack Técnica Sugerida (Replit Friendly)
+ * Frontend: Next.js ou React (Vite) com Tailwind CSS (para agilidade na IDV).
+ * Backend: Supabase (Auth + Database + Storage para as notas fiscais).
+ * Integração: n8n conectando seu ERP ao Supabase.
+ * UI Components: Shadcn/ui (estilo limpo e moderno).
+5. Roadmap de Implementação no Replit
+Fase 1: Setup do Banco (Supabase)
+ * Criar tabela projects com colunas: id, client_name, status_step (int), tracking_code, docs_url.
+ * Configurar Row Level Security (RLS) para o cliente ver apenas o seu projeto.
+Fase 2: UI do Dashboard (React)
+Criar o componente de Stepper (Linha do tempo).
+ * Estado Atual: Ativo (Laranja), Concluído (Verde), Pendente (Cinza).
+Fase 3: Automação de Dados (n8n)
+ * Trigger: Webhook do seu ERP (ao fechar contrato).
+ * Action: upsert no Supabase criando o registro do cliente.
+ * Action: Envio de e-mail/WhatsApp de boas-vindas com o link do portal.
+6. Protótipo de Layout (Conceitual)
++-------------------------------------------------------+
+| SOLO ENERGIA | [Ícone Perfil] |
++-------------------------------------------------------+
+| Olá, Lucas! Sua independência solar está 60% pronta.  |
+|                                                       |
+| [=== PROJETO ===] [=== ENEL ===] [--- OBRA ---] [...] |
+|      (Check)          (Check)       (Em andamento)     |
+|                                                       |
+| > Detalhes da Entrega: Seus painéis estão em trânsito |
+| > Documentação: 1 pendência (Assinar ART)             |
+|                                                       |
+| [ Botão: Falar com Consultor ] [ Botão: Ver Notas ]   |
++-------------------------------------------------------+
+
+Próximo Passo
+Você quer que eu gere o código inicial (Boilerplate) em React + Tailwind para você colar no Replit e já visualizar a cara desse dashboard com a IDV da Solo? posso focar em criar o componente da linha do tempo primeiro.
