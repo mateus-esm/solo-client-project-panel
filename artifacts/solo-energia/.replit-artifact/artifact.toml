@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Portal do Cliente Solo Energia"
+version = "1.0.0"
+id = "artifacts/solo-energia"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24872
+
+[services.development]
+run = "pnpm --filter @workspace/solo-energia run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/solo-energia", "run", "build" ]
+publicDir = "artifacts/solo-energia/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24872"
+BASE_PATH = "/"

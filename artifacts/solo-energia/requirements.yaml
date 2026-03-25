@@ -1,0 +1,10 @@
+packages:
+  "framer-motion": "For premium page transitions, stagger effects, and interactive stepper animations"
+  "date-fns": "For formatting dates in the timeline and documents"
+  "clsx": "Utility for constructing Tailwind classes"
+  "tailwind-merge": "Utility for merging Tailwind classes safely"
+images: []
+notes:
+  - "App forces strict dark mode per Solo Energia brand guidelines"
+  - "Using provided @assets for fonts and logos"
+  - "Custom font injected via JS to ensure Vite asset resolution"
