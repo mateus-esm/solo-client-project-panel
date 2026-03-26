@@ -20,6 +20,8 @@ router.get("/projects", async (req, res) => {
       state: p.state,
       completionPercent: p.completionPercent,
       estimatedActivation: p.estimatedActivation,
+      notes: p.notes,
+      estimatedDate: p.estimatedDate,
       createdAt: p.createdAt.toISOString(),
     }));
     res.json(result);
@@ -49,6 +51,8 @@ router.get("/projects/:id", async (req, res) => {
       state: project.state,
       completionPercent: project.completionPercent,
       estimatedActivation: project.estimatedActivation,
+      notes: project.notes,
+      estimatedDate: project.estimatedDate,
       createdAt: project.createdAt.toISOString(),
     });
   } catch (err) {

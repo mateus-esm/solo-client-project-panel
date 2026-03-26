@@ -69,6 +69,12 @@ export default function Documents() {
                           </div>
                         </div>
                       </div>
+                      <div className="mb-4">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 text-xs font-semibold uppercase tracking-wider">
+                          <Upload className="w-3 h-3" />
+                          Upload Obrigatório
+                        </span>
+                      </div>
                       
                       <div className="pt-4 border-t border-border mt-auto flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">
@@ -113,6 +119,12 @@ export default function Documents() {
                             <p className="text-sm text-muted-foreground line-clamp-2">{doc.description}</p>
                           </div>
                         </div>
+                      </div>
+                      <div className="mb-4">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-semibold uppercase tracking-wider">
+                          <Download className="w-3 h-3" />
+                          Solo Envia
+                        </span>
                       </div>
                       
                       <div className="pt-4 border-t border-border mt-auto flex items-center justify-between">

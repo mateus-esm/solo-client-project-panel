@@ -1,17 +1,19 @@
 import { useListProjects } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { motion } from "framer-motion";
-import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity } from "lucide-react";
+import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, UserPlus, Ruler, ShieldCheck, HardHat, GraduationCap, Info } from "lucide-react";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const STEPS = [
-  { id: 1, title: "Engenharia", desc: "Projeto e viabilidade" },
-  { id: 2, title: "Homologação", desc: "Aprovação na concessionária" },
-  { id: 3, title: "Logística", desc: "Separação e envio" },
-  { id: 4, title: "Instalação", desc: "Montagem física" },
-  { id: 5, title: "Ativação", desc: "Sistema gerando energia" },
+  { id: 1, title: "Onboarding", desc: "Boas-vindas e configuração" },
+  { id: 2, title: "Projeto Técnico", desc: "Engenharia e plantas" },
+  { id: 3, title: "Homologação", desc: "Trâmites com concessionária" },
+  { id: 4, title: "Logística", desc: "Rastreio de equipamentos" },
+  { id: 5, title: "Execução", desc: "Instalação física" },
+  { id: 6, title: "Ativação", desc: "Ligação oficial da usina" },
+  { id: 7, title: "Treinamento", desc: "Instruções de uso" },
 ];
 
 export default function Dashboard() {
@@ -151,31 +153,90 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* Dynamic Context Card (Changes based on step) */}
-        {project.statusStep === 3 && (
-          <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-primary/20 shadow-[0_8px_30px_rgba(255,72,30,0.1)] flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
-                <Truck className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="text-xl font-display text-foreground mb-1">Seus painéis estão em trânsito!</h3>
-                <p className="text-muted-foreground">Transportadora: <span className="text-foreground font-medium">{project.trackingCarrier || 'Logística Rápida'}</span></p>
-              </div>
+        {/* Dynamic Context Card & Notes (Changes based on step) */}
+        {(() => {
+          const notes = (project as any).notes;
+          const currentEstimatedDate = (project as any).estimatedDate || project.estimatedActivation;
+          
+          return (
+            <div className="space-y-4">
+              {/* Contextual Card by Step */}
+              {project.statusStep === 4 && (
+                <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-primary/20 shadow-[0_8px_30px_rgba(255,72,30,0.1)] flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
+                      <Truck className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-display text-foreground mb-1">Seus equipamentos estão em trânsito!</h3>
+                      <p className="text-muted-foreground">Transportadora: <span className="text-foreground font-medium">{project.trackingCarrier || 'Logística Rápida'}</span></p>
+                    </div>
+                  </div>
+                  {project.trackingCode && (
+                    <div className="bg-background/50 backdrop-blur-sm border border-white/5 rounded-xl p-4 shrink-0 w-full md:w-auto">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Código de Rastreio</p>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="font-mono text-lg font-bold text-primary">{project.trackingCode}</span>
+                        <button className="text-xs font-semibold bg-secondary px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                          Rastrear
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {project.statusStep === 3 && (
+                <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-blue-500/20 shadow-[0_8px_30px_rgba(59,130,246,0.1)] flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0 border border-blue-500/20">
+                      <ShieldCheck className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-display text-foreground mb-1">Aprovação na Enel / Concessionária</h3>
+                      <p className="text-muted-foreground">Estamos cuidando de toda a burocracia técnica para você.</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {project.statusStep === 5 && (
+                <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-emerald-500/20 shadow-[0_8px_30px_rgba(16,185,129,0.1)] flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 border border-emerald-500/20">
+                      <HardHat className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-display text-foreground mb-1">Execução em Andamento</h3>
+                      <p className="text-muted-foreground">A equipe técnica está trabalhando fisicamente no seu projeto.</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* CRM ERP Notes Section */}
+              {(notes || currentEstimatedDate) && (
+                <motion.div variants={itemVariants} className="bg-card rounded-3xl p-6 border border-white/5 flex flex-col sm:flex-row gap-6 items-start">
+                  <div className="w-12 h-12 rounded-full bg-secondary shrink-0 flex items-center justify-center">
+                    <Info className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold mb-2">Observações da Fase Atual</h4>
+                    {notes && <p className="text-muted-foreground mb-3">{notes}</p>}
+                    {currentEstimatedDate && (
+                      <div className="inline-flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-semibold text-primary">
+                          Previsão da fase: {format(parseISO(currentEstimatedDate), "dd MMM, yyyy", { locale: ptBR })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
             </div>
-            {project.trackingCode && (
-              <div className="bg-background/50 backdrop-blur-sm border border-white/5 rounded-xl p-4 shrink-0 w-full md:w-auto">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Código de Rastreio</p>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-mono text-lg font-bold text-primary">{project.trackingCode}</span>
-                  <button className="text-xs font-semibold bg-secondary px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
-                    Rastrear
-                  </button>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
+          );
+        })()}
 
         {/* Quick Info & Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -210,8 +271,8 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Previsão de Ativação</p>
                 <p className="text-lg font-bold leading-tight">
-                  {project.estimatedActivation 
-                    ? format(parseISO(project.estimatedActivation), "MMM 'de' yyyy", { locale: ptBR }) 
+                  {((project as any).estimatedDate || project.estimatedActivation)
+                    ? format(parseISO((project as any).estimatedDate || project.estimatedActivation), "MMM 'de' yyyy", { locale: ptBR }) 
                     : 'Em análise'}
                 </p>
               </div>
@@ -256,7 +317,7 @@ export default function Dashboard() {
         </div>
 
         {/* Mega CTA */}
-        {project.statusStep === 5 && (
+        {project.statusStep >= 7 && (
           <motion.div variants={itemVariants} className="pt-8">
             <button className="w-full relative overflow-hidden rounded-3xl p-1 group hover:-translate-y-1 active:translate-y-0 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-r from-primary via-[#FFD700] to-primary opacity-80 group-hover:opacity-100 transition-opacity bg-[length:200%_auto] animate-[gradient_3s_linear_infinite]" />

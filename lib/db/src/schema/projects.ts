@@ -14,6 +14,8 @@ export const projectsTable = pgTable("projects", {
   state: text("state").notNull(),
   completionPercent: integer("completion_percent").notNull().default(0),
   estimatedActivation: text("estimated_activation"),
+  notes: text("notes"),
+  estimatedDate: text("estimated_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -143,7 +143,7 @@ components:
           description: System power in kWp
         statusStep:
           type: integer
-          description: "Current step: 1=Engenharia, 2=Homologação, 3=Logística, 4=Instalação, 5=Ativação"
+          description: "Current step: 1=Onboarding, 2=Projeto Técnico, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação, 7=Treinamento"
         trackingCode:
           type: string
           nullable: true
@@ -159,6 +159,14 @@ components:
         estimatedActivation:
           type: string
           nullable: true
+        notes:
+          type: string
+          nullable: true
+          description: Per-step personalized observations for the client
+        estimatedDate:
+          type: string
+          nullable: true
+          description: Estimated completion date for the current phase
         createdAt:
           type: string
       required:
