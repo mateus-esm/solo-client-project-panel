@@ -9,7 +9,16 @@ const router: IRouter = Router();
 
 function validateWebhookSecret(req: any, res: any): boolean {
   const secret = process.env.WEBHOOK_SECRET;
-  if (!secret) return true;
+  const isDev = process.env.NODE_ENV !== "production";
+
+  if (!secret) {
+    if (isDev) {
+      return true;
+    }
+    res.status(500).json({ message: "Webhook secret not configured" });
+    return false;
+  }
+
   const provided =
     req.headers["x-webhook-secret"] || req.headers["authorization"]?.replace("Bearer ", "");
   if (provided !== secret) {
