@@ -80,14 +80,21 @@ router.post("/webhooks/jestor/project", async (req, res) => {
     return;
   }
 
-  const newStep = mapJestorStatusToStep(status_projeto);
-  const newPercent = stepCompletionPercent(newStep);
-
   try {
     const [existing] = await db
       .select()
       .from(projectsTable)
       .where(eq(projectsTable.jestorId, jestor_id));
+
+    // Determine the effective phase:
+    // - For creation: use incoming status_projeto (defaults to step 1 if missing)
+    // - For update: only change phase if status_projeto is explicitly provided;
+    //   otherwise preserve the existing phase to avoid false regressions
+    const hasExplicitStatus = status_projeto != null;
+    const newStep = hasExplicitStatus
+      ? mapJestorStatusToStep(status_projeto)
+      : (existing?.statusStep ?? 1);
+    const newPercent = stepCompletionPercent(newStep);
 
     if (!existing) {
       // --- CREATE ---
@@ -151,7 +158,9 @@ router.post("/webhooks/jestor/project", async (req, res) => {
     }
 
     // --- UPDATE ---
-    const phaseChanged = existing.statusStep !== newStep;
+    // Only trigger phase-change notifications when the phase actually changed
+    // AND the incoming payload explicitly included status_projeto
+    const phaseChanged = hasExplicitStatus && existing.statusStep !== newStep;
 
     await db
       .update(projectsTable)
@@ -163,7 +172,7 @@ router.post("/webhooks/jestor/project", async (req, res) => {
         ...(city ? { city } : {}),
         ...(state ? { state } : {}),
         statusStep: newStep,
-        statusProjeto: status_projeto ?? existing.statusProjeto,
+        ...(hasExplicitStatus ? { statusProjeto: status_projeto } : {}),
         completionPercent: newPercent,
         ...(tracking_code !== undefined ? { trackingCode: tracking_code } : {}),
         ...(tracking_carrier !== undefined ? { trackingCarrier: tracking_carrier } : {}),
