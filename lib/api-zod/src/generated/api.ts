@@ -15,24 +15,46 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * @summary List all projects (demo - returns sample data)
+ * @summary List all projects
  */
 export const ListProjectsResponseItem = zod.object({
   id: zod.number(),
   clientName: zod.string(),
   clientEmail: zod.string(),
+  clientPhone: zod.string().nullish(),
   systemPower: zod.number().describe("System power in kWp"),
   statusStep: zod
     .number()
     .describe(
-      "Current step: 1=Engenharia, 2=Homologação, 3=Logística, 4=Instalação, 5=Ativação",
+      "Current step: 1=Onboarding, 2=Engenharia, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação",
     ),
+  statusProjeto: zod
+    .string()
+    .nullish()
+    .describe("Raw Jestor status_projeto string"),
   trackingCode: zod.string().nullish(),
   trackingCarrier: zod.string().nullish(),
   city: zod.string(),
   state: zod.string(),
   completionPercent: zod.number(),
   estimatedActivation: zod.string().nullish(),
+  notes: zod
+    .string()
+    .nullish()
+    .describe("Per-step personalized observations for the client"),
+  estimatedDate: zod
+    .string()
+    .nullish()
+    .describe("Estimated completion date for the current phase"),
+  valorProjeto: zod.number().nullish(),
+  formaDePagamento: zod.string().nullish(),
+  observacoesGerais: zod.string().nullish(),
+  dataInicioPrevista: zod.string().nullish(),
+  dataConclusaoPrevista: zod.string().nullish(),
+  dataDeFechamento: zod.string().nullish(),
+  dataDePagamento: zod.string().nullish(),
+  dataDeCompras: zod.string().nullish(),
+  dataDeEntregaDoEquipamento: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
@@ -48,18 +70,40 @@ export const GetProjectResponse = zod.object({
   id: zod.number(),
   clientName: zod.string(),
   clientEmail: zod.string(),
+  clientPhone: zod.string().nullish(),
   systemPower: zod.number().describe("System power in kWp"),
   statusStep: zod
     .number()
     .describe(
-      "Current step: 1=Engenharia, 2=Homologação, 3=Logística, 4=Instalação, 5=Ativação",
+      "Current step: 1=Onboarding, 2=Engenharia, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação",
     ),
+  statusProjeto: zod
+    .string()
+    .nullish()
+    .describe("Raw Jestor status_projeto string"),
   trackingCode: zod.string().nullish(),
   trackingCarrier: zod.string().nullish(),
   city: zod.string(),
   state: zod.string(),
   completionPercent: zod.number(),
   estimatedActivation: zod.string().nullish(),
+  notes: zod
+    .string()
+    .nullish()
+    .describe("Per-step personalized observations for the client"),
+  estimatedDate: zod
+    .string()
+    .nullish()
+    .describe("Estimated completion date for the current phase"),
+  valorProjeto: zod.number().nullish(),
+  formaDePagamento: zod.string().nullish(),
+  observacoesGerais: zod.string().nullish(),
+  dataInicioPrevista: zod.string().nullish(),
+  dataConclusaoPrevista: zod.string().nullish(),
+  dataDeFechamento: zod.string().nullish(),
+  dataDePagamento: zod.string().nullish(),
+  dataDeCompras: zod.string().nullish(),
+  dataDeEntregaDoEquipamento: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -75,6 +119,12 @@ export const ListDocumentsResponseItem = zod.object({
   projectId: zod.number(),
   name: zod.string(),
   type: zod.enum(["pending_upload", "available_download"]),
+  category: zod
+    .enum(["entrada", "intra_projeto"])
+    .describe(
+      "entrada = docs the client provides; intra_projeto = docs Solo Energia generates",
+    ),
+  required: zod.boolean(),
   description: zod.string().nullish(),
   fileUrl: zod.string().nullish(),
   createdAt: zod.string(),
@@ -99,3 +149,101 @@ export const ListNotificationsResponseItem = zod.object({
 export const ListNotificationsResponse = zod.array(
   ListNotificationsResponseItem,
 );
+
+/**
+ * @summary Mark a notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const MarkNotificationReadResponse = zod.object({
+  id: zod.number(),
+  projectId: zod.number(),
+  title: zod.string(),
+  message: zod.string(),
+  read: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Unified Jestor webhook for project creation and updates
+ */
+export const JestorProjectWebhookBody = zod.object({
+  jestor_id: zod.string(),
+  name: zod.string().optional().describe("Client name from Jestor"),
+  client_email: zod.string().optional(),
+  client_phone: zod.string().nullish(),
+  system_power: zod.number().nullish(),
+  city: zod.string().nullish(),
+  state: zod.string().nullish(),
+  status_projeto: zod.string().nullish(),
+  data_inicio_prevista: zod.string().nullish(),
+  data_conclusao_prevista: zod.string().nullish(),
+  data_de_fechamento: zod.string().nullish(),
+  data_de_pagamento: zod.string().nullish(),
+  data_de_compras: zod.string().nullish(),
+  data_de_entrega_do_equipamento: zod.string().nullish(),
+  valor_projeto: zod.number().nullish(),
+  forma_de_pagamento: zod.string().nullish(),
+  observacoes_gerais: zod.string().nullish(),
+  tracking_code: zod.string().nullish(),
+  tracking_carrier: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+export const JestorProjectWebhookResponse = zod.object({
+  message: zod.string(),
+  project_id: zod.number(),
+  created: zod.boolean(),
+  phase: zod.number().nullish(),
+  phase_name: zod.string().nullish(),
+});
+
+/**
+ * @summary Manually sync a project from the Jestor API
+ */
+export const SyncJestorProjectParams = zod.object({
+  jestorId: zod.coerce.string(),
+});
+
+export const SyncJestorProjectResponse = zod.object({
+  id: zod.number(),
+  clientName: zod.string(),
+  clientEmail: zod.string(),
+  clientPhone: zod.string().nullish(),
+  systemPower: zod.number().describe("System power in kWp"),
+  statusStep: zod
+    .number()
+    .describe(
+      "Current step: 1=Onboarding, 2=Engenharia, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação",
+    ),
+  statusProjeto: zod
+    .string()
+    .nullish()
+    .describe("Raw Jestor status_projeto string"),
+  trackingCode: zod.string().nullish(),
+  trackingCarrier: zod.string().nullish(),
+  city: zod.string(),
+  state: zod.string(),
+  completionPercent: zod.number(),
+  estimatedActivation: zod.string().nullish(),
+  notes: zod
+    .string()
+    .nullish()
+    .describe("Per-step personalized observations for the client"),
+  estimatedDate: zod
+    .string()
+    .nullish()
+    .describe("Estimated completion date for the current phase"),
+  valorProjeto: zod.number().nullish(),
+  formaDePagamento: zod.string().nullish(),
+  observacoesGerais: zod.string().nullish(),
+  dataInicioPrevista: zod.string().nullish(),
+  dataConclusaoPrevista: zod.string().nullish(),
+  dataDeFechamento: zod.string().nullish(),
+  dataDePagamento: zod.string().nullish(),
+  dataDeCompras: zod.string().nullish(),
+  dataDeEntregaDoEquipamento: zod.string().nullish(),
+  createdAt: zod.string(),
+});

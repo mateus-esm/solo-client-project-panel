@@ -5,10 +5,13 @@
  * Solo Energia Client Portal API
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
@@ -17,14 +20,16 @@ import type {
   Document,
   Error,
   HealthStatus,
+  JestorWebhookPayload,
   ListDocumentsParams,
   ListNotificationsParams,
   Notification,
   Project,
+  WebhookResult,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -108,7 +113,7 @@ export function useHealthCheck<
 }
 
 /**
- * @summary List all projects (demo - returns sample data)
+ * @summary List all projects
  */
 export const getListProjectsUrl = () => {
   return `/api/projects`;
@@ -159,7 +164,7 @@ export type ListProjectsQueryResult = NonNullable<
 export type ListProjectsQueryError = ErrorType<unknown>;
 
 /**
- * @summary List all projects (demo - returns sample data)
+ * @summary List all projects
  */
 
 export function useListProjects<
@@ -452,6 +457,265 @@ export function useListNotifications<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListNotificationsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Mark a notification as read
+ */
+export const getMarkNotificationReadUrl = (id: number) => {
+  return `/api/notifications/${id}/read`;
+};
+
+export const markNotificationRead = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Notification> => {
+  return customFetch<Notification>(getMarkNotificationReadUrl(id), {
+    ...options,
+    method: "PATCH",
+  });
+};
+
+export const getMarkNotificationReadMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markNotificationRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markNotificationRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["markNotificationRead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markNotificationRead>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return markNotificationRead(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkNotificationReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markNotificationRead>>
+>;
+
+export type MarkNotificationReadMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark a notification as read
+ */
+export const useMarkNotificationRead = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markNotificationRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof markNotificationRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getMarkNotificationReadMutationOptions(options));
+};
+
+/**
+ * @summary Unified Jestor webhook for project creation and updates
+ */
+export const getJestorProjectWebhookUrl = () => {
+  return `/api/webhooks/jestor/project`;
+};
+
+export const jestorProjectWebhook = async (
+  jestorWebhookPayload: JestorWebhookPayload,
+  options?: RequestInit,
+): Promise<WebhookResult> => {
+  return customFetch<WebhookResult>(getJestorProjectWebhookUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(jestorWebhookPayload),
+  });
+};
+
+export const getJestorProjectWebhookMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof jestorProjectWebhook>>,
+    TError,
+    { data: BodyType<JestorWebhookPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof jestorProjectWebhook>>,
+  TError,
+  { data: BodyType<JestorWebhookPayload> },
+  TContext
+> => {
+  const mutationKey = ["jestorProjectWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof jestorProjectWebhook>>,
+    { data: BodyType<JestorWebhookPayload> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return jestorProjectWebhook(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type JestorProjectWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof jestorProjectWebhook>>
+>;
+export type JestorProjectWebhookMutationBody = BodyType<JestorWebhookPayload>;
+export type JestorProjectWebhookMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Unified Jestor webhook for project creation and updates
+ */
+export const useJestorProjectWebhook = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof jestorProjectWebhook>>,
+    TError,
+    { data: BodyType<JestorWebhookPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof jestorProjectWebhook>>,
+  TError,
+  { data: BodyType<JestorWebhookPayload> },
+  TContext
+> => {
+  return useMutation(getJestorProjectWebhookMutationOptions(options));
+};
+
+/**
+ * @summary Manually sync a project from the Jestor API
+ */
+export const getSyncJestorProjectUrl = (jestorId: string) => {
+  return `/api/jestor/sync/${jestorId}`;
+};
+
+export const syncJestorProject = async (
+  jestorId: string,
+  options?: RequestInit,
+): Promise<Project> => {
+  return customFetch<Project>(getSyncJestorProjectUrl(jestorId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSyncJestorProjectQueryKey = (jestorId: string) => {
+  return [`/api/jestor/sync/${jestorId}`] as const;
+};
+
+export const getSyncJestorProjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof syncJestorProject>>,
+  TError = ErrorType<Error>,
+>(
+  jestorId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof syncJestorProject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getSyncJestorProjectQueryKey(jestorId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof syncJestorProject>>
+  > = ({ signal }) =>
+    syncJestorProject(jestorId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jestorId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof syncJestorProject>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type SyncJestorProjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof syncJestorProject>>
+>;
+export type SyncJestorProjectQueryError = ErrorType<Error>;
+
+/**
+ * @summary Manually sync a project from the Jestor API
+ */
+
+export function useSyncJestorProject<
+  TData = Awaited<ReturnType<typeof syncJestorProject>>,
+  TError = ErrorType<Error>,
+>(
+  jestorId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof syncJestorProject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getSyncJestorProjectQueryOptions(jestorId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

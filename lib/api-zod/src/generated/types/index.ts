@@ -7,10 +7,13 @@
  */
 
 export * from "./document";
+export * from "./documentCategory";
 export * from "./documentType";
 export * from "./error";
 export * from "./healthStatus";
+export * from "./jestorWebhookPayload";
 export * from "./listDocumentsParams";
 export * from "./listNotificationsParams";
 export * from "./notification";
 export * from "./project";
+export * from "./webhookResult";

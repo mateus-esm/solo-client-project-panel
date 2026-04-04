@@ -17,16 +17,32 @@ export interface Project {
   id: number;
   clientName: string;
   clientEmail: string;
+  clientPhone?: string | null;
   /** System power in kWp */
   systemPower: number;
-  /** Current step: 1=Engenharia, 2=Homologação, 3=Logística, 4=Instalação, 5=Ativação */
+  /** Current step: 1=Onboarding, 2=Engenharia, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação */
   statusStep: number;
+  /** Raw Jestor status_projeto string */
+  statusProjeto?: string | null;
   trackingCode?: string | null;
   trackingCarrier?: string | null;
   city: string;
   state: string;
   completionPercent: number;
   estimatedActivation?: string | null;
+  /** Per-step personalized observations for the client */
+  notes?: string | null;
+  /** Estimated completion date for the current phase */
+  estimatedDate?: string | null;
+  valorProjeto?: number | null;
+  formaDePagamento?: string | null;
+  observacoesGerais?: string | null;
+  dataInicioPrevista?: string | null;
+  dataConclusaoPrevista?: string | null;
+  dataDeFechamento?: string | null;
+  dataDePagamento?: string | null;
+  dataDeCompras?: string | null;
+  dataDeEntregaDoEquipamento?: string | null;
   createdAt: string;
 }
 
@@ -37,11 +53,25 @@ export const DocumentType = {
   available_download: "available_download",
 } as const;
 
+/**
+ * entrada = docs the client provides; intra_projeto = docs Solo Energia generates
+ */
+export type DocumentCategory =
+  (typeof DocumentCategory)[keyof typeof DocumentCategory];
+
+export const DocumentCategory = {
+  entrada: "entrada",
+  intra_projeto: "intra_projeto",
+} as const;
+
 export interface Document {
   id: number;
   projectId: number;
   name: string;
   type: DocumentType;
+  /** entrada = docs the client provides; intra_projeto = docs Solo Energia generates */
+  category: DocumentCategory;
+  required: boolean;
   description?: string | null;
   fileUrl?: string | null;
   createdAt: string;
@@ -54,6 +84,38 @@ export interface Notification {
   message: string;
   read: boolean;
   createdAt: string;
+}
+
+export interface JestorWebhookPayload {
+  jestor_id: string;
+  /** Client name from Jestor */
+  name?: string;
+  client_email?: string;
+  client_phone?: string | null;
+  system_power?: number | null;
+  city?: string | null;
+  state?: string | null;
+  status_projeto?: string | null;
+  data_inicio_prevista?: string | null;
+  data_conclusao_prevista?: string | null;
+  data_de_fechamento?: string | null;
+  data_de_pagamento?: string | null;
+  data_de_compras?: string | null;
+  data_de_entrega_do_equipamento?: string | null;
+  valor_projeto?: number | null;
+  forma_de_pagamento?: string | null;
+  observacoes_gerais?: string | null;
+  tracking_code?: string | null;
+  tracking_carrier?: string | null;
+  notes?: string | null;
+}
+
+export interface WebhookResult {
+  message: string;
+  project_id: number;
+  created: boolean;
+  phase?: number | null;
+  phase_name?: string | null;
 }
 
 export type ListDocumentsParams = {

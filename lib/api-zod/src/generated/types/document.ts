@@ -5,6 +5,7 @@
  * Solo Energia Client Portal API
  * OpenAPI spec version: 0.1.0
  */
+import type { DocumentCategory } from "./documentCategory";
 import type { DocumentType } from "./documentType";
 
 export interface Document {
@@ -12,6 +13,9 @@ export interface Document {
   projectId: number;
   name: string;
   type: DocumentType;
+  /** entrada = docs the client provides; intra_projeto = docs Solo Energia generates */
+  category: DocumentCategory;
+  required: boolean;
   description?: string | null;
   fileUrl?: string | null;
   createdAt: string;
