@@ -73,7 +73,7 @@ All routes under `/api`:
 - `PATCH /api/notifications/:id/read` — mark notification as read
 - `GET /api/jestor/sync/:jestorId` — pull latest data from Jestor API and update portal
 - `POST /api/webhooks/jestor/project` — **unified Jestor webhook** (create + update)
-  - Header: `x-webhook-secret: solo_5xk9nzjvj8u2jcv3`
+  - Header: `x-webhook-secret: <WEBHOOK_SECRET env var>`
 
 ## Jestor Webhook Payload
 
@@ -123,7 +123,7 @@ $data = [
 ];
 Jestor::curlCall($url, "POST", json_encode($data), [
   "Content-Type: application/json",
-  "x-webhook-secret: solo_5xk9nzjvj8u2jcv3",
+  "x-webhook-secret: <WEBHOOK_SECRET>",
 ]);
 ?>
 ```
@@ -134,7 +134,7 @@ Jestor::curlCall($url, "POST", json_encode($data), [
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `SESSION_SECRET` | Session secret |
-| `WEBHOOK_SECRET` | `solo_5xk9nzjvj8u2jcv3` — Jestor webhook auth |
+| `WEBHOOK_SECRET` | Secret token sent by Jestor in `x-webhook-secret` header |
 | `JESTOR_API_TOKEN` | Bearer token for Jestor API |
 | `JESTOR_COMPANY_SLUG` | Jestor company slug (subdomain) |
 | `WHATSAPP_API_URL` | Base URL for Evolution API (e.g. `http://72.61.219.156:8081`) |

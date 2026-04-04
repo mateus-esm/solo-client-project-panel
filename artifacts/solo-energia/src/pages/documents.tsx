@@ -1,18 +1,19 @@
 import { useListDocuments } from "@workspace/api-client-react";
+import type { Document, DocumentCategory } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { motion } from "framer-motion";
-import { FileText, Download, Upload, AlertCircle, CheckCircle2, FolderOpen, FolderInput } from "lucide-react";
+import { FileText, Download, Upload, CheckCircle2, FolderOpen, FolderInput } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const ENTRADA_DOCS = [
+const STATIC_ENTRADA_DOCS = [
   { name: "RG / CNH", description: "Documento de identidade do titular" },
   { name: "Conta de Energia", description: "Conta de luz recente (últimos 3 meses)" },
   { name: "IPTU", description: "Comprovante de propriedade do imóvel" },
   { name: "Comprovante de Residência", description: "Conta de água, gás ou correspondência bancária" },
 ];
 
-const INTRA_DOCS = [
+const STATIC_INTRA_DOCS = [
   { name: "FSA — Ficha de Solicitação de Acesso", description: "Formulário enviado à concessionária para homologação" },
   { name: "Formulário de Rateio", description: "Distribuição de créditos entre unidades consumidoras" },
   { name: "ART — Anotação de Responsabilidade Técnica", description: "Documento de responsabilidade do engenheiro" },
@@ -20,173 +21,23 @@ const INTRA_DOCS = [
   { name: "Nota Fiscal dos Equipamentos", description: "NF do inversor e dos painéis fotovoltaicos" },
 ];
 
-export default function Documents() {
-  const { data: documents, isLoading } = useListDocuments();
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 280, damping: 22 } }
+};
 
-  const pendingDocs = documents?.filter(d => d.type === "pending_upload") || [];
-  const availableDocs = documents?.filter(d => d.type === "available_download") || [];
-  const entradaDocs = documents?.filter(d => (d as any).category === "entrada") || [];
-  const intraProjetoDocs = documents?.filter(d => (d as any).category === "intra_projeto") || [];
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+};
 
-  const hasAnyDocuments = (documents?.length ?? 0) > 0;
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.08 } }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 280, damping: 22 } }
-  };
-
-  return (
-    <Layout>
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-display mb-3">Central de Documentos</h1>
-          <p className="text-muted-foreground text-lg">
-            Gerencie as documentações necessárias para o andamento do seu projeto solar.
-          </p>
-        </div>
-
-        {isLoading ? (
-          <div className="space-y-6 animate-pulse">
-            <div className="h-40 bg-card rounded-3xl border border-border"></div>
-            <div className="h-40 bg-card rounded-3xl border border-border"></div>
-          </div>
-        ) : hasAnyDocuments ? (
-          /* --- Categorized view when DB has documents --- */
-          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-12">
-            
-            {/* ENTRADA SECTION */}
-            {entradaDocs.length > 0 && (
-              <section>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                    <FolderInput className="w-5 h-5 text-orange-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-display">Documentos de Entrada</h2>
-                    <p className="text-sm text-muted-foreground">Você precisa nos enviar estes documentos</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {entradaDocs.map(doc => (
-                    <DocCard key={doc.id} doc={doc} variants={itemVariants} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* INTRA PROJETO SECTION */}
-            {intraProjetoDocs.length > 0 && (
-              <section>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <FolderOpen className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-display">Documentos do Projeto</h2>
-                    <p className="text-sm text-muted-foreground">Gerados e disponibilizados pela Solo Energia</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {intraProjetoDocs.map(doc => (
-                    <DocCard key={doc.id} doc={doc} variants={itemVariants} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Fallback to old type-based sections if category not set */}
-            {entradaDocs.length === 0 && intraProjetoDocs.length === 0 && (
-              <>
-                <PendingSection docs={pendingDocs} itemVariants={itemVariants} />
-                <AvailableSection docs={availableDocs} itemVariants={itemVariants} />
-              </>
-            )}
-          </motion.div>
-        ) : (
-          /* --- Static checklist view when no DB docs --- */
-          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-12">
-            
-            {/* ENTRADA - static */}
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                  <FolderInput className="w-5 h-5 text-orange-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-display">Documentos de Entrada</h2>
-                  <p className="text-sm text-muted-foreground">Você precisará nos enviar estes documentos</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {ENTRADA_DOCS.map((doc, i) => (
-                  <motion.div key={i} variants={itemVariants} className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
-                    <div className="flex gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
-                        <FileText className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg leading-tight mb-1">{doc.name}</h3>
-                        <p className="text-sm text-muted-foreground">{doc.description}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-muted-foreground border border-border text-xs font-semibold uppercase tracking-wider">
-                        Aguardando solicitação
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </section>
-
-            {/* INTRA PROJETO - static */}
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <FolderOpen className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-display">Documentos do Projeto</h2>
-                  <p className="text-sm text-muted-foreground">Gerados e disponibilizados pela Solo Energia durante o projeto</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {INTRA_DOCS.map((doc, i) => (
-                  <motion.div key={i} variants={itemVariants} className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
-                    <div className="flex gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
-                        <FileText className="w-6 h-6 text-blue-400/60" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg leading-tight mb-1">{doc.name}</h3>
-                        <p className="text-sm text-muted-foreground">{doc.description}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-muted-foreground border border-border text-xs font-semibold uppercase tracking-wider">
-                        Disponível em breve
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </section>
-          </motion.div>
-        )}
-      </div>
-    </Layout>
-  );
-}
-
-function DocCard({ doc, variants }: { doc: any; variants: any }) {
+function DocCard({ doc }: { doc: Document }) {
   const isPending = doc.type === "pending_upload";
   return (
-    <motion.div variants={variants} className="bg-card hover:bg-secondary/80 transition-colors border border-border rounded-2xl p-6 flex flex-col justify-between group">
+    <motion.div
+      variants={itemVariants}
+      className="bg-card hover:bg-secondary/80 transition-colors border border-border rounded-2xl p-6 flex flex-col justify-between group"
+    >
       <div className="flex gap-4 mb-4">
         <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
           <FileText className={`w-6 h-6 ${isPending ? "text-muted-foreground" : "text-primary"}`} />
@@ -200,7 +51,7 @@ function DocCard({ doc, variants }: { doc: any; variants: any }) {
         {isPending ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 text-xs font-semibold uppercase tracking-wider">
             <Upload className="w-3 h-3" />
-            {(doc as any).required ? "Envio Obrigatório" : "Upload Pendente"}
+            {doc.required ? "Envio Obrigatório" : "Upload Pendente"}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-semibold uppercase tracking-wider">
@@ -220,7 +71,7 @@ function DocCard({ doc, variants }: { doc: any; variants: any }) {
           </button>
         ) : (
           <a
-            href={doc.fileUrl || "#"}
+            href={doc.fileUrl ?? "#"}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-white/10 text-foreground text-sm font-bold rounded-xl transition-colors"
@@ -234,49 +85,128 @@ function DocCard({ doc, variants }: { doc: any; variants: any }) {
   );
 }
 
-function PendingSection({ docs, itemVariants }: { docs: any[]; itemVariants: any }) {
+function StaticDocPlaceholder({ name, description }: { name: string; description: string }) {
+  return (
+    <motion.div
+      variants={itemVariants}
+      className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between"
+    >
+      <div className="flex gap-4 mb-4">
+        <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
+          <FileText className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <div>
+          <h3 className="font-bold text-lg leading-tight mb-1">{name}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <div>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-muted-foreground border border-border text-xs font-semibold uppercase tracking-wider">
+          Aguardando solicitação
+        </span>
+      </div>
+    </motion.div>
+  );
+}
+
+function CategorySection({
+  title,
+  subtitle,
+  icon,
+  docs,
+  emptyMessage,
+  staticDocs,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  docs: Document[];
+  emptyMessage?: string;
+  staticDocs?: { name: string; description: string }[];
+}) {
+  const hasLiveDocs = docs.length > 0;
+
   return (
     <section>
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
-          <AlertCircle className="w-5 h-5 text-yellow-500" />
+        {icon}
+        <div>
+          <h2 className="text-2xl font-display">{title}</h2>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <h2 className="text-2xl font-display">Pendências ({docs.length})</h2>
       </div>
-      {docs.length === 0 ? (
-        <div className="bg-card border border-border border-dashed rounded-3xl p-8 text-center flex flex-col items-center">
-          <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
-          <p className="text-foreground font-medium text-lg">Tudo certo por aqui!</p>
-          <p className="text-muted-foreground">Você não possui documentos pendentes para envio.</p>
+      {hasLiveDocs ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {docs.map(doc => <DocCard key={doc.id} doc={doc} />)}
+        </div>
+      ) : staticDocs ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {staticDocs.map((d, i) => (
+            <StaticDocPlaceholder key={i} name={d.name} description={d.description} />
+          ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {docs.map(doc => <DocCard key={doc.id} doc={doc} variants={itemVariants} />)}
+        <div className="bg-card border border-border border-dashed rounded-3xl p-8 text-center flex flex-col items-center">
+          <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
+          <p className="text-muted-foreground">{emptyMessage ?? "Nenhum documento nesta categoria."}</p>
         </div>
       )}
     </section>
   );
 }
 
-function AvailableSection({ docs, itemVariants }: { docs: any[]; itemVariants: any }) {
+export default function Documents() {
+  const { data: documents, isLoading } = useListDocuments();
+
+  const byCategory = (cat: DocumentCategory) =>
+    (documents ?? []).filter(d => d.category === cat);
+
+  const entradaDocs = byCategory("entrada");
+  const intraProjetoDocs = byCategory("intra_projeto");
+
   return (
-    <section>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-          <Download className="w-5 h-5 text-blue-400" />
+    <Layout>
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-display mb-3">Central de Documentos</h1>
+          <p className="text-muted-foreground text-lg">
+            Gerencie as documentações necessárias para o andamento do seu projeto solar.
+          </p>
         </div>
-        <h2 className="text-2xl font-display">Disponíveis ({docs.length})</h2>
+
+        {isLoading ? (
+          <div className="space-y-6 animate-pulse">
+            <div className="h-40 bg-card rounded-3xl border border-border"></div>
+            <div className="h-40 bg-card rounded-3xl border border-border"></div>
+          </div>
+        ) : (
+          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-12">
+            <CategorySection
+              title="Documentos de Entrada"
+              subtitle="Você precisa nos enviar estes documentos"
+              icon={
+                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                  <FolderInput className="w-5 h-5 text-orange-400" />
+                </div>
+              }
+              docs={entradaDocs}
+              staticDocs={entradaDocs.length === 0 ? STATIC_ENTRADA_DOCS : undefined}
+            />
+
+            <CategorySection
+              title="Documentos do Projeto"
+              subtitle="Gerados e disponibilizados pela Solo Energia"
+              icon={
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <FolderOpen className="w-5 h-5 text-blue-400" />
+                </div>
+              }
+              docs={intraProjetoDocs}
+              staticDocs={intraProjetoDocs.length === 0 ? STATIC_INTRA_DOCS : undefined}
+            />
+          </motion.div>
+        )}
       </div>
-      {docs.length === 0 ? (
-        <div className="bg-card border border-border border-dashed rounded-3xl p-8 text-center flex flex-col items-center">
-          <FileText className="w-12 h-12 text-muted-foreground mb-3 opacity-50" />
-          <p className="text-muted-foreground">Nenhum documento disponível para download ainda.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {docs.map(doc => <DocCard key={doc.id} doc={doc} variants={itemVariants} />)}
-        </div>
-      )}
-    </section>
+    </Layout>
   );
 }

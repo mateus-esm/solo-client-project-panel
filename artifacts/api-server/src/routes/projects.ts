@@ -90,23 +90,46 @@ router.get("/jestor/sync/:jestorId", async (req, res) => {
         .update(projectsTable)
         .set({
           statusStep: newStep,
-          statusProjeto: (jestorData.status_projeto as string) ?? existing.statusProjeto,
+          statusProjeto: (jestorData.status_projeto as string | undefined) ?? existing.statusProjeto,
           completionPercent: newPercent,
-          dataInicioPrevista: (jestorData.data_inicio_prevista as string) ?? existing.dataInicioPrevista,
-          dataConclusaoPrevista: (jestorData.data_conclusao_prevista as string) ?? existing.dataConclusaoPrevista,
-          dataDeFechamento: (jestorData.data_de_fechamento as string) ?? existing.dataDeFechamento,
-          dataDePagamento: (jestorData.data_de_pagamento as string) ?? existing.dataDePagamento,
-          dataDeCompras: (jestorData.data_de_compras as string) ?? existing.dataDeCompras,
-          dataDeEntregaDoEquipamento: (jestorData.data_de_entrega_do_equipamento as string) ?? existing.dataDeEntregaDoEquipamento,
-          valorProjeto: (jestorData.valor_projeto as number) ?? existing.valorProjeto,
-          formaDePagamento: (jestorData.forma_de_pagamento as string) ?? existing.formaDePagamento,
-          observacoesGerais: (jestorData.observacoes_gerais as string) ?? existing.observacoesGerais,
+          dataInicioPrevista: (jestorData.data_inicio_prevista as string | undefined) ?? existing.dataInicioPrevista,
+          dataConclusaoPrevista: (jestorData.data_conclusao_prevista as string | undefined) ?? existing.dataConclusaoPrevista,
+          dataDeFechamento: (jestorData.data_de_fechamento as string | undefined) ?? existing.dataDeFechamento,
+          dataDePagamento: (jestorData.data_de_pagamento as string | undefined) ?? existing.dataDePagamento,
+          dataDeCompras: (jestorData.data_de_compras as string | undefined) ?? existing.dataDeCompras,
+          dataDeEntregaDoEquipamento: (jestorData.data_de_entrega_do_equipamento as string | undefined) ?? existing.dataDeEntregaDoEquipamento,
+          valorProjeto: (jestorData.valor_projeto as number | undefined) ?? existing.valorProjeto,
+          formaDePagamento: (jestorData.forma_de_pagamento as string | undefined) ?? existing.formaDePagamento,
+          observacoesGerais: ((jestorData.observacoes_gerais ?? jestorData.observacoes) as string | undefined) ?? existing.observacoesGerais,
         })
         .where(eq(projectsTable.id, existing.id))
         .returning();
     } else {
-      res.status(404).json({ message: "Project not found in portal. Create it via webhook first." });
-      return;
+      // Upsert: create the project from Jestor data if it doesn't exist in the portal yet
+      [project] = await db
+        .insert(projectsTable)
+        .values({
+          jestorId,
+          clientName: (jestorData.name as string) ?? "Cliente Jestor",
+          clientEmail: (jestorData.client_email as string) ?? "",
+          clientPhone: (jestorData.client_phone as string | undefined) ?? null,
+          systemPower: (jestorData.system_power as number | undefined) ?? 0,
+          statusStep: newStep,
+          statusProjeto: (jestorData.status_projeto as string | undefined) ?? null,
+          completionPercent: newPercent,
+          city: (jestorData.city as string | undefined) ?? "",
+          state: (jestorData.state as string | undefined) ?? "",
+          dataInicioPrevista: (jestorData.data_inicio_prevista as string | undefined) ?? null,
+          dataConclusaoPrevista: (jestorData.data_conclusao_prevista as string | undefined) ?? null,
+          dataDeFechamento: (jestorData.data_de_fechamento as string | undefined) ?? null,
+          dataDePagamento: (jestorData.data_de_pagamento as string | undefined) ?? null,
+          dataDeCompras: (jestorData.data_de_compras as string | undefined) ?? null,
+          dataDeEntregaDoEquipamento: (jestorData.data_de_entrega_do_equipamento as string | undefined) ?? null,
+          valorProjeto: (jestorData.valor_projeto as number | undefined) ?? null,
+          formaDePagamento: (jestorData.forma_de_pagamento as string | undefined) ?? null,
+          observacoesGerais: ((jestorData.observacoes_gerais ?? jestorData.observacoes) as string | undefined) ?? null,
+        })
+        .returning();
     }
 
     req.log.info({ jestorId, project_id: project.id }, "Project synced from Jestor API");

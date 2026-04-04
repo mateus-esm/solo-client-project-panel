@@ -55,7 +55,7 @@ export function Layout({ children }: LayoutProps) {
                   >
                     <item.icon className="w-4 h-4" />
                     {item.label}
-                    {item.badge > 0 && (
+                    {(item.badge ?? 0) > 0 && (
                       <span className="absolute -top-2 -right-3 flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full">
                         {item.badge}
                       </span>
@@ -117,7 +117,7 @@ export function Layout({ children }: LayoutProps) {
                       <item.icon className="w-5 h-5" />
                       {item.label}
                     </div>
-                    {item.badge > 0 && (
+                    {(item.badge ?? 0) > 0 && (
                       <span className="flex items-center justify-center min-w-[1.5rem] h-6 px-2 bg-primary text-primary-foreground text-xs font-bold rounded-full">
                         {item.badge}
                       </span>

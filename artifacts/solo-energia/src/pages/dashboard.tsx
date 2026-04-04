@@ -1,4 +1,5 @@
 import { useListProjects } from "@workspace/api-client-react";
+import type { Project } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { motion } from "framer-motion";
 import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, ClipboardList, Banknote } from "lucide-react";
@@ -24,10 +25,21 @@ function safeFormatDate(dateStr: string | null | undefined, fmt = "dd MMM, yyyy"
   }
 }
 
+function getActivationDate(project: Project): string | null | undefined {
+  return project.estimatedActivation ?? project.dataConclusaoPrevista;
+}
+
+function getPhaseDate(project: Project): string | null | undefined {
+  return project.dataConclusaoPrevista ?? project.estimatedDate ?? project.estimatedActivation;
+}
+
+function getDeliveryDate(project: Project): string | null | undefined {
+  return project.dataDeEntregaDoEquipamento ?? project.dataConclusaoPrevista ?? project.estimatedDate ?? project.estimatedActivation;
+}
+
 export default function Dashboard() {
   const { data: projects, isLoading } = useListProjects();
   const project = projects?.[0];
-  const p = project as any;
 
   if (isLoading) {
     return (
@@ -72,8 +84,10 @@ export default function Dashboard() {
   };
 
   const currentStep = project.statusStep ?? 1;
-  const deliveryDate = p.dataDeEntregaDoEquipamento ?? p.dataConclusaoPrevista ?? p.estimatedDate ?? project.estimatedActivation;
-  const phaseDate = p.dataConclusaoPrevista ?? p.estimatedDate ?? project.estimatedActivation;
+  const phaseDate = getPhaseDate(project);
+  const deliveryDate = getDeliveryDate(project);
+  const activationDate = getActivationDate(project);
+  const observationText = project.notes ?? project.observacoesGerais;
 
   return (
     <Layout>
@@ -226,15 +240,15 @@ export default function Dashboard() {
           )}
 
           {/* Notes / Observations Card */}
-          {(p.notes || p.observacoesGerais || phaseDate) && (
+          {(observationText || phaseDate) && (
             <motion.div variants={itemVariants} className="bg-card rounded-3xl p-6 border border-white/5 flex flex-col sm:flex-row gap-6 items-start">
               <div className="w-12 h-12 rounded-full bg-secondary shrink-0 flex items-center justify-center">
                 <Info className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1">
                 <h4 className="text-lg font-bold mb-2">Observações da Fase Atual</h4>
-                {(p.notes || p.observacoesGerais) && (
-                  <p className="text-muted-foreground mb-3">{p.notes || p.observacoesGerais}</p>
+                {observationText && (
+                  <p className="text-muted-foreground mb-3">{observationText}</p>
                 )}
                 {phaseDate && (
                   <div className="inline-flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20">
@@ -283,7 +297,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Previsão de Ativação</p>
                 <p className="text-lg font-bold leading-tight">
-                  {safeFormatDate(project.estimatedActivation ?? p.dataConclusaoPrevista, "MMM 'de' yyyy") ?? "Em análise"}
+                  {safeFormatDate(activationDate, "MMM 'de' yyyy") ?? "Em análise"}
                 </p>
               </div>
             </div>
@@ -326,9 +340,9 @@ export default function Dashboard() {
         </div>
 
         {/* Financial Info (if available) */}
-        {(p.valorProjeto || p.formaDePagamento || p.dataInicioPrevista) && (
+        {(project.valorProjeto || project.formaDePagamento || project.dataInicioPrevista) && (
           <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {p.valorProjeto && (
+            {project.valorProjeto && (
               <div className="bg-card rounded-2xl p-6 border border-white/5 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                   <Banknote className="w-5 h-5 text-emerald-400" />
@@ -336,30 +350,30 @@ export default function Dashboard() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Valor do Projeto</p>
                   <p className="text-lg font-bold">
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.valorProjeto)}
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(project.valorProjeto)}
                   </p>
                 </div>
               </div>
             )}
-            {p.formaDePagamento && (
+            {project.formaDePagamento && (
               <div className="bg-card rounded-2xl p-6 border border-white/5 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                   <ClipboardList className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Forma de Pagamento</p>
-                  <p className="text-lg font-bold">{p.formaDePagamento}</p>
+                  <p className="text-lg font-bold">{project.formaDePagamento}</p>
                 </div>
               </div>
             )}
-            {p.dataInicioPrevista && (
+            {project.dataInicioPrevista && (
               <div className="bg-card rounded-2xl p-6 border border-white/5 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                   <Calendar className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Início Previsto</p>
-                  <p className="text-lg font-bold">{safeFormatDate(p.dataInicioPrevista)}</p>
+                  <p className="text-lg font-bold">{safeFormatDate(project.dataInicioPrevista)}</p>
                 </div>
               </div>
             )}
