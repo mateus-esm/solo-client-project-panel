@@ -15,6 +15,8 @@ tags:
     description: Document operations
   - name: notifications
     description: Notification operations
+  - name: webhooks
+    description: Jestor webhook endpoints
 paths:
   /healthz:
     get:
@@ -33,7 +35,7 @@ paths:
     get:
       operationId: listProjects
       tags: [projects]
-      summary: List all projects (demo - returns sample data)
+      summary: List all projects
       responses:
         "200":
           description: List of projects
@@ -111,7 +113,84 @@ paths:
                 items:
                   $ref: "#/components/schemas/Notification"
 
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /webhooks/jestor/project:
+    post:
+      operationId: jestorProjectWebhook
+      tags: [webhooks]
+      summary: Unified Jestor webhook for project creation and updates
+      security:
+        - webhookSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JestorWebhookPayload"
+      responses:
+        "200":
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResult"
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResult"
+
+  /jestor/sync/{jestorId}:
+    get:
+      operationId: syncJestorProject
+      tags: [projects]
+      summary: Manually sync a project from the Jestor API
+      parameters:
+        - name: jestorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project synced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found in Jestor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
+  securitySchemes:
+    webhookSecret:
+      type: apiKey
+      in: header
+      name: x-webhook-secret
+
   schemas:
     HealthStatus:
       type: object
@@ -138,12 +217,19 @@ components:
           type: string
         clientEmail:
           type: string
+        clientPhone:
+          type: string
+          nullable: true
         systemPower:
           type: number
           description: System power in kWp
         statusStep:
           type: integer
-          description: "Current step: 1=Onboarding, 2=Projeto Técnico, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação, 7=Treinamento"
+          description: "Current step: 1=Onboarding, 2=Engenharia, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação"
+        statusProjeto:
+          type: string
+          nullable: true
+          description: Raw Jestor status_projeto string
         trackingCode:
           type: string
           nullable: true
@@ -167,6 +253,33 @@ components:
           type: string
           nullable: true
           description: Estimated completion date for the current phase
+        valorProjeto:
+          type: number
+          nullable: true
+        formaDePagamento:
+          type: string
+          nullable: true
+        observacoesGerais:
+          type: string
+          nullable: true
+        dataInicioPrevista:
+          type: string
+          nullable: true
+        dataConclusaoPrevista:
+          type: string
+          nullable: true
+        dataDeFechamento:
+          type: string
+          nullable: true
+        dataDePagamento:
+          type: string
+          nullable: true
+        dataDeCompras:
+          type: string
+          nullable: true
+        dataDeEntregaDoEquipamento:
+          type: string
+          nullable: true
         createdAt:
           type: string
       required:
@@ -192,6 +305,12 @@ components:
         type:
           type: string
           enum: [pending_upload, available_download]
+        category:
+          type: string
+          enum: [entrada, intra_projeto]
+          description: "entrada = docs the client provides; intra_projeto = docs Solo Energia generates"
+        required:
+          type: boolean
         description:
           type: string
           nullable: true
@@ -205,6 +324,8 @@ components:
         - projectId
         - name
         - type
+        - category
+        - required
         - createdAt
 
     Notification:
@@ -229,3 +350,87 @@ components:
         - message
         - read
         - createdAt
+
+    JestorWebhookPayload:
+      type: object
+      properties:
+        jestor_id:
+          type: string
+        name:
+          type: string
+          description: Client name from Jestor
+        client_email:
+          type: string
+        client_phone:
+          type: string
+          nullable: true
+        system_power:
+          type: number
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        status_projeto:
+          type: string
+          nullable: true
+        data_inicio_prevista:
+          type: string
+          nullable: true
+        data_conclusao_prevista:
+          type: string
+          nullable: true
+        data_de_fechamento:
+          type: string
+          nullable: true
+        data_de_pagamento:
+          type: string
+          nullable: true
+        data_de_compras:
+          type: string
+          nullable: true
+        data_de_entrega_do_equipamento:
+          type: string
+          nullable: true
+        valor_projeto:
+          type: number
+          nullable: true
+        forma_de_pagamento:
+          type: string
+          nullable: true
+        observacoes_gerais:
+          type: string
+          nullable: true
+        tracking_code:
+          type: string
+          nullable: true
+        tracking_carrier:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required:
+        - jestor_id
+
+    WebhookResult:
+      type: object
+      properties:
+        message:
+          type: string
+        project_id:
+          type: integer
+        created:
+          type: boolean
+        phase:
+          type: integer
+          nullable: true
+        phase_name:
+          type: string
+          nullable: true
+      required:
+        - message
+        - project_id
+        - created
