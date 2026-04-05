@@ -13,6 +13,30 @@ export interface Error {
   message: string;
 }
 
+export interface MessageResponse {
+  message: string;
+}
+
+export interface RequestOtpBody {
+  email: string;
+}
+
+export interface VerifyOtpBody {
+  email: string;
+  code: string;
+}
+
+export interface VerifyOtpResponse {
+  message: string;
+  projectId: number;
+}
+
+export interface AuthUser {
+  projectId: number;
+  clientName: string;
+  clientEmail: string;
+}
+
 export interface Project {
   id: number;
   clientName: string;

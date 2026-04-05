@@ -15,7 +15,47 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * @summary List all projects
+ * @summary Request a one-time login code via email
+ */
+export const RequestOtpBody = zod.object({
+  email: zod.string(),
+});
+
+export const RequestOtpResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary Verify the OTP code and create a session
+ */
+export const VerifyOtpBody = zod.object({
+  email: zod.string(),
+  code: zod.string(),
+});
+
+export const VerifyOtpResponse = zod.object({
+  message: zod.string(),
+  projectId: zod.number(),
+});
+
+/**
+ * @summary Get the current authenticated user
+ */
+export const GetMeResponse = zod.object({
+  projectId: zod.number(),
+  clientName: zod.string(),
+  clientEmail: zod.string(),
+});
+
+/**
+ * @summary Log out and invalidate session
+ */
+export const LogoutResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary List the authenticated client's projects
  */
 export const ListProjectsResponseItem = zod.object({
   id: zod.number(),
@@ -108,7 +148,7 @@ export const GetProjectResponse = zod.object({
 });
 
 /**
- * @summary List documents for a project
+ * @summary List documents for the authenticated user's project
  */
 export const ListDocumentsQueryParams = zod.object({
   projectId: zod.coerce.number().optional(),

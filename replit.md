@@ -62,15 +62,37 @@ artifacts-monorepo/
 | 5 | Execução | "Execução" / "Instalação" / "Obra" |
 | 6 | Ativação | "Ativação" / "Concluído" |
 
+## Authentication
+
+OTP-based passwordless login (no passwords, no magic links):
+
+1. Client POSTs their e-mail to `POST /api/auth/request-otp` → 6-digit code sent via Resend
+2. Client enters code → `POST /api/auth/verify-otp` → session token issued as httpOnly cookie `solo_session`
+3. Session token stored as SHA-256 hash in `sessions` table (30-day expiry)
+4. OTP codes are single-use, 10-minute expiry, stored in `otp_codes` table
+5. `GET /api/auth/me` — returns `{projectId, clientName, clientEmail}` for current session
+6. `POST /api/auth/logout` — deletes session, clears cookie
+7. All project/document/notification endpoints are protected and scoped to the session's `projectId`
+
+Frontend auth:
+- `useAuth()` hook → checks `/api/auth/me`
+- `useLogout()` hook → calls logout + clears React Query cache
+- `<AuthGuard>` component wraps protected routes; redirects unauthenticated users to `/login`
+- Login page: `/login` — 2-step flow (email → OTP input with 6 digit boxes)
+
 ## API Endpoints
 
 All routes under `/api`:
 - `GET /api/healthz` — health check
-- `GET /api/projects` — list all projects
-- `GET /api/projects/:id` — get single project
-- `GET /api/documents?projectId=` — list documents (with `category` and `required` fields)
-- `GET /api/notifications?projectId=` — list notifications
-- `PATCH /api/notifications/:id/read` — mark notification as read
+- `POST /api/auth/request-otp` — send 6-digit OTP to email
+- `POST /api/auth/verify-otp` — verify OTP, create session cookie
+- `GET /api/auth/me` — get current user (requires session)
+- `POST /api/auth/logout` — invalidate session
+- `GET /api/projects` — list current user's project (requires session)
+- `GET /api/projects/:id` — get single project (requires session, must match)
+- `GET /api/documents` — list documents for session's project (requires session)
+- `GET /api/notifications` — list notifications for session's project (requires session)
+- `PATCH /api/notifications/:id/read` — mark notification as read (requires session)
 - `GET /api/jestor/sync/:jestorId` — pull latest data from Jestor API and update portal
 - `POST /api/webhooks/jestor/project` — **unified Jestor webhook** (create + update)
   - Header: `x-webhook-secret: <WEBHOOK_SECRET env var>`

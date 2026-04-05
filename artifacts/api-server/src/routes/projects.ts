@@ -1,10 +1,33 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { projectsTable, documentsTable, notificationsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { getJestorProject, mapJestorStatusToStep, stepCompletionPercent } from "../lib/jestor";
+import { resolveSession } from "../lib/auth";
 
 const router: IRouter = Router();
+
+declare module "express-serve-static-core" {
+  interface Request {
+    sessionProjectId?: number;
+  }
+}
+
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = req.cookies?.solo_session;
+  if (!token) {
+    res.status(401).json({ message: "Não autenticado" });
+    return;
+  }
+  const session = await resolveSession(token);
+  if (!session) {
+    res.clearCookie("solo_session", { path: "/" });
+    res.status(401).json({ message: "Sessão expirada — faça login novamente" });
+    return;
+  }
+  req.sessionProjectId = session.projectId;
+  next();
+}
 
 function formatProject(p: typeof projectsTable.$inferSelect) {
   return {
@@ -36,19 +59,27 @@ function formatProject(p: typeof projectsTable.$inferSelect) {
   };
 }
 
-router.get("/projects", async (req, res) => {
+router.get("/projects", requireAuth, async (req, res) => {
   try {
-    const projects = await db.select().from(projectsTable).orderBy(projectsTable.id);
-    res.json(projects.map(formatProject));
+    const project = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, req.sessionProjectId!))
+      .limit(1);
+    res.json(project.map(formatProject));
   } catch (err) {
     req.log.error({ err }, "Failed to list projects");
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
-router.get("/projects/:id", async (req, res) => {
+router.get("/projects/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (id !== req.sessionProjectId) {
+      res.status(403).json({ message: "Acesso negado" });
+      return;
+    }
     const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
     if (!project) {
       res.status(404).json({ message: "Project not found" });
@@ -61,10 +92,6 @@ router.get("/projects/:id", async (req, res) => {
   }
 });
 
-/**
- * GET /api/jestor/sync/:jestorId
- * Manually syncs a project from the Jestor API and updates the portal DB.
- */
 router.get("/jestor/sync/:jestorId", async (req, res) => {
   const { jestorId } = req.params;
 
@@ -105,7 +132,6 @@ router.get("/jestor/sync/:jestorId", async (req, res) => {
         .where(eq(projectsTable.id, existing.id))
         .returning();
     } else {
-      // Upsert: create the project from Jestor data if it doesn't exist in the portal yet
       [project] = await db
         .insert(projectsTable)
         .values({
@@ -140,12 +166,12 @@ router.get("/jestor/sync/:jestorId", async (req, res) => {
   }
 });
 
-router.get("/documents", async (req, res) => {
+router.get("/documents", requireAuth, async (req, res) => {
   try {
-    const projectId = req.query.projectId ? parseInt(req.query.projectId as string, 10) : undefined;
-    const docs = projectId
-      ? await db.select().from(documentsTable).where(eq(documentsTable.projectId, projectId))
-      : await db.select().from(documentsTable);
+    const docs = await db
+      .select()
+      .from(documentsTable)
+      .where(eq(documentsTable.projectId, req.sessionProjectId!));
     res.json(
       docs.map((d) => ({
         id: d.id,
@@ -165,16 +191,13 @@ router.get("/documents", async (req, res) => {
   }
 });
 
-router.get("/notifications", async (req, res) => {
+router.get("/notifications", requireAuth, async (req, res) => {
   try {
-    const projectId = req.query.projectId ? parseInt(req.query.projectId as string, 10) : undefined;
-    const notifs = projectId
-      ? await db
-          .select()
-          .from(notificationsTable)
-          .where(eq(notificationsTable.projectId, projectId))
-          .orderBy(notificationsTable.createdAt)
-      : await db.select().from(notificationsTable).orderBy(notificationsTable.createdAt);
+    const notifs = await db
+      .select()
+      .from(notificationsTable)
+      .where(eq(notificationsTable.projectId, req.sessionProjectId!))
+      .orderBy(notificationsTable.createdAt);
     res.json(
       notifs.map((n) => ({
         id: n.id,
@@ -191,18 +214,22 @@ router.get("/notifications", async (req, res) => {
   }
 });
 
-router.patch("/notifications/:id/read", async (req, res) => {
+router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    const [notification] = await db
+      .select()
+      .from(notificationsTable)
+      .where(eq(notificationsTable.id, id));
+    if (!notification || notification.projectId !== req.sessionProjectId) {
+      res.status(404).json({ message: "Notification not found" });
+      return;
+    }
     const [updated] = await db
       .update(notificationsTable)
       .set({ read: true })
       .where(eq(notificationsTable.id, id))
       .returning();
-    if (!updated) {
-      res.status(404).json({ message: "Notification not found" });
-      return;
-    }
     res.json({
       id: updated.id,
       projectId: updated.projectId,

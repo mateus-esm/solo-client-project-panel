@@ -1,10 +1,11 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, LayoutDashboard, FileText, Menu, X, User } from "lucide-react";
+import { Bell, LayoutDashboard, FileText, Menu, X, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import logoSrc from "@assets/003_1774472742998.png";
 import { useListNotifications } from "@workspace/api-client-react";
+import { useAuth, useLogout } from "@/hooks/use-auth";
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,15 +14,27 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
   const { data: notifications } = useListNotifications();
-  const unreadCount = notifications?.filter(n => !n.read).length || 0;
+  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+
+  const { user } = useAuth();
+  const logoutMutation = useLogout();
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/documents", label: "Documentos", icon: FileText },
     { href: "/notifications", label: "Notificações", icon: Bell, badge: unreadCount },
   ];
+
+  function getInitials(name: string) {
+    return name
+      .split(" ")
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase();
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
@@ -46,8 +59,8 @@ export function Layout({ children }: LayoutProps) {
               {navItems.map((item) => {
                 const isActive = location === item.href;
                 return (
-                  <Link 
-                    key={item.href} 
+                  <Link
+                    key={item.href}
                     href={item.href}
                     className={`relative flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary ${
                       isActive ? "text-primary" : "text-muted-foreground"
@@ -61,7 +74,7 @@ export function Layout({ children }: LayoutProps) {
                       </span>
                     )}
                     {isActive && (
-                      <motion.div 
+                      <motion.div
                         layoutId="nav-indicator"
                         className="absolute -bottom-[28px] left-0 right-0 h-[2px] bg-primary"
                         initial={false}
@@ -76,12 +89,28 @@ export function Layout({ children }: LayoutProps) {
             {/* Profile & Mobile Toggle */}
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-border">
-                <div className="w-10 h-10 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground hover-elevate cursor-pointer transition-colors hover:text-primary">
-                  <User className="w-5 h-5" />
-                </div>
+                {user && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                      {getInitials(user.clientName)}
+                    </div>
+                    <div className="hidden lg:block">
+                      <p className="text-xs font-medium text-foreground leading-tight">{user.clientName}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{user.clientEmail}</p>
+                    </div>
+                    <button
+                      onClick={() => logoutMutation.mutate()}
+                      disabled={logoutMutation.isPending}
+                      title="Sair"
+                      className="ml-1 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
-              
-              <button 
+
+              <button
                 className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
@@ -95,7 +124,7 @@ export function Layout({ children }: LayoutProps) {
       {/* Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
@@ -105,8 +134,8 @@ export function Layout({ children }: LayoutProps) {
               {navItems.map((item) => {
                 const isActive = location === item.href;
                 return (
-                  <Link 
-                    key={item.href} 
+                  <Link
+                    key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center justify-between p-4 rounded-xl transition-colors ${
@@ -125,6 +154,16 @@ export function Layout({ children }: LayoutProps) {
                   </Link>
                 );
               })}
+
+              {user && (
+                <button
+                  onClick={() => { setMobileMenuOpen(false); logoutMutation.mutate(); }}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="font-medium">Sair</span>
+                </button>
+              )}
             </div>
           </motion.div>
         )}

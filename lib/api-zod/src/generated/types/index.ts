@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./authUser";
 export * from "./document";
 export * from "./documentCategory";
 export * from "./documentType";
@@ -14,6 +15,10 @@ export * from "./healthStatus";
 export * from "./jestorWebhookPayload";
 export * from "./listDocumentsParams";
 export * from "./listNotificationsParams";
+export * from "./messageResponse";
 export * from "./notification";
 export * from "./project";
+export * from "./requestOtpBody";
+export * from "./verifyOtpBody";
+export * from "./verifyOtpResponse";
 export * from "./webhookResult";
