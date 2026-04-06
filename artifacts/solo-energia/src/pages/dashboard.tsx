@@ -1,5 +1,5 @@
-import { useListProjects } from "@workspace/api-client-react";
-import type { Project } from "@workspace/api-client-react";
+import { useListProjects, useListPayments } from "@workspace/api-client-react";
+import type { Project, Payment } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { motion } from "framer-motion";
 import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, ClipboardList, Banknote } from "lucide-react";
@@ -16,6 +16,7 @@ const STEPS = [
   { id: 4, title: "Logística", desc: "Rastreio de equipamentos" },
   { id: 5, title: "Execução", desc: "Instalação física" },
   { id: 6, title: "Ativação", desc: "Ligação oficial da usina" },
+  { id: 7, title: "Treinamento", desc: "Monitoramento e uso do sistema" },
 ];
 
 const GAUGE_R = 80;
@@ -45,6 +46,7 @@ function getDeliveryDate(project: Project): string | null | undefined {
 export default function Dashboard() {
   const { data: projects, isLoading } = useListProjects();
   const project = projects?.[0];
+  const { data: payments } = useListPayments();
 
   const [gaugePercent, setGaugePercent] = useState(0);
   useEffect(() => {
@@ -358,7 +360,23 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="text-xl font-display text-foreground mb-1">Usina Ativada! ☀️</h3>
-                <p className="text-muted-foreground">Parabéns! Sua usina está gerando energia limpa e renovável.</p>
+                <p className="text-muted-foreground">Parabéns! Sua usina está gerando energia limpa e renovável. Em breve iniciaremos o treinamento.</p>
+              </div>
+            </motion.div>
+          )}
+
+          {currentStep === 7 && (
+            <motion.div
+              variants={itemUp}
+              className="glass-card rounded-r-3xl p-8 border-l-4 flex items-center gap-6"
+              style={{ borderLeftColor: "#4ADE80", borderRadius: "0 1.5rem 1.5rem 0" }}
+            >
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border" style={{ background: "rgba(74,222,128,0.1)", borderColor: "rgba(74,222,128,0.25)" }}>
+                <Activity className="w-8 h-8" style={{ color: "#4ADE80" }} />
+              </div>
+              <div>
+                <h3 className="text-xl font-display text-foreground mb-1">Treinamento Concluído!</h3>
+                <p className="text-muted-foreground">Você já sabe monitorar e aproveitar ao máximo sua usina solar. Bem-vindo à independência energética!</p>
               </div>
             </motion.div>
           )}
@@ -502,8 +520,87 @@ export default function Dashboard() {
           </motion.div>
         )}
 
+        {/* Financial Installments section */}
+        {payments && payments.length > 0 ? (
+          <motion.div variants={itemUp} className="glass-card grain-overlay rounded-3xl p-8 overflow-hidden relative">
+            <span className="ghost-number" style={{ top: "-1rem", right: "0" }}>R$</span>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <Banknote className="w-5 h-5 text-primary" />
+                <h2 className="text-xl font-display">Fluxo Financeiro</h2>
+              </div>
+              <div className="space-y-3">
+                {payments.map((p: Payment) => {
+                  const isPaid = p.status === "paid";
+                  const isOverdue = p.status === "overdue";
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between gap-4 rounded-xl px-5 py-4 border"
+                      style={{
+                        background: isPaid
+                          ? "rgba(74,222,128,0.06)"
+                          : isOverdue
+                          ? "rgba(239,68,68,0.06)"
+                          : "rgba(255,255,255,0.03)",
+                        borderColor: isPaid
+                          ? "rgba(74,222,128,0.2)"
+                          : isOverdue
+                          ? "rgba(239,68,68,0.2)"
+                          : "rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span className="text-sm font-mono text-muted-foreground shrink-0 tabular-nums">
+                          {String(p.installmentNumber).padStart(2, "0")}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">
+                            {p.description ?? `Parcela ${p.installmentNumber}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground font-mono">
+                            Venc: {safeFormatDate(p.dueDate) ?? p.dueDate}
+                            {p.paidDate && ` · Pago: ${safeFormatDate(p.paidDate) ?? p.paidDate}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold tabular-nums text-lg font-mono">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.amount)}
+                        </span>
+                        <span
+                          className="text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg font-mono"
+                          style={
+                            isPaid
+                              ? { background: "rgba(74,222,128,0.15)", color: "#4ADE80" }
+                              : isOverdue
+                              ? { background: "rgba(239,68,68,0.15)", color: "#F87171" }
+                              : { background: "rgba(245,166,35,0.15)", color: "#F5A623" }
+                          }
+                        >
+                          {isPaid ? "Pago ✓" : isOverdue ? "Vencido" : "Pendente"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {payments.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-sm">
+                  <span className="text-muted-foreground font-mono">Total pago</span>
+                  <span className="font-bold tabular-nums text-[#4ADE80] font-mono">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                      payments.filter((p: Payment) => p.status === "paid").reduce((acc: number, p: Payment) => acc + p.amount, 0)
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ) : null}
+
         {/* Activation CTA with Tesla charging rings */}
-        {currentStep >= 6 && (
+        {currentStep >= 7 && (
           <motion.div variants={itemUp} className="pt-8">
             <div className="relative">
               <div className="absolute inset-0 rounded-3xl pulse-ring-animation border-2 border-primary/25" />

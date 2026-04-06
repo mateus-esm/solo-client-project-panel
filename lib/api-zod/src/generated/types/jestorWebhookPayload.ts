@@ -5,6 +5,7 @@
  * Solo Energia Client Portal API
  * OpenAPI spec version: 0.1.0
  */
+import type { JestorWebhookPayloadPaymentsItem } from "./jestorWebhookPayloadPaymentsItem";
 
 export interface JestorWebhookPayload {
   jestor_id: string;
@@ -28,4 +29,6 @@ export interface JestorWebhookPayload {
   tracking_code?: string | null;
   tracking_carrier?: string | null;
   notes?: string | null;
+  /** Optional list of payment installments to upsert */
+  payments?: JestorWebhookPayloadPaymentsItem[] | null;
 }

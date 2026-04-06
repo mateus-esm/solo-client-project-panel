@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { projectsTable, notificationsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { projectsTable, notificationsTable, paymentsTable } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
 import { mapJestorStatusToStep, stepCompletionPercent } from "../lib/jestor";
 import { sendWhatsApp, sendEmail, buildPhaseNotification } from "../lib/notifications";
 
@@ -217,6 +217,20 @@ router.post("/webhooks/jestor/project", async (req, res) => {
       await sendEmail(clientEmail, notification.emailSubject, notification.emailHtml);
     }
 
+    // Handle optional payments array
+    const paymentsPayload = req.body.payments as Array<{
+      installment_number: number;
+      amount: number;
+      due_date: string;
+      paid_date?: string | null;
+      status?: string;
+      description?: string | null;
+    }> | undefined;
+
+    if (paymentsPayload && Array.isArray(paymentsPayload)) {
+      await upsertPayments(existing.id, paymentsPayload);
+    }
+
     req.log.info(
       { project_id: existing.id, jestor_id, step: newStep, phase_changed: phaseChanged },
       "Project updated via Jestor webhook"
@@ -231,6 +245,131 @@ router.post("/webhooks/jestor/project", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to process Jestor webhook");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+type PaymentUpsertItem = {
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  paid_date?: string | null;
+  status?: string;
+  description?: string | null;
+};
+
+async function upsertPayments(projectId: number, items: PaymentUpsertItem[]) {
+  for (const item of items) {
+    const [existing] = await db
+      .select()
+      .from(paymentsTable)
+      .where(
+        and(
+          eq(paymentsTable.projectId, projectId),
+          eq(paymentsTable.installmentNumber, item.installment_number)
+        )
+      );
+
+    if (existing) {
+      await db
+        .update(paymentsTable)
+        .set({
+          amount: item.amount,
+          dueDate: item.due_date,
+          ...(item.paid_date !== undefined ? { paidDate: item.paid_date } : {}),
+          status: item.status ?? existing.status,
+          ...(item.description !== undefined ? { description: item.description } : {}),
+        })
+        .where(eq(paymentsTable.id, existing.id));
+    } else {
+      await db.insert(paymentsTable).values({
+        projectId,
+        installmentNumber: item.installment_number,
+        amount: item.amount,
+        dueDate: item.due_date,
+        paidDate: item.paid_date ?? null,
+        status: item.status ?? "pending",
+        description: item.description ?? null,
+      });
+    }
+  }
+}
+
+function formatPayment(p: typeof paymentsTable.$inferSelect) {
+  return {
+    id: p.id,
+    projectId: p.projectId,
+    installmentNumber: p.installmentNumber,
+    amount: p.amount,
+    dueDate: p.dueDate,
+    paidDate: p.paidDate ?? null,
+    status: p.status,
+    description: p.description ?? null,
+    createdAt: p.createdAt.toISOString(),
+  };
+}
+
+router.post("/payments", async (req, res) => {
+  if (!validateWebhookSecret(req, res)) return;
+
+  const { projectId, installmentNumber, amount, dueDate, paidDate, status, description } = req.body;
+
+  if (!projectId || !installmentNumber || amount === undefined || !dueDate) {
+    res.status(400).json({ message: "projectId, installmentNumber, amount, and dueDate are required" });
+    return;
+  }
+
+  try {
+    const [payment] = await db
+      .insert(paymentsTable)
+      .values({
+        projectId,
+        installmentNumber,
+        amount,
+        dueDate,
+        paidDate: paidDate ?? null,
+        status: status ?? "pending",
+        description: description ?? null,
+      })
+      .returning();
+
+    res.status(201).json(formatPayment(payment));
+  } catch (err) {
+    req.log.error({ err }, "Failed to create payment");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.patch("/payments/:id", async (req, res) => {
+  if (!validateWebhookSecret(req, res)) return;
+
+  const id = parseInt(req.params.id, 10);
+  const { status, paidDate } = req.body;
+
+  if (!status) {
+    res.status(400).json({ message: "status is required" });
+    return;
+  }
+
+  try {
+    const [existing] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, id));
+    if (!existing) {
+      res.status(404).json({ message: "Payment not found" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(paymentsTable)
+      .set({
+        status,
+        ...(paidDate !== undefined ? { paidDate } : {}),
+      })
+      .where(eq(paymentsTable.id, id))
+      .returning();
+
+    res.json(formatPayment(updated));
+  } catch (err) {
+    req.log.error({ err }, "Failed to update payment status");
     res.status(500).json({ message: "Internal server error" });
   }
 });

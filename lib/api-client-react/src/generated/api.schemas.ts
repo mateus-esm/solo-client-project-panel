@@ -116,6 +116,50 @@ export interface Notification {
   createdAt: string;
 }
 
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+
+export const PaymentStatus = {
+  paid: "paid",
+  pending: "pending",
+  overdue: "overdue",
+} as const;
+
+export interface Payment {
+  id: number;
+  projectId: number;
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
+  paidDate?: string | null;
+  status: PaymentStatus;
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface CreatePaymentBody {
+  projectId: number;
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
+  paidDate?: string | null;
+  status?: PaymentStatus;
+  description?: string | null;
+}
+
+export interface UpdatePaymentStatusBody {
+  status: PaymentStatus;
+  paidDate?: string | null;
+}
+
+export type JestorWebhookPayloadPaymentsItem = {
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  paid_date?: string | null;
+  status?: PaymentStatus;
+  description?: string | null;
+};
+
 export interface JestorWebhookPayload {
   jestor_id: string;
   /** Client name from Jestor */
@@ -138,6 +182,8 @@ export interface JestorWebhookPayload {
   tracking_code?: string | null;
   tracking_carrier?: string | null;
   notes?: string | null;
+  /** Optional list of payment installments to upsert */
+  payments?: JestorWebhookPayloadPaymentsItem[] | null;
 }
 
 export interface WebhookResult {

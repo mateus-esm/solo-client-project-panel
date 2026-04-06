@@ -7,18 +7,23 @@
  */
 
 export * from "./authUser";
+export * from "./createPaymentBody";
 export * from "./document";
 export * from "./documentCategory";
 export * from "./documentType";
 export * from "./error";
 export * from "./healthStatus";
 export * from "./jestorWebhookPayload";
+export * from "./jestorWebhookPayloadPaymentsItem";
 export * from "./listDocumentsParams";
 export * from "./listNotificationsParams";
 export * from "./messageResponse";
 export * from "./notification";
+export * from "./payment";
+export * from "./paymentStatus";
 export * from "./project";
 export * from "./requestOtpBody";
+export * from "./updatePaymentStatusBody";
 export * from "./verifyOtpBody";
 export * from "./verifyOtpResponse";
 export * from "./webhookResult";

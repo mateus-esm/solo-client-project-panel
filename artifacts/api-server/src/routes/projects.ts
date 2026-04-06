@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { projectsTable, documentsTable, notificationsTable } from "@workspace/db/schema";
+import { projectsTable, documentsTable, notificationsTable, paymentsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { getJestorProject, mapJestorStatusToStep, stepCompletionPercent } from "../lib/jestor";
 import { resolveSession } from "../lib/auth";
@@ -240,6 +240,34 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to mark notification as read");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+function formatPayment(p: typeof paymentsTable.$inferSelect) {
+  return {
+    id: p.id,
+    projectId: p.projectId,
+    installmentNumber: p.installmentNumber,
+    amount: p.amount,
+    dueDate: p.dueDate,
+    paidDate: p.paidDate ?? null,
+    status: p.status,
+    description: p.description ?? null,
+    createdAt: p.createdAt.toISOString(),
+  };
+}
+
+router.get("/payments", requireAuth, async (req, res) => {
+  try {
+    const payments = await db
+      .select()
+      .from(paymentsTable)
+      .where(eq(paymentsTable.projectId, req.sessionProjectId!))
+      .orderBy(paymentsTable.installmentNumber);
+    res.json(payments.map(formatPayment));
+  } catch (err) {
+    req.log.error({ err }, "Failed to list payments");
     res.status(500).json({ message: "Internal server error" });
   }
 });

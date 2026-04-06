@@ -18,6 +18,7 @@ import type {
 
 import type {
   AuthUser,
+  CreatePaymentBody,
   Document,
   Error,
   HealthStatus,
@@ -26,8 +27,10 @@ import type {
   ListNotificationsParams,
   MessageResponse,
   Notification,
+  Payment,
   Project,
   RequestOtpBody,
+  UpdatePaymentStatusBody,
   VerifyOtpBody,
   VerifyOtpResponse,
   WebhookResult,
@@ -868,6 +871,254 @@ export const useMarkNotificationRead = <
   TContext
 > => {
   return useMutation(getMarkNotificationReadMutationOptions(options));
+};
+
+/**
+ * @summary List payment installments for the authenticated user's project
+ */
+export const getListPaymentsUrl = () => {
+  return `/api/payments`;
+};
+
+export const listPayments = async (
+  options?: RequestInit,
+): Promise<Payment[]> => {
+  return customFetch<Payment[]>(getListPaymentsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListPaymentsQueryKey = () => {
+  return [`/api/payments`] as const;
+};
+
+export const getListPaymentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPayments>>,
+  TError = ErrorType<Error>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPayments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListPaymentsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listPayments>>> = ({
+    signal,
+  }) => listPayments({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPayments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListPaymentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPayments>>
+>;
+export type ListPaymentsQueryError = ErrorType<Error>;
+
+/**
+ * @summary List payment installments for the authenticated user's project
+ */
+
+export function useListPayments<
+  TData = Awaited<ReturnType<typeof listPayments>>,
+  TError = ErrorType<Error>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPayments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListPaymentsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a payment installment (webhook use — requires webhook secret)
+ */
+export const getCreatePaymentUrl = () => {
+  return `/api/payments`;
+};
+
+export const createPayment = async (
+  createPaymentBody: CreatePaymentBody,
+  options?: RequestInit,
+): Promise<Payment> => {
+  return customFetch<Payment>(getCreatePaymentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createPaymentBody),
+  });
+};
+
+export const getCreatePaymentMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPayment>>,
+    TError,
+    { data: BodyType<CreatePaymentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPayment>>,
+  TError,
+  { data: BodyType<CreatePaymentBody> },
+  TContext
+> => {
+  const mutationKey = ["createPayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPayment>>,
+    { data: BodyType<CreatePaymentBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createPayment(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPayment>>
+>;
+export type CreatePaymentMutationBody = BodyType<CreatePaymentBody>;
+export type CreatePaymentMutationError = ErrorType<Error>;
+
+/**
+ * @summary Create a payment installment (webhook use — requires webhook secret)
+ */
+export const useCreatePayment = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPayment>>,
+    TError,
+    { data: BodyType<CreatePaymentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPayment>>,
+  TError,
+  { data: BodyType<CreatePaymentBody> },
+  TContext
+> => {
+  return useMutation(getCreatePaymentMutationOptions(options));
+};
+
+/**
+ * @summary Update payment status (webhook use — requires webhook secret)
+ */
+export const getUpdatePaymentStatusUrl = (id: number) => {
+  return `/api/payments/${id}`;
+};
+
+export const updatePaymentStatus = async (
+  id: number,
+  updatePaymentStatusBody: UpdatePaymentStatusBody,
+  options?: RequestInit,
+): Promise<Payment> => {
+  return customFetch<Payment>(getUpdatePaymentStatusUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updatePaymentStatusBody),
+  });
+};
+
+export const getUpdatePaymentStatusMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePaymentStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdatePaymentStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePaymentStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdatePaymentStatusBody> },
+  TContext
+> => {
+  const mutationKey = ["updatePaymentStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePaymentStatus>>,
+    { id: number; data: BodyType<UpdatePaymentStatusBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updatePaymentStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdatePaymentStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePaymentStatus>>
+>;
+export type UpdatePaymentStatusMutationBody = BodyType<UpdatePaymentStatusBody>;
+export type UpdatePaymentStatusMutationError = ErrorType<Error>;
+
+/**
+ * @summary Update payment status (webhook use — requires webhook secret)
+ */
+export const useUpdatePaymentStatus = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePaymentStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdatePaymentStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updatePaymentStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdatePaymentStatusBody> },
+  TContext
+> => {
+  return useMutation(getUpdatePaymentStatusMutationOptions(options));
 };
 
 /**

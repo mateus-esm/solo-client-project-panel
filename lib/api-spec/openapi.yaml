@@ -730,6 +730,31 @@ components:
         notes:
           type: string
           nullable: true
+        payments:
+          type: array
+          nullable: true
+          description: Optional list of payment installments to upsert
+          items:
+            type: object
+            properties:
+              installment_number:
+                type: integer
+              amount:
+                type: number
+              due_date:
+                type: string
+              paid_date:
+                type: string
+                nullable: true
+              status:
+                $ref: "#/components/schemas/PaymentStatus"
+              description:
+                type: string
+                nullable: true
+            required:
+              - installment_number
+              - amount
+              - due_date
       required:
         - jestor_id
 

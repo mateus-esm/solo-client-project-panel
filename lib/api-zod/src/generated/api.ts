@@ -214,6 +214,59 @@ export const MarkNotificationReadResponse = zod.object({
 });
 
 /**
+ * @summary List payment installments for the authenticated user's project
+ */
+export const ListPaymentsResponseItem = zod.object({
+  id: zod.number(),
+  projectId: zod.number(),
+  installmentNumber: zod.number(),
+  amount: zod.number(),
+  dueDate: zod.string(),
+  paidDate: zod.string().nullish(),
+  status: zod.enum(["paid", "pending", "overdue"]),
+  description: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+export const ListPaymentsResponse = zod.array(ListPaymentsResponseItem);
+
+/**
+ * @summary Create a payment installment (webhook use — requires webhook secret)
+ */
+export const CreatePaymentBody = zod.object({
+  projectId: zod.number(),
+  installmentNumber: zod.number(),
+  amount: zod.number(),
+  dueDate: zod.string(),
+  paidDate: zod.string().nullish(),
+  status: zod.enum(["paid", "pending", "overdue"]).optional(),
+  description: zod.string().nullish(),
+});
+
+/**
+ * @summary Update payment status (webhook use — requires webhook secret)
+ */
+export const UpdatePaymentStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdatePaymentStatusBody = zod.object({
+  status: zod.enum(["paid", "pending", "overdue"]),
+  paidDate: zod.string().nullish(),
+});
+
+export const UpdatePaymentStatusResponse = zod.object({
+  id: zod.number(),
+  projectId: zod.number(),
+  installmentNumber: zod.number(),
+  amount: zod.number(),
+  dueDate: zod.string(),
+  paidDate: zod.string().nullish(),
+  status: zod.enum(["paid", "pending", "overdue"]),
+  description: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
  * @summary Unified Jestor webhook for project creation and updates
  */
 export const JestorProjectWebhookBody = zod.object({
@@ -237,6 +290,19 @@ export const JestorProjectWebhookBody = zod.object({
   tracking_code: zod.string().nullish(),
   tracking_carrier: zod.string().nullish(),
   notes: zod.string().nullish(),
+  payments: zod
+    .array(
+      zod.object({
+        installment_number: zod.number(),
+        amount: zod.number(),
+        due_date: zod.string(),
+        paid_date: zod.string().nullish(),
+        status: zod.enum(["paid", "pending", "overdue"]).optional(),
+        description: zod.string().nullish(),
+      }),
+    )
+    .nullish()
+    .describe("Optional list of payment installments to upsert"),
 });
 
 export const JestorProjectWebhookResponse = zod.object({
