@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { FileText, Download, Upload, CheckCircle2, FolderOpen, FolderInput } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { staggerContainer, itemUp } from "@/lib/animations";
 
 const STATIC_ENTRADA_DOCS = [
   { name: "RG / CNH", description: "Documento de identidade do titular" },
@@ -21,25 +22,15 @@ const STATIC_INTRA_DOCS = [
   { name: "Nota Fiscal dos Equipamentos", description: "NF do inversor e dos painéis fotovoltaicos" },
 ];
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 280, damping: 22 } }
-};
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } }
-};
-
 function DocCard({ doc }: { doc: Document }) {
   const isPending = doc.type === "pending_upload";
   return (
     <motion.div
-      variants={itemVariants}
-      className="bg-card hover:bg-secondary/80 transition-colors border border-border rounded-2xl p-6 flex flex-col justify-between group"
+      variants={itemUp}
+      className="glass-card hover:bg-secondary/30 transition-colors rounded-2xl p-6 flex flex-col justify-between group"
     >
       <div className="flex gap-4 mb-4">
-        <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0 group-hover:border-white/10 transition-colors">
           <FileText className={`w-6 h-6 ${isPending ? "text-muted-foreground" : "text-primary"}`} />
         </div>
         <div>
@@ -49,19 +40,19 @@ function DocCard({ doc }: { doc: Document }) {
       </div>
       <div className="mb-4">
         {isPending ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 text-xs font-semibold uppercase tracking-wider">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-xs font-semibold uppercase tracking-wider font-mono">
             <Upload className="w-3 h-3" />
             {doc.required ? "Envio Obrigatório" : "Upload Pendente"}
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-semibold uppercase tracking-wider">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-semibold uppercase tracking-wider font-mono">
             <Download className="w-3 h-3" />
             Solo Envia
           </span>
         )}
       </div>
-      <div className="pt-4 border-t border-border mt-auto flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
+      <div className="pt-4 border-t border-border/50 mt-auto flex items-center justify-between">
+        <span className="text-xs text-muted-foreground font-mono tabular-nums">
           {format(parseISO(doc.createdAt), "dd MMM, yyyy", { locale: ptBR })}
         </span>
         {isPending ? (
@@ -88,8 +79,8 @@ function DocCard({ doc }: { doc: Document }) {
 function StaticDocPlaceholder({ name, description }: { name: string; description: string }) {
   return (
     <motion.div
-      variants={itemVariants}
-      className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between"
+      variants={itemUp}
+      className="glass-card rounded-2xl p-6 flex flex-col justify-between"
     >
       <div className="flex gap-4 mb-4">
         <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
@@ -101,7 +92,7 @@ function StaticDocPlaceholder({ name, description }: { name: string; description
         </div>
       </div>
       <div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-muted-foreground border border-border text-xs font-semibold uppercase tracking-wider">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-muted-foreground border border-border text-xs font-semibold uppercase tracking-wider font-mono">
           Aguardando solicitação
         </span>
       </div>
@@ -116,6 +107,7 @@ function CategorySection({
   docs,
   emptyMessage,
   staticDocs,
+  sectionNumber,
 }: {
   title: string;
   subtitle: string;
@@ -123,14 +115,17 @@ function CategorySection({
   docs: Document[];
   emptyMessage?: string;
   staticDocs?: { name: string; description: string }[];
+  sectionNumber: string;
 }) {
   const hasLiveDocs = docs.length > 0;
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-6">
+      {/* Red Bull editorial heading with ghost number */}
+      <div className="relative flex items-center gap-3 mb-6 overflow-hidden">
+        <span className="ghost-number" style={{ top: "-1.8rem", right: "0", fontSize: "8rem" }}>{sectionNumber}</span>
         {icon}
-        <div>
+        <div className="relative z-10">
           <h2 className="text-2xl font-display">{title}</h2>
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
@@ -146,8 +141,8 @@ function CategorySection({
           ))}
         </div>
       ) : (
-        <div className="bg-card border border-border border-dashed rounded-3xl p-8 text-center flex flex-col items-center">
-          <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
+        <div className="glass-card border-dashed rounded-3xl p-8 text-center flex flex-col items-center">
+          <CheckCircle2 className="w-12 h-12 mb-3" style={{ color: "#4ADE80" }} />
           <p className="text-muted-foreground">{emptyMessage ?? "Nenhum documento nesta categoria."}</p>
         </div>
       )}
@@ -167,12 +162,22 @@ export default function Documents() {
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
-        <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-display mb-3">Central de Documentos</h1>
-          <p className="text-muted-foreground text-lg">
-            Gerencie as documentações necessárias para o andamento do seu projeto solar.
-          </p>
-        </div>
+        {/* Page header with grain hero */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 420, damping: 32 }}
+          className="glass-card grain-overlay rounded-3xl p-8 mb-10 overflow-hidden relative"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/8 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+          <div className="relative z-10">
+            <p className="text-xs text-muted-foreground uppercase tracking-[0.22em] font-mono mb-3">Central de Documentos</p>
+            <h1 className="text-3xl md:text-4xl font-display mb-3">Seus Documentos</h1>
+            <p className="text-muted-foreground text-base md:text-lg">
+              Gerencie as documentações necessárias para o andamento do seu projeto solar.
+            </p>
+          </div>
+        </motion.div>
 
         {isLoading ? (
           <div className="space-y-6 animate-pulse">
@@ -180,12 +185,13 @@ export default function Documents() {
             <div className="h-40 bg-card rounded-3xl border border-border"></div>
           </div>
         ) : (
-          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-12">
+          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-16">
             <CategorySection
               title="Documentos de Entrada"
               subtitle="Você precisa nos enviar estes documentos"
+              sectionNumber="01"
               icon={
-                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center relative z-10">
                   <FolderInput className="w-5 h-5 text-orange-400" />
                 </div>
               }
@@ -196,8 +202,9 @@ export default function Documents() {
             <CategorySection
               title="Documentos do Projeto"
               subtitle="Gerados e disponibilizados pela Solo Energia"
+              sectionNumber="02"
               icon={
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center relative z-10">
                   <FolderOpen className="w-5 h-5 text-blue-400" />
                 </div>
               }

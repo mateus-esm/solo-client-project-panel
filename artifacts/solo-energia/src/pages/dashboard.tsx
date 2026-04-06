@@ -1,11 +1,13 @@
 import { useListProjects } from "@workspace/api-client-react";
 import type { Project } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
-import { motion, type Variants } from "framer-motion";
+import { motion } from "framer-motion";
 import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, ClipboardList, Banknote } from "lucide-react";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useState, useEffect } from "react";
+import { staggerContainer, itemUp, redBullSpring, momentumEase } from "@/lib/animations";
 
 const STEPS = [
   { id: 1, title: "Onboarding", desc: "Boas-vindas e configuração" },
@@ -15,6 +17,9 @@ const STEPS = [
   { id: 5, title: "Execução", desc: "Instalação física" },
   { id: 6, title: "Ativação", desc: "Ligação oficial da usina" },
 ];
+
+const GAUGE_R = 80;
+const GAUGE_C = 2 * Math.PI * GAUGE_R;
 
 function safeFormatDate(dateStr: string | null | undefined, fmt = "dd MMM, yyyy"): string | null {
   if (!dateStr) return null;
@@ -41,12 +46,19 @@ export default function Dashboard() {
   const { data: projects, isLoading } = useListProjects();
   const project = projects?.[0];
 
+  const [gaugePercent, setGaugePercent] = useState(0);
+  useEffect(() => {
+    if (!project) return;
+    const t = setTimeout(() => setGaugePercent(project.completionPercent ?? 0), 180);
+    return () => clearTimeout(t);
+  }, [project?.completionPercent]);
+
   if (isLoading) {
     return (
       <Layout>
         <div className="w-full space-y-8 animate-pulse">
-          <div className="h-32 bg-card rounded-3xl border border-border"></div>
           <div className="h-48 bg-card rounded-3xl border border-border"></div>
+          <div className="h-64 bg-card rounded-3xl border border-border"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="h-40 bg-card rounded-3xl border border-border"></div>
             <div className="h-40 bg-card rounded-3xl border border-border"></div>
@@ -73,62 +85,153 @@ export default function Dashboard() {
     );
   }
 
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
-
   const currentStep = project.statusStep ?? 1;
+  const activeStep = STEPS[currentStep - 1];
   const phaseDate = getPhaseDate(project);
   const deliveryDate = getDeliveryDate(project);
   const activationDate = getActivationDate(project);
   const observationText = project.notes ?? project.observacoesGerais;
+  const firstName = project.clientName.split(" ")[0];
+  const completionPct = project.completionPercent ?? 0;
+  const gaugeOffset = GAUGE_C * (1 - gaugePercent / 100);
+  const progressWidth = `calc(${(Math.max(1, currentStep) - 1) / (STEPS.length - 1) * 100}% - 3rem)`;
 
   return (
     <Layout>
       <motion.div
-        variants={containerVariants}
+        variants={staggerContainer}
         initial="hidden"
         animate="show"
         className="space-y-8 pb-12"
       >
-        {/* Header Greeting */}
-        <motion.div variants={itemVariants} className="relative overflow-hidden bg-card rounded-3xl p-8 border border-white/5 shadow-2xl shadow-black/50">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-          <div className="relative z-10">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-display text-foreground mb-4">
-              Olá, {project.clientName.split(" ")[0]}! <br className="hidden md:block" />
-              Sua independência solar está{" "}
-              <span className="brand-gradient-text">
-                {project.completionPercent}% pronta.
-              </span>
-            </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl">
-              Acompanhe aqui cada passo da sua jornada rumo à geração da própria energia.
-            </p>
+        {/* ── HERO: Ferrari Instrument Panel ── */}
+        <motion.div
+          variants={itemUp}
+          className="glass-card grain-overlay rounded-3xl overflow-hidden"
+        >
+          <div className="relative p-8 md:p-10">
+            {/* Ambient glow orb */}
+            <div className="absolute top-0 right-0 w-[28rem] h-[28rem] bg-primary/12 rounded-full blur-[120px] -translate-y-1/3 translate-x-1/4 pointer-events-none" />
+            <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-[#F5A623]/8 rounded-full blur-[80px] pointer-events-none" />
+
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 md:gap-12">
+              {/* Left: Greeting & Phase Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground uppercase tracking-[0.22em] font-mono mb-4">
+                  Portal do Cliente · {project.city && `${project.city}, ${project.state}`}
+                </p>
+                <h1 className="text-4xl lg:text-5xl font-display leading-tight mb-4">
+                  Olá, {firstName}!
+                </h1>
+                <p className="text-muted-foreground text-base md:text-lg mb-6 max-w-sm">
+                  Sua independência solar está sendo construída. Cada etapa abaixo é uma conquista.
+                </p>
+
+                {/* Active phase badge */}
+                <div className="inline-flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-4 py-2 mb-6">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+                  <span className="text-sm font-bold text-primary font-mono uppercase tracking-wide">
+                    Fase {currentStep} — {activeStep?.title}
+                  </span>
+                </div>
+
+                {/* Mini progress track */}
+                <div className="h-1 bg-secondary rounded-full overflow-hidden max-w-xs">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: "var(--brand-gradient)" }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completionPct}%` }}
+                    transition={{ duration: 1.6, ease: momentumEase, delay: 0.4 }}
+                  />
+                </div>
+                {activationDate && (
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                    <Calendar className="w-3 h-3" />
+                    Ativação prevista: <span className="text-foreground font-medium ml-0.5">{safeFormatDate(activationDate, "MMM 'de' yyyy")}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Right: Ferrari Gauge */}
+              <div className="shrink-0 flex flex-col items-center">
+                <div className="relative w-44 h-44 md:w-52 md:h-52">
+                  <svg
+                    viewBox="0 0 200 200"
+                    className="w-full h-full gauge-glow"
+                    aria-hidden="true"
+                  >
+                    <defs>
+                      <linearGradient id="gaugeGradFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#F5A623" />
+                        <stop offset="100%" stopColor="#FF481E" />
+                      </linearGradient>
+                    </defs>
+                    {/* Track */}
+                    <circle
+                      cx="100" cy="100" r={GAUGE_R}
+                      fill="none"
+                      stroke="hsl(var(--secondary))"
+                      strokeWidth="6"
+                    />
+                    {/* Progress arc */}
+                    <circle
+                      cx="100" cy="100" r={GAUGE_R}
+                      fill="none"
+                      stroke="url(#gaugeGradFill)"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      strokeDasharray={GAUGE_C}
+                      strokeDashoffset={gaugeOffset}
+                      transform="rotate(-90 100 100)"
+                      style={{ transition: "stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1)" }}
+                    />
+                    {/* Inner ring decoration */}
+                    <circle
+                      cx="100" cy="100" r="68"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.04)"
+                      strokeWidth="1"
+                    />
+                  </svg>
+
+                  {/* Centered number overlay */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-7xl md:text-8xl font-display tabular-nums leading-none brand-gradient-text">
+                      {completionPct}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-mono uppercase tracking-[0.2em] mt-1">
+                      % pronto
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
 
-        {/* Pipeline Stepper */}
-        <motion.div variants={itemVariants} className="bg-card rounded-3xl p-6 md:p-10 border border-white/5 shadow-xl relative overflow-hidden">
-          <h2 className="text-xl font-display mb-10 flex items-center gap-3">
-            <Activity className="w-5 h-5 text-primary" />
-            Jornada do Projeto
-          </h2>
+        {/* ── PIPELINE STEPPER — Ferrari Gauge Nodes ── */}
+        <motion.div
+          variants={itemUp}
+          className="glass-card grain-overlay rounded-3xl p-6 md:p-10 overflow-hidden"
+        >
+          {/* Red Bull ghost number */}
+          <div className="relative flex items-center gap-3 mb-10">
+            <span className="ghost-number" style={{ top: "-1.5rem", right: "0" }}>0{currentStep}</span>
+            <Activity className="w-5 h-5 text-primary relative z-10" />
+            <h2 className="text-xl font-display relative z-10">Jornada do Projeto</h2>
+          </div>
 
           <div className="relative">
+            {/* Track line */}
             <div className="absolute top-6 left-6 right-6 h-[2px] bg-secondary hidden md:block" />
-            <div
-              className="absolute top-6 left-6 h-[2px] hidden md:block transition-all duration-1000 ease-out"
-              style={{
-                width: `calc(${(Math.max(1, currentStep) - 1) / (STEPS.length - 1) * 100}% - 3rem)`,
-                background: "var(--brand-gradient)",
-              }}
+            {/* Animated fill line */}
+            <motion.div
+              className="absolute top-6 left-6 h-[2px] hidden md:block rounded-full"
+              style={{ background: "var(--brand-gradient)" }}
+              initial={{ width: 0 }}
+              animate={{ width: progressWidth }}
+              transition={{ duration: 1.6, ease: momentumEase, delay: 0.5 }}
             />
 
             <div className="flex flex-col md:flex-row justify-between gap-8 md:gap-0 relative z-10">
@@ -137,25 +240,45 @@ export default function Dashboard() {
                 const isActive = currentStep === step.id;
 
                 return (
-                  <div key={step.id} className="flex md:flex-col items-center gap-4 md:gap-4 flex-1">
+                  <div key={step.id} className="flex md:flex-col items-center gap-4 flex-1">
                     <div className="relative">
+                      {/* Active pulse ring */}
                       {isActive && (
-                        <div className="absolute -inset-2 bg-primary/20 rounded-full animate-ping" />
+                        <>
+                          <div className="absolute -inset-3 rounded-xl bg-primary/15 animate-ping" />
+                          <div className="absolute -inset-1.5 rounded-xl border border-primary/30" />
+                        </>
                       )}
+
+                      {/* Node */}
                       <div
                         className={`
-                          w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg relative z-10 transition-all duration-500
-                          ${isCompleted ? "text-white border-2 border-transparent" :
-                            isActive ? "text-white border-2 border-transparent shadow-[0_0_24px_rgba(255,72,30,0.45)]" :
-                            "bg-secondary text-muted-foreground border-2 border-border"}
+                          relative z-10 flex items-center justify-center transition-all duration-500
+                          ${isActive ? "w-14 h-14 rounded-xl shadow-[0_0_28px_rgba(255,72,30,0.45)]" :
+                            isCompleted ? "w-11 h-11 rounded-xl shadow-[0_0_16px_rgba(74,222,128,0.25)]" :
+                            "w-11 h-11 rounded-xl bg-background border-2 border-border"}
                         `}
-                        style={isActive || isCompleted ? { background: "var(--brand-gradient-135)" } : undefined}
+                        style={
+                          isActive
+                            ? { background: "var(--brand-gradient-135)" }
+                            : isCompleted
+                            ? { background: "rgba(74,222,128,0.12)", border: "2px solid rgba(74,222,128,0.55)" }
+                            : undefined
+                        }
                       >
-                        {isCompleted ? <Check className="w-6 h-6" strokeWidth={3} /> : step.id}
+                        {isCompleted ? (
+                          <Check className="w-5 h-5" style={{ color: "#4ADE80" }} strokeWidth={3} />
+                        ) : (
+                          <span className={`font-display font-black italic ${isActive ? "text-white text-2xl" : "text-muted-foreground text-lg"}`}>
+                            {step.id}
+                          </span>
+                        )}
                       </div>
+
+                      {/* Mobile vertical connector */}
                       {idx !== STEPS.length - 1 && (
                         <div
-                          className="absolute top-12 bottom-[-2rem] left-1/2 -translate-x-1/2 w-[2px] md:hidden"
+                          className="absolute top-full bottom-[-2rem] left-1/2 -translate-x-1/2 w-[2px] md:hidden mt-1"
                           style={isCompleted
                             ? { background: "var(--brand-gradient-135)" }
                             : { background: "hsl(var(--secondary))" }
@@ -165,10 +288,10 @@ export default function Dashboard() {
                     </div>
 
                     <div className="md:text-center">
-                      <h3 className={`font-bold text-base md:text-sm lg:text-base ${isActive || isCompleted ? "text-foreground" : "text-muted-foreground"}`}>
+                      <h3 className={`font-bold text-base md:text-sm lg:text-base transition-colors ${isActive ? "text-foreground" : isCompleted ? "text-foreground/80" : "text-muted-foreground"}`}>
                         {step.title}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-1 hidden lg:block max-w-[120px] mx-auto">
+                      <p className="text-xs text-muted-foreground mt-0.5 hidden lg:block max-w-[110px] mx-auto leading-snug">
                         {step.desc}
                       </p>
                     </div>
@@ -179,10 +302,13 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* Contextual Phase Cards */}
+        {/* ── PHASE CONTEXTUAL CARDS — Ferrari Left-Border Accent ── */}
         <div className="space-y-4">
           {currentStep === 4 && (
-            <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-primary/20 shadow-[0_8px_30px_rgba(255,72,30,0.1)] flex flex-col md:flex-row items-center justify-between gap-6">
+            <motion.div
+              variants={itemUp}
+              className="ferrari-stripe glass-card rounded-r-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6"
+            >
               <div className="flex items-center gap-6">
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
                   <Truck className="w-8 h-8" />
@@ -201,9 +327,9 @@ export default function Dashboard() {
               </div>
               {project.trackingCode && (
                 <div className="bg-background/50 backdrop-blur-sm border border-white/5 rounded-xl p-4 shrink-0 w-full md:w-auto">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Código de Rastreio</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-mono">Código de Rastreio</p>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="font-mono text-lg font-bold text-primary">{project.trackingCode}</span>
+                    <span className="font-mono text-lg font-bold text-primary tabular-nums">{project.trackingCode}</span>
                     <button className="text-xs font-semibold bg-secondary px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
                       Rastrear
                     </button>
@@ -214,7 +340,11 @@ export default function Dashboard() {
           )}
 
           {currentStep === 3 && (
-            <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-blue-500/20 shadow-[0_8px_30px_rgba(59,130,246,0.1)] flex items-center gap-6">
+            <motion.div
+              variants={itemUp}
+              className="glass-card rounded-3xl p-8 border-l-4 border-l-blue-500/70 border border-blue-500/15 flex items-center gap-6"
+              style={{ borderRadius: "0 1.5rem 1.5rem 0" }}
+            >
               <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0 border border-blue-500/20">
                 <ShieldCheck className="w-8 h-8" />
               </div>
@@ -226,7 +356,11 @@ export default function Dashboard() {
           )}
 
           {currentStep === 5 && (
-            <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-emerald-500/20 shadow-[0_8px_30px_rgba(16,185,129,0.1)] flex items-center gap-6">
+            <motion.div
+              variants={itemUp}
+              className="glass-card rounded-r-3xl p-8 border-l-4 flex items-center gap-6"
+              style={{ borderLeftColor: "#4ADE80", borderRadius: "0 1.5rem 1.5rem 0" }}
+            >
               <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 border border-emerald-500/20">
                 <HardHat className="w-8 h-8" />
               </div>
@@ -238,7 +372,11 @@ export default function Dashboard() {
           )}
 
           {currentStep === 6 && (
-            <motion.div variants={itemVariants} className="bg-gradient-to-br from-secondary to-background rounded-3xl p-8 border border-yellow-500/20 shadow-[0_8px_30px_rgba(255,200,0,0.1)] flex items-center gap-6">
+            <motion.div
+              variants={itemUp}
+              className="glass-card rounded-r-3xl p-8 border-l-4 border-l-yellow-500/80 flex items-center gap-6"
+              style={{ borderRadius: "0 1.5rem 1.5rem 0" }}
+            >
               <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 flex items-center justify-center text-yellow-400 shrink-0 border border-yellow-500/20">
                 <Zap className="w-8 h-8" />
               </div>
@@ -251,7 +389,7 @@ export default function Dashboard() {
 
           {/* Notes / Observations Card */}
           {(observationText || phaseDate) && (
-            <motion.div variants={itemVariants} className="bg-card rounded-3xl p-6 border border-white/5 flex flex-col sm:flex-row gap-6 items-start">
+            <motion.div variants={itemUp} className="glass-card rounded-3xl p-6 flex flex-col sm:flex-row gap-6 items-start">
               <div className="w-12 h-12 rounded-full bg-secondary shrink-0 flex items-center justify-center">
                 <Info className="w-6 h-6 text-primary" />
               </div>
@@ -273,40 +411,43 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Quick Info Grid */}
+        {/* ── QUICK INFO GRID — Tesla Metric Cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <motion.div variants={itemVariants} className="md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="bg-card rounded-3xl p-6 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-colors">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mb-4">
+          <motion.div variants={itemUp} className="md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {/* System power card */}
+            <div className="glass-card rounded-3xl p-6 flex flex-col justify-between hover:border-white/10 transition-colors group">
+              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4 group-hover:bg-yellow-500/10 transition-colors">
                 <Zap className="w-5 h-5 text-yellow-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Potência do Sistema</p>
-                <p className="text-2xl font-display">
-                  {(project.systemPower ?? 0).toFixed(2)}{" "}
-                  <span className="text-lg text-muted-foreground font-sans">kWp</span>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-2">Potência do Sistema</p>
+                <p className="text-3xl font-display tabular-nums leading-none">
+                  {(project.systemPower ?? 0).toFixed(2)}
                 </p>
+                <p className="text-sm text-muted-foreground mt-1">kWp instalados</p>
               </div>
             </div>
 
-            <div className="bg-card rounded-3xl p-6 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-colors">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mb-4">
+            {/* Location card */}
+            <div className="glass-card rounded-3xl p-6 flex flex-col justify-between hover:border-white/10 transition-colors group">
+              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4 group-hover:bg-blue-500/10 transition-colors">
                 <MapPin className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Local de Instalação</p>
-                <p className="text-lg font-bold leading-tight">{project.city || "—"}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-2">Local de Instalação</p>
+                <p className="text-xl font-bold leading-tight">{project.city || "—"}</p>
                 <p className="text-sm text-muted-foreground">{project.state || ""}</p>
               </div>
             </div>
 
-            <div className="bg-card rounded-3xl p-6 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-colors">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mb-4">
-                <Calendar className="w-5 h-5 text-emerald-400" />
+            {/* Activation date card */}
+            <div className="glass-card rounded-3xl p-6 flex flex-col justify-between hover:border-white/10 transition-colors group">
+              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4 group-hover:bg-emerald-500/10 transition-colors">
+                <Calendar className="w-5 h-5" style={{ color: "#4ADE80" }} />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Previsão de Ativação</p>
-                <p className="text-lg font-bold leading-tight">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-2">Previsão de Ativação</p>
+                <p className="text-xl font-bold leading-tight">
                   {safeFormatDate(activationDate, "MMM 'de' yyyy") ?? "Em análise"}
                 </p>
               </div>
@@ -314,10 +455,10 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Actions */}
-          <motion.div variants={itemVariants} className="md:col-span-4 flex flex-col gap-4">
+          <motion.div variants={itemUp} className="md:col-span-4 flex flex-col gap-4">
             <a
               href="#"
-              className="flex-1 bg-card hover:bg-secondary rounded-2xl p-6 border border-white/5 flex items-center justify-between group transition-all duration-300"
+              className="flex-1 glass-card hover:bg-secondary/50 rounded-2xl p-6 flex items-center justify-between group transition-all duration-300"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-[#25D366]/10 text-[#25D366] flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -333,7 +474,7 @@ export default function Dashboard() {
 
             <Link
               href="/documents"
-              className="flex-1 bg-card hover:bg-secondary rounded-2xl p-6 border border-white/5 flex items-center justify-between group transition-all duration-300"
+              className="flex-1 glass-card hover:bg-secondary/50 rounded-2xl p-6 flex items-center justify-between group transition-all duration-300"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -349,40 +490,40 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
-        {/* Financial Info (if available) */}
+        {/* ── FINANCIAL INFO — Glass Cards + Tabular Nums ── */}
         {(project.valorProjeto || project.formaDePagamento || project.dataInicioPrevista) && (
-          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <motion.div variants={itemUp} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {project.valorProjeto && (
-              <div className="bg-card rounded-2xl p-6 border border-white/5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                  <Banknote className="w-5 h-5 text-emerald-400" />
+              <div className="glass-card rounded-2xl p-6 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
+                  <Banknote className="w-5 h-5" style={{ color: "#4ADE80" }} />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Valor do Projeto</p>
-                  <p className="text-lg font-bold">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-1">Valor do Projeto</p>
+                  <p className="text-xl font-bold tabular-nums">
                     {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(project.valorProjeto)}
                   </p>
                 </div>
               </div>
             )}
             {project.formaDePagamento && (
-              <div className="bg-card rounded-2xl p-6 border border-white/5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+              <div className="glass-card rounded-2xl p-6 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
                   <ClipboardList className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Forma de Pagamento</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-1">Forma de Pagamento</p>
                   <p className="text-lg font-bold">{project.formaDePagamento}</p>
                 </div>
               </div>
             )}
             {project.dataInicioPrevista && (
-              <div className="bg-card rounded-2xl p-6 border border-white/5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+              <div className="glass-card rounded-2xl p-6 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
                   <Calendar className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Início Previsto</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-1">Início Previsto</p>
                   <p className="text-lg font-bold">{safeFormatDate(project.dataInicioPrevista)}</p>
                 </div>
               </div>
@@ -390,18 +531,29 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Activation CTA */}
+        {/* ── ACTIVATION CTA — Tesla Charging Ring ── */}
         {currentStep >= 6 && (
-          <motion.div variants={itemVariants} className="pt-8">
-            <button className="w-full relative overflow-hidden rounded-3xl p-1 group hover:-translate-y-1 active:translate-y-0 transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary via-[#FFD700] to-primary opacity-80 group-hover:opacity-100 transition-opacity bg-[length:200%_auto] animate-[gradient_3s_linear_infinite]" />
-              <div className="relative bg-background/90 backdrop-blur-md rounded-[1.35rem] py-8 px-6 flex items-center justify-center gap-4 group-hover:bg-background/80 transition-colors">
-                <Zap className="w-8 h-8 text-primary" fill="currentColor" />
-                <span className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#FFD700]">
-                  Ativar Monitoramento Solo
-                </span>
-              </div>
-            </button>
+          <motion.div variants={itemUp} className="pt-8">
+            <div className="relative">
+              {/* Pulsing rings (Tesla charging aesthetic) */}
+              <div className="absolute inset-0 rounded-3xl pulse-ring-animation border-2 border-primary/25" />
+              <div className="absolute inset-0 rounded-3xl pulse-ring-animation-delay border-2 border-primary/15" />
+
+              <button className="relative w-full overflow-hidden rounded-3xl p-[2px] group hover:-translate-y-1 active:translate-y-0 transition-transform duration-300">
+                <div
+                  className="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity"
+                  style={{ background: "var(--brand-gradient)" }}
+                />
+                <div className="relative bg-background/88 backdrop-blur-md rounded-[calc(1.5rem-2px)] py-8 px-6 flex items-center justify-center gap-4 group-hover:bg-background/80 transition-colors">
+                  <Zap className="w-8 h-8 text-primary" fill="currentColor" />
+                  <span
+                    className="text-2xl font-display font-bold brand-gradient-text"
+                  >
+                    Ativar Monitoramento Solo
+                  </span>
+                </div>
+              </button>
+            </div>
           </motion.div>
         )}
       </motion.div>

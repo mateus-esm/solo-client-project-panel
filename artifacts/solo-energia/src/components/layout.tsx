@@ -38,17 +38,17 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Top Navbar — grain texture + glass */}
+      <header className="grain-overlay sticky top-0 z-50 w-full border-b border-border/40 bg-background/85 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="flex justify-between items-center h-20">
-            {/* Logo */}
+            {/* Logo with micro hover animation */}
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center group">
                 <img
                   src={logoLight}
                   alt="Solo Energia — Você no controle da sua energia"
-                  className="h-8 w-auto object-contain opacity-95 group-hover:opacity-100 transition-opacity"
+                  className="h-8 w-auto object-contain opacity-90 transition-all duration-300 group-hover:opacity-100 group-hover:scale-[1.04] group-hover:brightness-110"
                 />
               </Link>
             </div>
@@ -61,7 +61,7 @@ export function Layout({ children }: LayoutProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`relative flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary ${
+                    className={`relative flex items-center gap-2 text-sm font-medium transition-colors duration-200 hover:text-primary ${
                       isActive ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
@@ -72,13 +72,14 @@ export function Layout({ children }: LayoutProps) {
                         {item.badge}
                       </span>
                     )}
+                    {/* Sliding orange race-line indicator */}
                     {isActive && (
                       <motion.div
                         layoutId="nav-indicator"
-                        className="absolute -bottom-[28px] left-0 right-0 h-[2px]"
+                        className="absolute -bottom-[28px] left-0 right-0 h-[2px] rounded-full"
                         style={{ background: "var(--brand-gradient)" }}
                         initial={false}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        transition={{ type: "spring", stiffness: 520, damping: 32 }}
                       />
                     )}
                   </Link>
@@ -131,6 +132,7 @@ export function Layout({ children }: LayoutProps) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ type: "spring", stiffness: 420, damping: 32 }}
             className="md:hidden border-b border-border bg-card/95 backdrop-blur-xl overflow-hidden"
           >
             <div className="px-4 py-4 space-y-2">
@@ -192,10 +194,10 @@ export function Layout({ children }: LayoutProps) {
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           key={location}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ type: "spring", stiffness: 420, damping: 32 }}
         >
           {children}
         </motion.div>

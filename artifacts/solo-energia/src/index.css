@@ -43,6 +43,8 @@
   --color-brand-crimson: #9E2A19;
   --color-brand-neutral: #E3E2DD;
   --color-brand-yellow: #F5A623;
+  --color-energy-green: #4ADE80;
+  --color-energy-green-glow: rgba(74, 222, 128, 0.3);
 
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
@@ -158,6 +160,11 @@
   --brand-gradient: linear-gradient(90deg, #FF481E 0%, #F5A623 100%);
   --brand-gradient-135: linear-gradient(135deg, #FF481E 0%, #F5A623 100%);
 
+  /* Glow shadows */
+  --glow-primary: 0 0 30px rgba(255, 72, 30, 0.25);
+  --glow-primary-sm: 0 0 14px rgba(255, 72, 30, 0.35);
+  --glow-energy: 0 0 24px rgba(74, 222, 128, 0.3);
+
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
@@ -187,6 +194,16 @@
   }
 }
 
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+@keyframes gauge-glow {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 72, 30, 0.5)); }
+  50% { filter: drop-shadow(0 0 14px rgba(245, 166, 35, 0.7)); }
+}
+
 @layer utilities {
   .brand-gradient {
     background: var(--brand-gradient);
@@ -202,6 +219,68 @@
 
   .brand-gradient-135 {
     background: var(--brand-gradient-135);
+  }
+
+  /* Tesla glassmorphism card */
+  .glass-card {
+    background-color: hsl(var(--card));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 8px 40px rgba(0, 0, 0, 0.35),
+      0 0 40px rgba(255, 72, 30, 0.04);
+  }
+
+  /* Replit-style dark noise/grain overlay */
+  .grain-overlay {
+    position: relative;
+  }
+  .grain-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    background-size: 300px;
+    opacity: 0.045;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    z-index: 1;
+  }
+
+  /* Red Bull editorial — large ghost step/section number behind content */
+  .ghost-number {
+    position: absolute;
+    font-family: var(--font-display);
+    font-size: 9rem;
+    font-weight: 900;
+    line-height: 1;
+    color: white;
+    opacity: 0.025;
+    user-select: none;
+    pointer-events: none;
+    letter-spacing: -0.05em;
+  }
+
+  /* Ferrari-style left accent stripe for phase cards */
+  .ferrari-stripe {
+    border-left: 4px solid hsl(var(--primary));
+    border-radius: 0 1rem 1rem 0;
+  }
+
+  /* Tesla-style pulsing ring for CTA */
+  .pulse-ring-animation {
+    animation: pulse-ring 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .pulse-ring-animation-delay {
+    animation: pulse-ring 2.2s cubic-bezier(0.4, 0, 0.6, 1) 0.75s infinite;
+  }
+
+  /* Gauge SVG glow animation */
+  .gauge-glow {
+    animation: gauge-glow 3s ease-in-out infinite;
   }
 
   input[type="search"]::-webkit-search-cancel-button {
