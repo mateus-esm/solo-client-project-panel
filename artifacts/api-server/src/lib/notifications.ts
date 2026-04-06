@@ -60,7 +60,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Solo Energia <noreply@soloenergia.com.br>",
+        from: process.env.RESEND_FROM_EMAIL ?? "Solo Energia <onboarding@resend.dev>",
         to: [to],
         subject,
         html,

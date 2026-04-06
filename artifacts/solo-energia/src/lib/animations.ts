@@ -2,7 +2,7 @@ import type { Variants } from "framer-motion";
 
 export const redBullSpring = {
   type: "spring" as const,
-  stiffness: 420,
+  stiffness: 400,
   damping: 28,
 };
 

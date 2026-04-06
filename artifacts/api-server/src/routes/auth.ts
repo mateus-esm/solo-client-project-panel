@@ -31,7 +31,7 @@ async function sendOtpEmail(email: string, code: string): Promise<void> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Solo Energia <noreply@soloenergia.com.br>",
+        from: process.env.RESEND_FROM_EMAIL ?? "Solo Energia <onboarding@resend.dev>",
         to: [email],
         subject: "Seu código de acesso ao Portal Solo Energia",
         html: `

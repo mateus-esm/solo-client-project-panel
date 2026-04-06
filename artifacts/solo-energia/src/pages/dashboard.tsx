@@ -7,7 +7,7 @@ import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useEffect } from "react";
-import { staggerContainer, itemUp, redBullSpring, momentumEase } from "@/lib/animations";
+import { staggerContainer, itemUp, momentumEase } from "@/lib/animations";
 
 const STEPS = [
   { id: 1, title: "Onboarding", desc: "Boas-vindas e configuração" },
@@ -104,18 +104,16 @@ export default function Dashboard() {
         animate="show"
         className="space-y-8 pb-12"
       >
-        {/* ── HERO: Ferrari Instrument Panel ── */}
+        {/* Hero card with SVG gauge */}
         <motion.div
           variants={itemUp}
           className="glass-card grain-overlay rounded-3xl overflow-hidden"
         >
           <div className="relative p-8 md:p-10">
-            {/* Ambient glow orb */}
             <div className="absolute top-0 right-0 w-[28rem] h-[28rem] bg-primary/12 rounded-full blur-[120px] -translate-y-1/3 translate-x-1/4 pointer-events-none" />
             <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-[#F5A623]/8 rounded-full blur-[80px] pointer-events-none" />
 
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 md:gap-12">
-              {/* Left: Greeting & Phase Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground uppercase tracking-[0.22em] font-mono mb-4">
                   Portal do Cliente · {project.city && `${project.city}, ${project.state}`}
@@ -127,7 +125,6 @@ export default function Dashboard() {
                   Sua independência solar está sendo construída. Cada etapa abaixo é uma conquista.
                 </p>
 
-                {/* Active phase badge */}
                 <div className="inline-flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-4 py-2 mb-6">
                   <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
                   <span className="text-sm font-bold text-primary font-mono uppercase tracking-wide">
@@ -135,7 +132,6 @@ export default function Dashboard() {
                   </span>
                 </div>
 
-                {/* Mini progress track */}
                 <div className="h-1 bg-secondary rounded-full overflow-hidden max-w-xs">
                   <motion.div
                     className="h-full rounded-full"
@@ -153,7 +149,7 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Right: Ferrari Gauge */}
+              {/* SVG circular gauge */}
               <div className="shrink-0 flex flex-col items-center">
                 <div className="relative w-44 h-44 md:w-52 md:h-52">
                   <svg
@@ -167,14 +163,7 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor="#FF481E" />
                       </linearGradient>
                     </defs>
-                    {/* Track */}
-                    <circle
-                      cx="100" cy="100" r={GAUGE_R}
-                      fill="none"
-                      stroke="hsl(var(--secondary))"
-                      strokeWidth="6"
-                    />
-                    {/* Progress arc */}
+                    <circle cx="100" cy="100" r={GAUGE_R} fill="none" stroke="hsl(var(--secondary))" strokeWidth="6" />
                     <circle
                       cx="100" cy="100" r={GAUGE_R}
                       fill="none"
@@ -186,16 +175,9 @@ export default function Dashboard() {
                       transform="rotate(-90 100 100)"
                       style={{ transition: "stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1)" }}
                     />
-                    {/* Inner ring decoration */}
-                    <circle
-                      cx="100" cy="100" r="68"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.04)"
-                      strokeWidth="1"
-                    />
+                    <circle cx="100" cy="100" r="68" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
                   </svg>
 
-                  {/* Centered number overlay */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-7xl md:text-8xl font-display tabular-nums leading-none brand-gradient-text">
                       {completionPct}
@@ -210,12 +192,11 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* ── PIPELINE STEPPER — Ferrari Gauge Nodes ── */}
+        {/* Pipeline stepper */}
         <motion.div
           variants={itemUp}
           className="glass-card grain-overlay rounded-3xl p-6 md:p-10 overflow-hidden"
         >
-          {/* Red Bull ghost number */}
           <div className="relative flex items-center gap-3 mb-10">
             <span className="ghost-number" style={{ top: "-1.5rem", right: "0" }}>0{currentStep}</span>
             <Activity className="w-5 h-5 text-primary relative z-10" />
@@ -223,9 +204,7 @@ export default function Dashboard() {
           </div>
 
           <div className="relative">
-            {/* Track line */}
             <div className="absolute top-6 left-6 right-6 h-[2px] bg-secondary hidden md:block" />
-            {/* Animated fill line */}
             <motion.div
               className="absolute top-6 left-6 h-[2px] hidden md:block rounded-full"
               style={{ background: "var(--brand-gradient)" }}
@@ -242,7 +221,6 @@ export default function Dashboard() {
                 return (
                   <div key={step.id} className="flex md:flex-col items-center gap-4 flex-1">
                     <div className="relative">
-                      {/* Active pulse ring */}
                       {isActive && (
                         <>
                           <div className="absolute -inset-3 rounded-xl bg-primary/15 animate-ping" />
@@ -250,7 +228,6 @@ export default function Dashboard() {
                         </>
                       )}
 
-                      {/* Node */}
                       <div
                         className={`
                           relative z-10 flex items-center justify-center transition-all duration-500
@@ -275,7 +252,6 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      {/* Mobile vertical connector */}
                       {idx !== STEPS.length - 1 && (
                         <div
                           className="absolute top-full bottom-[-2rem] left-1/2 -translate-x-1/2 w-[2px] md:hidden mt-1"
@@ -302,7 +278,7 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* ── PHASE CONTEXTUAL CARDS — Ferrari Left-Border Accent ── */}
+        {/* Phase contextual cards */}
         <div className="space-y-4">
           {currentStep === 4 && (
             <motion.div
@@ -387,7 +363,6 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Notes / Observations Card */}
           {(observationText || phaseDate) && (
             <motion.div variants={itemUp} className="glass-card rounded-3xl p-6 flex flex-col sm:flex-row gap-6 items-start">
               <div className="w-12 h-12 rounded-full bg-secondary shrink-0 flex items-center justify-center">
@@ -411,10 +386,9 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ── QUICK INFO GRID — Tesla Metric Cards ── */}
+        {/* Quick info grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <motion.div variants={itemUp} className="md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {/* System power card */}
             <div className="glass-card rounded-3xl p-6 flex flex-col justify-between hover:border-white/10 transition-colors group">
               <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4 group-hover:bg-yellow-500/10 transition-colors">
                 <Zap className="w-5 h-5 text-yellow-500" />
@@ -428,7 +402,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Location card */}
             <div className="glass-card rounded-3xl p-6 flex flex-col justify-between hover:border-white/10 transition-colors group">
               <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4 group-hover:bg-blue-500/10 transition-colors">
                 <MapPin className="w-5 h-5 text-blue-400" />
@@ -440,7 +413,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Activation date card */}
             <div className="glass-card rounded-3xl p-6 flex flex-col justify-between hover:border-white/10 transition-colors group">
               <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4 group-hover:bg-emerald-500/10 transition-colors">
                 <Calendar className="w-5 h-5" style={{ color: "#4ADE80" }} />
@@ -454,7 +426,6 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* Actions */}
           <motion.div variants={itemUp} className="md:col-span-4 flex flex-col gap-4">
             <a
               href="#"
@@ -490,7 +461,7 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
-        {/* ── FINANCIAL INFO — Glass Cards + Tabular Nums ── */}
+        {/* Financial info cards */}
         {(project.valorProjeto || project.formaDePagamento || project.dataInicioPrevista) && (
           <motion.div variants={itemUp} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {project.valorProjeto && (
@@ -531,11 +502,10 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* ── ACTIVATION CTA — Tesla Charging Ring ── */}
+        {/* Activation CTA with Tesla charging rings */}
         {currentStep >= 6 && (
           <motion.div variants={itemUp} className="pt-8">
             <div className="relative">
-              {/* Pulsing rings (Tesla charging aesthetic) */}
               <div className="absolute inset-0 rounded-3xl pulse-ring-animation border-2 border-primary/25" />
               <div className="absolute inset-0 rounded-3xl pulse-ring-animation-delay border-2 border-primary/15" />
 
@@ -546,9 +516,7 @@ export default function Dashboard() {
                 />
                 <div className="relative bg-background/88 backdrop-blur-md rounded-[calc(1.5rem-2px)] py-8 px-6 flex items-center justify-center gap-4 group-hover:bg-background/80 transition-colors">
                   <Zap className="w-8 h-8 text-primary" fill="currentColor" />
-                  <span
-                    className="text-2xl font-display font-bold brand-gradient-text"
-                  >
+                  <span className="text-2xl font-display font-bold brand-gradient-text">
                     Ativar Monitoramento Solo
                   </span>
                 </div>

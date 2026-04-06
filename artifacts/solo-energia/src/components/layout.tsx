@@ -6,6 +6,7 @@ import { useState } from "react";
 import logoLight from "@assets/001_1775433962945.png";
 import { useListNotifications } from "@workspace/api-client-react";
 import { useAuth, useLogout } from "@/hooks/use-auth";
+import { redBullSpring } from "@/lib/animations";
 
 interface LayoutProps {
   children: ReactNode;
