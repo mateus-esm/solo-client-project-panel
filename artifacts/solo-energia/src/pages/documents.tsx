@@ -1,5 +1,9 @@
 import { useRef, useState, useCallback } from "react";
-import { useListDocuments } from "@workspace/api-client-react";
+import {
+  useListDocuments,
+  requestDocumentUpload,
+  completeDocumentUpload,
+} from "@workspace/api-client-react";
 import type { Document, DocumentCategory } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -68,23 +72,12 @@ function DocCard({ doc, onUploaded }: DocCardProps) {
       setProgress(10);
 
       try {
-        const urlRes = await fetch(`/api/documents/${doc.id}/request-upload`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            name: file.name,
-            size: file.size,
-            contentType: file.type,
-          }),
+        const { uploadURL, objectPath } = await requestDocumentUpload(doc.id, {
+          name: file.name,
+          size: file.size,
+          contentType: file.type,
         });
 
-        if (!urlRes.ok) {
-          const err = await urlRes.json().catch(() => ({}));
-          throw new Error(err.message || "Erro ao preparar upload");
-        }
-
-        const { uploadURL, objectPath } = await urlRes.json();
         setProgress(35);
 
         const gcsRes = await fetch(uploadURL, {
@@ -96,17 +89,10 @@ function DocCard({ doc, onUploaded }: DocCardProps) {
         if (!gcsRes.ok) throw new Error("Falha ao enviar para o armazenamento");
         setProgress(75);
 
-        const completeRes = await fetch(`/api/documents/${doc.id}/complete-upload`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ objectPath, fileName: file.name }),
+        await completeDocumentUpload(doc.id, {
+          objectPath,
+          fileName: file.name,
         });
-
-        if (!completeRes.ok) {
-          const err = await completeRes.json().catch(() => ({}));
-          throw new Error(err.message || "Erro ao finalizar upload");
-        }
 
         setProgress(100);
         toast.success(`${doc.name} enviado com sucesso!`);

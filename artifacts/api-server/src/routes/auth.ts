@@ -163,6 +163,10 @@ router.get("/auth/me", async (req, res) => {
 });
 
 router.post("/auth/dev-login", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ message: "Not found" });
+    return;
+  }
   const TEST_EMAIL = "mateus@soloenergia.com.br";
   try {
     const [project] = await db
