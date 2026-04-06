@@ -3,7 +3,7 @@ import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { requestOtp, verifyOtp } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AUTH_QUERY_KEY } from "@/hooks/use-auth";
-import { Mail, ArrowRight, Loader2, ChevronLeft } from "lucide-react";
+import { Mail, ArrowRight, Loader2, ChevronLeft, AlertCircle } from "lucide-react";
 import logoLight from "@assets/001_1775433962945.png";
 
 const containerVariants: Variants = {
@@ -12,10 +12,12 @@ const containerVariants: Variants = {
   exit: { opacity: 0, y: -16, transition: { duration: 0.2 } },
 };
 
+type LoginStep = "email" | "otp" | "no_project";
+
 export default function Login() {
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -41,8 +43,13 @@ export default function Login() {
       setStep("otp");
       setResendCooldown(60);
       setTimeout(() => otpRefs.current[0]?.focus(), 150);
-    } catch {
-      setError("Não foi possível enviar o código. Verifique o e-mail e tente novamente.");
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 429) {
+        setError("Muitas tentativas. Aguarde alguns minutos antes de solicitar um novo código.");
+      } else {
+        setError("Não foi possível enviar o código. Verifique o e-mail e tente novamente.");
+      }
     } finally {
       setLoading(false);
     }
@@ -74,13 +81,25 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
-      await verifyOtp({ email, code });
+      const result = await verifyOtp({ email, code });
+
+      if ((result as { status?: string }).status === "no_project") {
+        setStep("no_project");
+        return;
+      }
+
       await queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
       window.location.href = "/";
-    } catch {
-      setError("Código inválido ou expirado. Verifique e tente novamente.");
-      setOtp(["", "", "", "", "", ""]);
-      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 429) {
+        setError("Muitas tentativas. Solicite um novo código para continuar.");
+        setOtp(["", "", "", "", "", ""]);
+      } else {
+        setError("Código inválido ou expirado. Verifique e tente novamente.");
+        setOtp(["", "", "", "", "", ""]);
+        setTimeout(() => otpRefs.current[0]?.focus(), 50);
+      }
     } finally {
       setLoading(false);
     }
@@ -95,8 +114,13 @@ export default function Login() {
       setResendCooldown(60);
       setOtp(["", "", "", "", "", ""]);
       setTimeout(() => otpRefs.current[0]?.focus(), 50);
-    } catch {
-      setError("Falha ao reenviar código.");
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 429) {
+        setError("Muitas tentativas. Aguarde alguns minutos.");
+      } else {
+        setError("Falha ao reenviar código.");
+      }
     } finally {
       setLoading(false);
     }
@@ -128,7 +152,7 @@ export default function Login() {
         </div>
 
         <AnimatePresence mode="wait">
-          {step === "email" ? (
+          {step === "email" && (
             <motion.div
               key="email-step"
               variants={containerVariants}
@@ -169,7 +193,7 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading || !email.trim()}
-                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg"
+                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all duration-200"
                     style={{
                       background: loading || !email.trim()
                         ? "hsl(var(--primary))"
@@ -189,7 +213,9 @@ export default function Login() {
                 </form>
               </div>
             </motion.div>
-          ) : (
+          )}
+
+          {step === "otp" && (
             <motion.div
               key="otp-step"
               variants={containerVariants}
@@ -260,6 +286,36 @@ export default function Login() {
                   {resendCooldown > 0
                     ? `Reenviar código em ${resendCooldown}s`
                     : "Reenviar código"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === "no_project" && (
+            <motion.div
+              key="no-project-step"
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+            >
+              <div className="bg-card border border-white/5 rounded-3xl p-8 shadow-2xl shadow-black/50 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-7 h-7 text-orange-400" />
+                </div>
+                <h2 className="text-xl font-display mb-3">Conta não vinculada</h2>
+                <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
+                  Seu e-mail foi verificado com sucesso, mas ainda não há um projeto vinculado a{" "}
+                  <span className="text-foreground font-medium">{email}</span>.
+                </p>
+                <p className="text-muted-foreground text-sm mb-8">
+                  Entre em contato com o seu consultor Solar para que seu acesso seja configurado.
+                </p>
+                <button
+                  onClick={() => { setStep("email"); setOtp(["", "", "", "", "", ""]); setError(null); }}
+                  className="text-sm text-primary hover:text-primary/80 transition-colors"
+                >
+                  Tentar com outro e-mail
                 </button>
               </div>
             </motion.div>

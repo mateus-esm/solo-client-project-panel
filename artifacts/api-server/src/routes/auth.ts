@@ -20,7 +20,7 @@ function getCookieOptions() {
 async function sendOtpEmail(email: string, code: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    logger.warn("RESEND_API_KEY not configured — OTP code: " + code);
+    logger.warn({ email }, "RESEND_API_KEY not configured — OTP email not sent");
     return;
   }
   try {
@@ -71,9 +71,16 @@ router.post("/auth/request-otp", async (req, res) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   try {
-    const code = await createOtp(normalizedEmail);
-    await sendOtpEmail(normalizedEmail, code);
+    const result = await createOtp(normalizedEmail);
 
+    if (!result.ok) {
+      res.status(429).json({
+        message: "Muitas tentativas. Aguarde alguns minutos antes de solicitar um novo código.",
+      });
+      return;
+    }
+
+    await sendOtpEmail(normalizedEmail, result.code);
     logger.info({ email: normalizedEmail }, "OTP requested");
     res.json({ message: "Código enviado para o seu e-mail" });
   } catch (err) {
@@ -93,18 +100,33 @@ router.post("/auth/verify-otp", async (req, res) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   try {
-    const projectId = await verifyOtp(normalizedEmail, String(code));
+    const result = await verifyOtp(normalizedEmail, String(code));
 
-    if (!projectId) {
+    if (!result.ok) {
+      if (result.reason === "rate_limited") {
+        res.status(429).json({
+          message: "Muitas tentativas incorretas. Solicite um novo código.",
+          reason: "rate_limited",
+        });
+        return;
+      }
+
+      if (result.reason === "no_project") {
+        res.status(200).json({
+          status: "no_project",
+          message: "E-mail verificado, mas não há projeto vinculado à sua conta. Entre em contato com a Solo Energia.",
+        });
+        return;
+      }
+
       res.status(401).json({ message: "Código inválido ou expirado" });
       return;
     }
 
-    const token = await createSession(projectId);
-
+    const token = await createSession(result.projectId);
     res.cookie(COOKIE_NAME, token, getCookieOptions());
-    logger.info({ email: normalizedEmail, projectId }, "Session created");
-    res.json({ message: "Login realizado com sucesso", projectId });
+    logger.info({ email: normalizedEmail, projectId: result.projectId }, "Session created");
+    res.json({ status: "ok", message: "Login realizado com sucesso", projectId: result.projectId });
   } catch (err) {
     logger.error({ err }, "Failed to verify OTP");
     res.status(500).json({ message: "Erro interno — tente novamente" });
