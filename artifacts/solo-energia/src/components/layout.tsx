@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Bell, LayoutDashboard, FileText, Menu, X, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import logoSrc from "@assets/003_1774472742998.png";
+import logoLight from "@assets/001_1775433962945.png";
 import { useListNotifications } from "@workspace/api-client-react";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 
@@ -43,14 +43,13 @@ export function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
-            <div className="flex-shrink-0 flex items-center gap-3">
-              <Link href="/" className="flex items-center gap-3 group">
-                <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white/5 flex items-center justify-center p-1.5 border border-white/10 group-hover:border-primary/50 transition-colors">
-                  <img src={logoSrc} alt="Solo Energia" className="w-full h-full object-contain" />
-                </div>
-                <span className="font-display font-bold text-xl tracking-wide hidden sm:block">
-                  SOLO <span className="text-primary">ENERGIA</span>
-                </span>
+            <div className="flex-shrink-0">
+              <Link href="/" className="flex items-center group">
+                <img
+                  src={logoLight}
+                  alt="Solo Energia — Você no controle da sua energia"
+                  className="h-8 w-auto object-contain opacity-95 group-hover:opacity-100 transition-opacity"
+                />
               </Link>
             </div>
 
@@ -76,7 +75,8 @@ export function Layout({ children }: LayoutProps) {
                     {isActive && (
                       <motion.div
                         layoutId="nav-indicator"
-                        className="absolute -bottom-[28px] left-0 right-0 h-[2px] bg-primary"
+                        className="absolute -bottom-[28px] left-0 right-0 h-[2px]"
+                        style={{ background: "var(--brand-gradient)" }}
                         initial={false}
                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                       />
@@ -91,7 +91,10 @@ export function Layout({ children }: LayoutProps) {
               <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-border">
                 {user && (
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                      style={{ background: "var(--brand-gradient-135)" }}
+                    >
                       {getInitials(user.clientName)}
                     </div>
                     <div className="hidden lg:block">
@@ -139,7 +142,9 @@ export function Layout({ children }: LayoutProps) {
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center justify-between p-4 rounded-xl transition-colors ${
-                      isActive ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:bg-secondary"
+                      isActive
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-muted-foreground hover:bg-secondary"
                     }`}
                   >
                     <div className="flex items-center gap-3 font-medium">
@@ -156,13 +161,27 @@ export function Layout({ children }: LayoutProps) {
               })}
 
               {user && (
-                <button
-                  onClick={() => { setMobileMenuOpen(false); logoutMutation.mutate(); }}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl text-muted-foreground hover:bg-secondary transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">Sair</span>
-                </button>
+                <>
+                  <div className="flex items-center gap-3 px-4 pt-3 pb-1 border-t border-border mt-2">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                      style={{ background: "var(--brand-gradient-135)" }}
+                    >
+                      {getInitials(user.clientName)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-foreground">{user.clientName}</p>
+                      <p className="text-[10px] text-muted-foreground">{user.clientEmail}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setMobileMenuOpen(false); logoutMutation.mutate(); }}
+                    className="w-full flex items-center gap-3 p-4 rounded-xl text-muted-foreground hover:bg-secondary transition-colors"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="font-medium">Sair</span>
+                  </button>
+                </>
               )}
             </div>
           </motion.div>

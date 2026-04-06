@@ -3,7 +3,8 @@ import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { requestOtp, verifyOtp } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AUTH_QUERY_KEY } from "@/hooks/use-auth";
-import { Mail, ArrowRight, Loader2, ChevronLeft, Sun } from "lucide-react";
+import { Mail, ArrowRight, Loader2, ChevronLeft } from "lucide-react";
+import logoLight from "@assets/001_1775433962945.png";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -103,18 +104,27 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
+      {/* Background glow — brand gradient radial */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] rounded-full blur-[140px] pointer-events-none opacity-15"
+        style={{ background: "var(--brand-gradient)" }}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none opacity-8"
+        style={{ background: "var(--brand-gradient-135)" }}
+      />
 
       <div className="relative z-10 w-full max-w-md">
+        {/* Logo */}
         <div className="flex flex-col items-center mb-12">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
-            <Sun className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-display tracking-tight">
-            SOLO <span className="text-primary">ENERGIA</span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2">Portal do Cliente</p>
+          <img
+            src={logoLight}
+            alt="Solo Energia — Você no controle da sua energia"
+            className="h-14 w-auto object-contain mb-3"
+          />
+          <p className="text-xs text-muted-foreground tracking-wide uppercase font-medium">
+            Portal do Cliente
+          </p>
         </div>
 
         <AnimatePresence mode="wait">
@@ -159,7 +169,13 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading || !email.trim()}
-                    className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground font-bold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-primary/20"
+                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg"
+                    style={{
+                      background: loading || !email.trim()
+                        ? "hsl(var(--primary))"
+                        : "var(--brand-gradient)",
+                      boxShadow: "0 8px 24px rgba(255,72,30,0.25)",
+                    }}
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -208,9 +224,13 @@ export default function Login() {
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
                       disabled={loading}
+                      style={digit ? {
+                        borderColor: "#FF481E",
+                        color: "#FF481E",
+                        boxShadow: "0 0 16px rgba(255,72,30,0.25)",
+                      } : undefined}
                       className={`w-12 h-14 text-center text-2xl font-bold bg-secondary border rounded-xl focus:outline-none transition-all duration-200 disabled:opacity-50
-                        ${digit ? "border-primary text-primary shadow-[0_0_12px_rgba(255,72,30,0.3)]" : "border-border text-foreground"}
-                        focus:border-primary focus:shadow-[0_0_12px_rgba(255,72,30,0.3)]
+                        ${!digit && "border-border text-foreground focus:border-primary focus:shadow-[0_0_12px_rgba(255,72,30,0.25)]"}
                       `}
                     />
                   ))}

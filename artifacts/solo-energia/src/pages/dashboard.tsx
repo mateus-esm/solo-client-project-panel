@@ -104,7 +104,7 @@ export default function Dashboard() {
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-display text-foreground mb-4">
               Olá, {project.clientName.split(" ")[0]}! <br className="hidden md:block" />
               Sua independência solar está{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#FFD700]">
+              <span className="brand-gradient-text">
                 {project.completionPercent}% pronta.
               </span>
             </h1>
@@ -124,8 +124,11 @@ export default function Dashboard() {
           <div className="relative">
             <div className="absolute top-6 left-6 right-6 h-[2px] bg-secondary hidden md:block" />
             <div
-              className="absolute top-6 left-6 h-[2px] bg-primary hidden md:block transition-all duration-1000 ease-out"
-              style={{ width: `calc(${(Math.max(1, currentStep) - 1) / (STEPS.length - 1) * 100}% - 3rem)` }}
+              className="absolute top-6 left-6 h-[2px] hidden md:block transition-all duration-1000 ease-out"
+              style={{
+                width: `calc(${(Math.max(1, currentStep) - 1) / (STEPS.length - 1) * 100}% - 3rem)`,
+                background: "var(--brand-gradient)",
+              }}
             />
 
             <div className="flex flex-col md:flex-row justify-between gap-8 md:gap-0 relative z-10">
@@ -139,18 +142,25 @@ export default function Dashboard() {
                       {isActive && (
                         <div className="absolute -inset-2 bg-primary/20 rounded-full animate-ping" />
                       )}
-                      <div className={`
-                        w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg relative z-10 transition-all duration-500
-                        ${isCompleted ? "bg-green-500/10 text-green-500 border-2 border-green-500" :
-                          isActive ? "bg-primary text-primary-foreground shadow-[0_0_20px_rgba(255,72,30,0.5)] border-2 border-primary" :
-                          "bg-secondary text-muted-foreground border-2 border-border"}
-                      `}>
+                      <div
+                        className={`
+                          w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg relative z-10 transition-all duration-500
+                          ${isCompleted ? "text-white border-2 border-transparent" :
+                            isActive ? "text-white border-2 border-transparent shadow-[0_0_24px_rgba(255,72,30,0.45)]" :
+                            "bg-secondary text-muted-foreground border-2 border-border"}
+                        `}
+                        style={isActive || isCompleted ? { background: "var(--brand-gradient-135)" } : undefined}
+                      >
                         {isCompleted ? <Check className="w-6 h-6" strokeWidth={3} /> : step.id}
                       </div>
                       {idx !== STEPS.length - 1 && (
-                        <div className={`absolute top-12 bottom-[-2rem] left-1/2 -translate-x-1/2 w-[2px] md:hidden
-                          ${isCompleted ? "bg-primary" : "bg-secondary"}
-                        `} />
+                        <div
+                          className="absolute top-12 bottom-[-2rem] left-1/2 -translate-x-1/2 w-[2px] md:hidden"
+                          style={isCompleted
+                            ? { background: "var(--brand-gradient-135)" }
+                            : { background: "hsl(var(--secondary))" }
+                          }
+                        />
                       )}
                     </div>
 
