@@ -38,11 +38,6 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
 
 router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
-    const raw = req.params.path;
-    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
-    const objectPath = `/objects/${wildcardPath}`;
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
-
     const sessionToken = req.cookies?.solo_session;
     if (!sessionToken) {
       res.status(401).json({ error: "Não autenticado" });
@@ -54,22 +49,22 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
       return;
     }
 
+    const raw = req.params.path;
+    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
+    const objectPath = `/objects/${wildcardPath}`;
+
     const [docRecord] = await db
       .select({ projectId: documentsTable.projectId })
       .from(documentsTable)
       .where(eq(documentsTable.objectPath, objectPath))
       .limit(1);
 
-    if (!docRecord) {
+    if (!docRecord || docRecord.projectId !== session.projectId) {
       res.status(403).json({ error: "Acesso negado" });
       return;
     }
 
-    if (docRecord.projectId !== session.projectId) {
-      res.status(403).json({ error: "Acesso negado" });
-      return;
-    }
-
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
     const response = await objectStorageService.downloadObject(objectFile);
 
     res.status(response.status);
