@@ -32,6 +32,7 @@ export default function Login() {
       const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [resendCooldown]);
 
   async function handleEmailSubmit(e: React.FormEvent) {

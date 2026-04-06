@@ -1,9 +1,15 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { projectsTable, documentsTable, notificationsTable, paymentsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getJestorProject, mapJestorStatusToStep, stepCompletionPercent } from "../lib/jestor";
 import { resolveSession } from "../lib/auth";
+import { ObjectStorageService } from "../lib/objectStorage";
+
+const objectStorage = new ObjectStorageService();
+
+const ALLOWED_CONTENT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const router: IRouter = Router();
 
@@ -188,6 +194,100 @@ router.get("/documents", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to list documents");
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/documents/:id/request-upload", requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ message: "ID inválido" });
+    return;
+  }
+
+  const { name, size, contentType } = req.body ?? {};
+
+  if (!name || !size || !contentType) {
+    res.status(400).json({ message: "name, size e contentType são obrigatórios" });
+    return;
+  }
+
+  if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+    res.status(400).json({ message: "Tipo de arquivo não permitido. Use PDF, JPG ou PNG." });
+    return;
+  }
+
+  if (Number(size) > MAX_FILE_SIZE) {
+    res.status(400).json({ message: "Arquivo muito grande. Máximo de 10 MB." });
+    return;
+  }
+
+  try {
+    const [doc] = await db
+      .select()
+      .from(documentsTable)
+      .where(and(eq(documentsTable.id, id), eq(documentsTable.projectId, req.sessionProjectId!)));
+
+    if (!doc) {
+      res.status(404).json({ message: "Documento não encontrado" });
+      return;
+    }
+
+    const uploadURL = await objectStorage.getObjectEntityUploadURL();
+    const objectPath = objectStorage.normalizeObjectEntityPath(uploadURL);
+
+    res.json({ uploadURL, objectPath });
+  } catch (err) {
+    req.log.error({ err }, "Failed to request document upload URL");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+router.patch("/documents/:id/complete-upload", requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ message: "ID inválido" });
+    return;
+  }
+
+  const { objectPath } = req.body ?? {};
+  if (!objectPath || typeof objectPath !== "string") {
+    res.status(400).json({ message: "objectPath é obrigatório" });
+    return;
+  }
+
+  try {
+    const [doc] = await db
+      .select()
+      .from(documentsTable)
+      .where(and(eq(documentsTable.id, id), eq(documentsTable.projectId, req.sessionProjectId!)));
+
+    if (!doc) {
+      res.status(404).json({ message: "Documento não encontrado" });
+      return;
+    }
+
+    const fileUrl = `/api/storage${objectPath}`;
+
+    const [updated] = await db
+      .update(documentsTable)
+      .set({ fileUrl, type: "available_download" })
+      .where(eq(documentsTable.id, id))
+      .returning();
+
+    res.json({
+      id: updated.id,
+      projectId: updated.projectId,
+      name: updated.name,
+      type: updated.type,
+      category: updated.category,
+      required: updated.required,
+      description: updated.description,
+      fileUrl: updated.fileUrl,
+      createdAt: updated.createdAt.toISOString(),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to complete document upload");
+    res.status(500).json({ message: "Erro interno" });
   }
 });
 

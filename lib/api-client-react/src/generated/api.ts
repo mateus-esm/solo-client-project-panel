@@ -20,6 +20,9 @@ import type {
   AuthUser,
   CreatePaymentBody,
   Document,
+  DocumentCompleteUploadBody,
+  DocumentRequestUploadBody,
+  DocumentRequestUploadResponse,
   Error,
   HealthStatus,
   JestorWebhookPayload,
@@ -31,6 +34,8 @@ import type {
   Project,
   RequestOtpBody,
   UpdatePaymentStatusBody,
+  UploadUrlRequest,
+  UploadUrlResponse,
   VerifyOtpBody,
   VerifyOtpResponse,
   WebhookResult,
@@ -1205,6 +1210,271 @@ export const useJestorProjectWebhook = <
   TContext
 > => {
   return useMutation(getJestorProjectWebhookMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned URL to upload a file for a specific document
+ */
+export const getRequestDocumentUploadUrl = (id: number) => {
+  return `/api/documents/${id}/request-upload`;
+};
+
+export const requestDocumentUpload = async (
+  id: number,
+  documentRequestUploadBody: DocumentRequestUploadBody,
+  options?: RequestInit,
+): Promise<DocumentRequestUploadResponse> => {
+  return customFetch<DocumentRequestUploadResponse>(
+    getRequestDocumentUploadUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(documentRequestUploadBody),
+    },
+  );
+};
+
+export const getRequestDocumentUploadMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestDocumentUpload>>,
+    TError,
+    { id: number; data: BodyType<DocumentRequestUploadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestDocumentUpload>>,
+  TError,
+  { id: number; data: BodyType<DocumentRequestUploadBody> },
+  TContext
+> => {
+  const mutationKey = ["requestDocumentUpload"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestDocumentUpload>>,
+    { id: number; data: BodyType<DocumentRequestUploadBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return requestDocumentUpload(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestDocumentUploadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestDocumentUpload>>
+>;
+export type RequestDocumentUploadMutationBody =
+  BodyType<DocumentRequestUploadBody>;
+export type RequestDocumentUploadMutationError = ErrorType<Error>;
+
+/**
+ * @summary Request a presigned URL to upload a file for a specific document
+ */
+export const useRequestDocumentUpload = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestDocumentUpload>>,
+    TError,
+    { id: number; data: BodyType<DocumentRequestUploadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestDocumentUpload>>,
+  TError,
+  { id: number; data: BodyType<DocumentRequestUploadBody> },
+  TContext
+> => {
+  return useMutation(getRequestDocumentUploadMutationOptions(options));
+};
+
+/**
+ * @summary Mark a document upload as complete and set the file URL
+ */
+export const getCompleteDocumentUploadUrl = (id: number) => {
+  return `/api/documents/${id}/complete-upload`;
+};
+
+export const completeDocumentUpload = async (
+  id: number,
+  documentCompleteUploadBody: DocumentCompleteUploadBody,
+  options?: RequestInit,
+): Promise<Document> => {
+  return customFetch<Document>(getCompleteDocumentUploadUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(documentCompleteUploadBody),
+  });
+};
+
+export const getCompleteDocumentUploadMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeDocumentUpload>>,
+    TError,
+    { id: number; data: BodyType<DocumentCompleteUploadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeDocumentUpload>>,
+  TError,
+  { id: number; data: BodyType<DocumentCompleteUploadBody> },
+  TContext
+> => {
+  const mutationKey = ["completeDocumentUpload"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeDocumentUpload>>,
+    { id: number; data: BodyType<DocumentCompleteUploadBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return completeDocumentUpload(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteDocumentUploadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeDocumentUpload>>
+>;
+export type CompleteDocumentUploadMutationBody =
+  BodyType<DocumentCompleteUploadBody>;
+export type CompleteDocumentUploadMutationError = ErrorType<Error>;
+
+/**
+ * @summary Mark a document upload as complete and set the file URL
+ */
+export const useCompleteDocumentUpload = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeDocumentUpload>>,
+    TError,
+    { id: number; data: BodyType<DocumentCompleteUploadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeDocumentUpload>>,
+  TError,
+  { id: number; data: BodyType<DocumentCompleteUploadBody> },
+  TContext
+> => {
+  return useMutation(getCompleteDocumentUploadMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned URL for direct file upload to GCS
+ */
+export const getRequestUploadUrlUrl = () => {
+  return `/api/storage/uploads/request-url`;
+};
+
+export const requestUploadUrl = async (
+  uploadUrlRequest: UploadUrlRequest,
+  options?: RequestInit,
+): Promise<UploadUrlResponse> => {
+  return customFetch<UploadUrlResponse>(getRequestUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(uploadUrlRequest),
+  });
+};
+
+export const getRequestUploadUrlMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<UploadUrlRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<UploadUrlRequest> },
+  TContext
+> => {
+  const mutationKey = ["requestUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    { data: BodyType<UploadUrlRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestUploadUrl>>
+>;
+export type RequestUploadUrlMutationBody = BodyType<UploadUrlRequest>;
+export type RequestUploadUrlMutationError = ErrorType<Error>;
+
+/**
+ * @summary Request a presigned URL for direct file upload to GCS
+ */
+export const useRequestUploadUrl = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<UploadUrlRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<UploadUrlRequest> },
+  TContext
+> => {
+  return useMutation(getRequestUploadUrlMutationOptions(options));
 };
 
 /**

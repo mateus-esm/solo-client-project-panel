@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import authRouter from "./auth";
 import projectsRouter from "./projects";
 import webhooksRouter from "./webhooks";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -10,5 +11,6 @@ router.use(healthRouter);
 router.use(authRouter);
 router.use(projectsRouter);
 router.use(webhooksRouter);
+router.use(storageRouter);
 
 export default router;

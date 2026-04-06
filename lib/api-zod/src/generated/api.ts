@@ -314,6 +314,77 @@ export const JestorProjectWebhookResponse = zod.object({
 });
 
 /**
+ * @summary Request a presigned URL to upload a file for a specific document
+ */
+export const RequestDocumentUploadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RequestDocumentUploadBody = zod.object({
+  name: zod.string().describe("Original file name"),
+  size: zod.number().describe("File size in bytes"),
+  contentType: zod
+    .string()
+    .describe("MIME type (application\/pdf, image\/jpeg, image\/png)"),
+});
+
+export const RequestDocumentUploadResponse = zod.object({
+  uploadURL: zod.string().describe("Presigned GCS URL for PUT upload"),
+  objectPath: zod
+    .string()
+    .describe("Normalized object path to store in database"),
+});
+
+/**
+ * @summary Mark a document upload as complete and set the file URL
+ */
+export const CompleteDocumentUploadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CompleteDocumentUploadBody = zod.object({
+  objectPath: zod.string().describe("Object path returned by request-upload"),
+  fileName: zod.string().nullish().describe("Original file name for display"),
+});
+
+export const CompleteDocumentUploadResponse = zod.object({
+  id: zod.number(),
+  projectId: zod.number(),
+  name: zod.string(),
+  type: zod.enum(["pending_upload", "available_download"]),
+  category: zod
+    .enum(["entrada", "intra_projeto"])
+    .describe(
+      "entrada = docs the client provides; intra_projeto = docs Solo Energia generates",
+    ),
+  required: zod.boolean(),
+  description: zod.string().nullish(),
+  fileUrl: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Request a presigned URL for direct file upload to GCS
+ */
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string(),
+  size: zod.number(),
+  contentType: zod.string(),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string().url(),
+  objectPath: zod.string(),
+  metadata: zod
+    .object({
+      name: zod.string(),
+      size: zod.number(),
+      contentType: zod.string(),
+    })
+    .optional(),
+});
+
+/**
  * @summary Manually sync a project from the Jestor API
  */
 export const SyncJestorProjectParams = zod.object({

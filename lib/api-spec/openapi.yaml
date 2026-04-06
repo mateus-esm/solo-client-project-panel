@@ -21,6 +21,8 @@ tags:
     description: Payment installment operations
   - name: webhooks
     description: Jestor webhook endpoints
+  - name: storage
+    description: Object storage upload and serving endpoints
 paths:
   /healthz:
     get:
@@ -335,6 +337,111 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WebhookResult"
+
+  /documents/{id}/request-upload:
+    post:
+      operationId: requestDocumentUpload
+      tags: [documents]
+      summary: Request a presigned URL to upload a file for a specific document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentRequestUploadBody"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentRequestUploadResponse"
+        "400":
+          description: Invalid file type or size
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /documents/{id}/complete-upload:
+    patch:
+      operationId: completeDocumentUpload
+      tags: [documents]
+      summary: Mark a document upload as complete and set the file URL
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentCompleteUploadBody"
+      responses:
+        "200":
+          description: Updated document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned URL for direct file upload to GCS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /jestor/sync/{jestorId}:
     get:
@@ -777,3 +884,63 @@ components:
         - message
         - project_id
         - created
+
+    DocumentRequestUploadBody:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          description: Original file name
+        size:
+          type: integer
+          description: File size in bytes
+        contentType:
+          type: string
+          description: MIME type (application/pdf, image/jpeg, image/png)
+
+    DocumentRequestUploadResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          description: Presigned GCS URL for PUT upload
+        objectPath:
+          type: string
+          description: Normalized object path to store in database
+
+    DocumentCompleteUploadBody:
+      type: object
+      required: [objectPath]
+      properties:
+        objectPath:
+          type: string
+          description: Object path returned by request-upload
+        fileName:
+          type: string
+          nullable: true
+          description: Original file name for display
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
