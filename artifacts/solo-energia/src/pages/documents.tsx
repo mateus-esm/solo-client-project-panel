@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback } from "react";
-import { useListDocuments } from "@workspace/api-client-react";
+import { useRef, useCallback } from "react";
+import { useListDocuments, useUploadDocument } from "@workspace/api-client-react";
 import type { Document, DocumentCategory } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -49,12 +49,24 @@ function DocCard({ doc, onUploaded }: DocCardProps) {
   const isUploaded = doc.type === "available_download";
   const isEntrada = doc.category === "entrada";
 
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { mutate: uploadDoc, isPending: uploading } = useUploadDocument({
+    mutation: {
+      onSuccess: () => {
+        toast.success(`${doc.name} enviado com sucesso!`);
+        onUploaded();
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      },
+      onError: (err: Error) => {
+        toast.error(err?.message || "Erro ao enviar arquivo");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      },
+    },
+  });
+
   const handleFileSelect = useCallback(
-    async (file: File) => {
+    (file: File) => {
       if (!ALLOWED_TYPES.includes(file.type)) {
         toast.error("Tipo de arquivo não permitido. Use PDF, JPG ou PNG.");
         return;
@@ -63,42 +75,9 @@ function DocCard({ doc, onUploaded }: DocCardProps) {
         toast.error("Arquivo muito grande. O limite é 10 MB.");
         return;
       }
-
-      setUploading(true);
-      setProgress(30);
-
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const uploadRes = await fetch(`/api/documents/${doc.id}/upload`, {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
-
-        if (!uploadRes.ok) {
-          const err = await uploadRes.json().catch(() => ({}));
-          throw new Error((err as { message?: string }).message || "Erro ao enviar arquivo");
-        }
-
-        setProgress(100);
-        toast.success(`${doc.name} enviado com sucesso!`);
-        setTimeout(() => {
-          setUploading(false);
-          setProgress(0);
-          onUploaded();
-        }, 600);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Erro ao enviar arquivo";
-        toast.error(msg);
-        setUploading(false);
-        setProgress(0);
-      }
-
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      uploadDoc({ id: doc.id, data: { file } });
     },
-    [doc.id, doc.name, onUploaded]
+    [doc.id, uploadDoc]
   );
 
   return (
@@ -164,12 +143,12 @@ function DocCard({ doc, onUploaded }: DocCardProps) {
               <motion.div
                 className="h-full rounded-full"
                 style={{ background: "var(--brand-gradient)" }}
-                initial={{ width: "0%" }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
+                initial={{ x: "-100%" }}
+                animate={{ x: "200%" }}
+                transition={{ duration: 1.2, ease: "easeInOut", repeat: Infinity }}
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-1.5 font-mono">{progress}%</p>
+            <p className="text-xs text-muted-foreground mt-1.5 font-mono">Enviando…</p>
           </motion.div>
         )}
       </AnimatePresence>

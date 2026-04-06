@@ -393,31 +393,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /storage/uploads/request-url:
-    post:
-      operationId: requestUploadUrl
-      tags: [storage]
-      summary: Request a presigned URL for direct file upload to GCS
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UploadUrlRequest"
-      responses:
-        "200":
-          description: Presigned upload URL
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UploadUrlResponse"
-        "400":
-          description: Missing or invalid fields
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
   /jestor/sync/{jestorId}:
     get:
       operationId: syncJestorProject
@@ -864,25 +839,3 @@ components:
         - project_id
         - created
 
-    UploadUrlRequest:
-      type: object
-      required: [name, size, contentType]
-      properties:
-        name:
-          type: string
-        size:
-          type: integer
-        contentType:
-          type: string
-
-    UploadUrlResponse:
-      type: object
-      required: [uploadURL, objectPath]
-      properties:
-        uploadURL:
-          type: string
-          format: uri
-        objectPath:
-          type: string
-        metadata:
-          $ref: "#/components/schemas/UploadUrlRequest"

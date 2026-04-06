@@ -325,7 +325,7 @@ export const UploadDocumentParams = zod.object({
 });
 
 export const UploadDocumentBody = zod.object({
-  file: zod.any().describe("PDF, JPG, or PNG file; max 10 MB"),
+  file: zod.instanceof(File).describe("PDF, JPG, or PNG file; max 10 MB"),
 });
 
 export const UploadDocumentResponse = zod.object({
@@ -346,27 +346,6 @@ export const UploadDocumentResponse = zod.object({
     .nullish()
     .describe("ISO timestamp when the file was uploaded"),
   createdAt: zod.string(),
-});
-
-/**
- * @summary Request a presigned URL for direct file upload to GCS
- */
-export const RequestUploadUrlBody = zod.object({
-  name: zod.string(),
-  size: zod.number(),
-  contentType: zod.string(),
-});
-
-export const RequestUploadUrlResponse = zod.object({
-  uploadURL: zod.string().url(),
-  objectPath: zod.string(),
-  metadata: zod
-    .object({
-      name: zod.string(),
-      size: zod.number(),
-      contentType: zod.string(),
-    })
-    .optional(),
 });
 
 /**

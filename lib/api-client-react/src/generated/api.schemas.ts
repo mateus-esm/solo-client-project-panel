@@ -196,18 +196,6 @@ export interface WebhookResult {
   phase_name?: string | null;
 }
 
-export interface UploadUrlRequest {
-  name: string;
-  size: number;
-  contentType: string;
-}
-
-export interface UploadUrlResponse {
-  uploadURL: string;
-  objectPath: string;
-  metadata?: UploadUrlRequest;
-}
-
 export type ListDocumentsParams = {
   projectId?: number;
 };
