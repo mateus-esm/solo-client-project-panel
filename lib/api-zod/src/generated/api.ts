@@ -325,7 +325,7 @@ export const UploadDocumentParams = zod.object({
 });
 
 export const UploadDocumentBody = zod.object({
-  file: zod.instanceof(File).describe("PDF, JPG, or PNG file; max 10 MB"),
+  file: zod.any().describe("PDF, JPG, or PNG file; max 10 MB"),
 });
 
 export const UploadDocumentResponse = zod.object({
@@ -394,4 +394,41 @@ export const SyncJestorProjectResponse = zod.object({
   dataDeCompras: zod.string().nullish(),
   dataDeEntregaDoEquipamento: zod.string().nullish(),
   createdAt: zod.string(),
+});
+
+/**
+ * @summary Send a message to the AI assistant (streams SSE)
+ */
+export const SendChatMessageBody = zod.object({
+  messages: zod.array(
+    zod.object({
+      role: zod.enum(["user", "assistant"]),
+      content: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary List scheduling requests for the authenticated project
+ */
+export const ListSchedulingRequestsResponseItem = zod.object({
+  id: zod.number(),
+  projectId: zod.number(),
+  requestedDate: zod.string(),
+  notes: zod.string().nullish(),
+  status: zod.enum(["pending", "confirmed", "cancelled"]),
+  createdAt: zod.date(),
+});
+export const ListSchedulingRequestsResponse = zod.array(
+  ListSchedulingRequestsResponseItem,
+);
+
+/**
+ * @summary Create a scheduling request for the execution phase
+ */
+export const CreateSchedulingRequestBody = zod.object({
+  requestedDate: zod
+    .string()
+    .describe("ISO date string for the requested execution date"),
+  notes: zod.string().nullish(),
 });

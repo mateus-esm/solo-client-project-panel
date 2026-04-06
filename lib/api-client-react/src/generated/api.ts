@@ -18,7 +18,9 @@ import type {
 
 import type {
   AuthUser,
+  ChatRequest,
   CreatePaymentBody,
+  CreateSchedulingRequestBody,
   Document,
   Error,
   HealthStatus,
@@ -30,6 +32,7 @@ import type {
   Payment,
   Project,
   RequestOtpBody,
+  SchedulingRequest,
   UpdatePaymentStatusBody,
   UploadDocumentBody,
   VerifyOtpBody,
@@ -1385,3 +1388,252 @@ export function useSyncJestorProject<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Send a message to the AI assistant (streams SSE)
+ */
+export const getSendChatMessageUrl = () => {
+  return `/api/chat`;
+};
+
+export const sendChatMessage = async (
+  chatRequest: ChatRequest,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getSendChatMessageUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(chatRequest),
+  });
+};
+
+export const getSendChatMessageMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendChatMessage>>,
+    TError,
+    { data: BodyType<ChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendChatMessage>>,
+  TError,
+  { data: BodyType<ChatRequest> },
+  TContext
+> => {
+  const mutationKey = ["sendChatMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendChatMessage>>,
+    { data: BodyType<ChatRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendChatMessage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendChatMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendChatMessage>>
+>;
+export type SendChatMessageMutationBody = BodyType<ChatRequest>;
+export type SendChatMessageMutationError = ErrorType<Error>;
+
+/**
+ * @summary Send a message to the AI assistant (streams SSE)
+ */
+export const useSendChatMessage = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendChatMessage>>,
+    TError,
+    { data: BodyType<ChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendChatMessage>>,
+  TError,
+  { data: BodyType<ChatRequest> },
+  TContext
+> => {
+  return useMutation(getSendChatMessageMutationOptions(options));
+};
+
+/**
+ * @summary List scheduling requests for the authenticated project
+ */
+export const getListSchedulingRequestsUrl = () => {
+  return `/api/scheduling`;
+};
+
+export const listSchedulingRequests = async (
+  options?: RequestInit,
+): Promise<SchedulingRequest[]> => {
+  return customFetch<SchedulingRequest[]>(getListSchedulingRequestsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSchedulingRequestsQueryKey = () => {
+  return [`/api/scheduling`] as const;
+};
+
+export const getListSchedulingRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSchedulingRequests>>,
+  TError = ErrorType<Error>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSchedulingRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListSchedulingRequestsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSchedulingRequests>>
+  > = ({ signal }) => listSchedulingRequests({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSchedulingRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSchedulingRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSchedulingRequests>>
+>;
+export type ListSchedulingRequestsQueryError = ErrorType<Error>;
+
+/**
+ * @summary List scheduling requests for the authenticated project
+ */
+
+export function useListSchedulingRequests<
+  TData = Awaited<ReturnType<typeof listSchedulingRequests>>,
+  TError = ErrorType<Error>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSchedulingRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSchedulingRequestsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a scheduling request for the execution phase
+ */
+export const getCreateSchedulingRequestUrl = () => {
+  return `/api/scheduling`;
+};
+
+export const createSchedulingRequest = async (
+  createSchedulingRequestBody: CreateSchedulingRequestBody,
+  options?: RequestInit,
+): Promise<SchedulingRequest> => {
+  return customFetch<SchedulingRequest>(getCreateSchedulingRequestUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createSchedulingRequestBody),
+  });
+};
+
+export const getCreateSchedulingRequestMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSchedulingRequest>>,
+    TError,
+    { data: BodyType<CreateSchedulingRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSchedulingRequest>>,
+  TError,
+  { data: BodyType<CreateSchedulingRequestBody> },
+  TContext
+> => {
+  const mutationKey = ["createSchedulingRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSchedulingRequest>>,
+    { data: BodyType<CreateSchedulingRequestBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSchedulingRequest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSchedulingRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSchedulingRequest>>
+>;
+export type CreateSchedulingRequestMutationBody =
+  BodyType<CreateSchedulingRequestBody>;
+export type CreateSchedulingRequestMutationError = ErrorType<Error>;
+
+/**
+ * @summary Create a scheduling request for the execution phase
+ */
+export const useCreateSchedulingRequest = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSchedulingRequest>>,
+    TError,
+    { data: BodyType<CreateSchedulingRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSchedulingRequest>>,
+  TError,
+  { data: BodyType<CreateSchedulingRequestBody> },
+  TContext
+> => {
+  return useMutation(getCreateSchedulingRequestMutationOptions(options));
+};

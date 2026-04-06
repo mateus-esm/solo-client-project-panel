@@ -82,6 +82,19 @@ export const insertPaymentSchema = createInsertSchema(paymentsTable).omit({ id: 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof paymentsTable.$inferSelect;
 
+export const schedulingRequestsTable = pgTable("scheduling_requests", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  requestedDate: text("requested_date").notNull(),
+  notes: text("notes"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSchedulingRequestSchema = createInsertSchema(schedulingRequestsTable).omit({ id: true, createdAt: true });
+export type InsertSchedulingRequest = z.infer<typeof insertSchedulingRequestSchema>;
+export type SchedulingRequest = typeof schedulingRequestsTable.$inferSelect;
+
 export const otpCodesTable = pgTable("otp_codes", {
   id: serial("id").primaryKey(),
   email: text("email").notNull(),

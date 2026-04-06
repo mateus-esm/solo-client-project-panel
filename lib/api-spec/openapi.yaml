@@ -418,6 +418,81 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /chat:
+    post:
+      operationId: sendChatMessage
+      tags: [chat]
+      summary: Send a message to the AI assistant (streams SSE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: SSE stream of AI response tokens
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /scheduling:
+    get:
+      operationId: listSchedulingRequests
+      tags: [scheduling]
+      summary: List scheduling requests for the authenticated project
+      responses:
+        "200":
+          description: List of scheduling requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchedulingRequest"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createSchedulingRequest
+      tags: [scheduling]
+      summary: Create a scheduling request for the execution phase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSchedulingRequestBody"
+      responses:
+        "201":
+          description: Scheduling request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulingRequest"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   securitySchemes:
     webhookSecret:
@@ -838,4 +913,54 @@ components:
         - message
         - project_id
         - created
+
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required: [role, content]
+
+    ChatRequest:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+      required: [messages]
+
+    SchedulingRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        requestedDate:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, projectId, requestedDate, status, createdAt]
+
+    CreateSchedulingRequestBody:
+      type: object
+      properties:
+        requestedDate:
+          type: string
+          description: ISO date string for the requested execution date
+        notes:
+          type: string
+          nullable: true
+      required: [requestedDate]
 

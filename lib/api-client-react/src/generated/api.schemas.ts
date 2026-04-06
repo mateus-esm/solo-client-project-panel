@@ -196,6 +196,47 @@ export interface WebhookResult {
   phase_name?: string | null;
 }
 
+export type ChatMessageRole =
+  (typeof ChatMessageRole)[keyof typeof ChatMessageRole];
+
+export const ChatMessageRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+export interface ChatMessage {
+  role: ChatMessageRole;
+  content: string;
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[];
+}
+
+export type SchedulingRequestStatus =
+  (typeof SchedulingRequestStatus)[keyof typeof SchedulingRequestStatus];
+
+export const SchedulingRequestStatus = {
+  pending: "pending",
+  confirmed: "confirmed",
+  cancelled: "cancelled",
+} as const;
+
+export interface SchedulingRequest {
+  id: number;
+  projectId: number;
+  requestedDate: string;
+  notes?: string | null;
+  status: SchedulingRequestStatus;
+  createdAt: string;
+}
+
+export interface CreateSchedulingRequestBody {
+  /** ISO date string for the requested execution date */
+  requestedDate: string;
+  notes?: string | null;
+}
+
 export type ListDocumentsParams = {
   projectId?: number;
 };
