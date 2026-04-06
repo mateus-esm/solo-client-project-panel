@@ -174,6 +174,10 @@ export const ListDocumentsResponseItem = zod.object({
   required: zod.boolean(),
   description: zod.string().nullish(),
   fileUrl: zod.string().nullish(),
+  uploadedAt: zod
+    .string()
+    .nullish()
+    .describe("ISO timestamp when the file was uploaded"),
   createdAt: zod.string(),
 });
 export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem);
@@ -360,6 +364,41 @@ export const CompleteDocumentUploadResponse = zod.object({
   required: zod.boolean(),
   description: zod.string().nullish(),
   fileUrl: zod.string().nullish(),
+  uploadedAt: zod
+    .string()
+    .nullish()
+    .describe("ISO timestamp when the file was uploaded"),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Upload a document file (multipart/form-data). Backend validates, uploads to object storage, and updates the document record.
+ */
+export const UploadDocumentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UploadDocumentBody = zod.object({
+  file: zod.instanceof(File).describe("PDF, JPG, or PNG file; max 10 MB"),
+});
+
+export const UploadDocumentResponse = zod.object({
+  id: zod.number(),
+  projectId: zod.number(),
+  name: zod.string(),
+  type: zod.enum(["pending_upload", "available_download"]),
+  category: zod
+    .enum(["entrada", "intra_projeto"])
+    .describe(
+      "entrada = docs the client provides; intra_projeto = docs Solo Energia generates",
+    ),
+  required: zod.boolean(),
+  description: zod.string().nullish(),
+  fileUrl: zod.string().nullish(),
+  uploadedAt: zod
+    .string()
+    .nullish()
+    .describe("ISO timestamp when the file was uploaded"),
   createdAt: zod.string(),
 });
 

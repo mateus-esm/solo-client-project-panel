@@ -1,9 +1,6 @@
 import { Router, type IRouter } from "express";
 import { createOtp, verifyOtp, createSession, resolveSession, deleteSession } from "../lib/auth";
 import { logger } from "../lib/logger";
-import { db } from "@workspace/db";
-import { projectsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -158,32 +155,6 @@ router.get("/auth/me", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to resolve session");
-    res.status(500).json({ message: "Erro interno" });
-  }
-});
-
-router.post("/auth/dev-login", async (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    res.status(404).json({ message: "Not found" });
-    return;
-  }
-  const TEST_EMAIL = "mateus@soloenergia.com.br";
-  try {
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.clientEmail, TEST_EMAIL))
-      .limit(1);
-    if (!project) {
-      res.status(404).json({ message: "Projeto de teste não encontrado" });
-      return;
-    }
-    const token = await createSession(project.id);
-    res.cookie(COOKIE_NAME, token, getCookieOptions());
-    logger.info({ email: TEST_EMAIL, projectId: project.id }, "Dev login");
-    res.json({ status: "ok", message: "Login de teste realizado", projectId: project.id });
-  } catch (err) {
-    logger.error({ err }, "Dev login failed");
     res.status(500).json({ message: "Erro interno" });
   }
 });

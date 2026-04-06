@@ -1,9 +1,5 @@
 import { useRef, useState, useCallback } from "react";
-import {
-  useListDocuments,
-  requestDocumentUpload,
-  completeDocumentUpload,
-} from "@workspace/api-client-react";
+import { useListDocuments } from "@workspace/api-client-react";
 import type { Document, DocumentCategory } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -69,30 +65,22 @@ function DocCard({ doc, onUploaded }: DocCardProps) {
       }
 
       setUploading(true);
-      setProgress(10);
+      setProgress(30);
 
       try {
-        const { uploadURL, objectPath } = await requestDocumentUpload(doc.id, {
-          name: file.name,
-          size: file.size,
-          contentType: file.type,
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadRes = await fetch(`/api/documents/${doc.id}/upload`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
         });
 
-        setProgress(35);
-
-        const gcsRes = await fetch(uploadURL, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        });
-
-        if (!gcsRes.ok) throw new Error("Falha ao enviar para o armazenamento");
-        setProgress(75);
-
-        await completeDocumentUpload(doc.id, {
-          objectPath,
-          fileName: file.name,
-        });
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json().catch(() => ({}));
+          throw new Error((err as { message?: string }).message || "Erro ao enviar arquivo");
+        }
 
         setProgress(100);
         toast.success(`${doc.name} enviado com sucesso!`);
@@ -189,7 +177,9 @@ function DocCard({ doc, onUploaded }: DocCardProps) {
       {/* Actions */}
       <div className="pt-4 border-t border-border/50 mt-auto flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground font-mono tabular-nums">
-          {format(parseISO(doc.createdAt), "dd MMM, yyyy", { locale: ptBR })}
+          {doc.uploadedAt
+            ? `Enviado ${format(parseISO(doc.uploadedAt), "dd MMM, yyyy", { locale: ptBR })}`
+            : format(parseISO(doc.createdAt), "dd MMM, yyyy", { locale: ptBR })}
         </span>
 
         <div className="flex items-center gap-2">

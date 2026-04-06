@@ -23,7 +23,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [devLoading, setDevLoading] = useState(false);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -125,20 +124,6 @@ export default function Login() {
       }
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleDevLogin() {
-    setDevLoading(true);
-    try {
-      const res = await fetch("/api/auth/dev-login", { method: "POST", credentials: "include" });
-      if (!res.ok) throw new Error("failed");
-      await queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
-      window.location.href = "/";
-    } catch {
-      setError("Falha no acesso de demonstração.");
-    } finally {
-      setDevLoading(false);
     }
   }
 
@@ -338,25 +323,6 @@ export default function Login() {
           )}
         </AnimatePresence>
 
-        {/* Dev / demo bypass */}
-        <div className="mt-6 text-center">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-border/50" />
-            <span className="text-xs text-muted-foreground uppercase tracking-widest font-mono">Demonstração</span>
-            <div className="flex-1 h-px bg-border/50" />
-          </div>
-          <button
-            onClick={handleDevLogin}
-            disabled={devLoading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/8 bg-card hover:bg-white/5 text-sm text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
-          >
-            {devLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>Entrar como Mateus Ferreira <span className="text-xs font-mono text-primary/70">(mateus@soloenergia.com.br)</span></>
-            )}
-          </button>
-        </div>
       </div>
     </div>
   );

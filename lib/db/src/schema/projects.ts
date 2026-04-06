@@ -44,6 +44,8 @@ export const documentsTable = pgTable("documents", {
   required: boolean("required").notNull().default(false),
   description: text("description"),
   fileUrl: text("file_url"),
+  objectPath: text("object_path"),
+  uploadedAt: timestamp("uploaded_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

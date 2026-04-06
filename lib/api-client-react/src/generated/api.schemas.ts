@@ -104,6 +104,8 @@ export interface Document {
   required: boolean;
   description?: string | null;
   fileUrl?: string | null;
+  /** ISO timestamp when the file was uploaded */
+  uploadedAt?: string | null;
   createdAt: string;
 }
 
@@ -235,4 +237,9 @@ export type ListDocumentsParams = {
 
 export type ListNotificationsParams = {
   projectId?: number;
+};
+
+export type UploadDocumentBody = {
+  /** PDF, JPG, or PNG file; max 10 MB */
+  file: Blob;
 };

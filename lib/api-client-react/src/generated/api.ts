@@ -34,6 +34,7 @@ import type {
   Project,
   RequestOtpBody,
   UpdatePaymentStatusBody,
+  UploadDocumentBody,
   UploadUrlRequest,
   UploadUrlResponse,
   VerifyOtpBody,
@@ -1389,6 +1390,95 @@ export const useCompleteDocumentUpload = <
   TContext
 > => {
   return useMutation(getCompleteDocumentUploadMutationOptions(options));
+};
+
+/**
+ * @summary Upload a document file (multipart/form-data). Backend validates, uploads to object storage, and updates the document record.
+ */
+export const getUploadDocumentUrl = (id: number) => {
+  return `/api/documents/${id}/upload`;
+};
+
+export const uploadDocument = async (
+  id: number,
+  uploadDocumentBody: UploadDocumentBody,
+  options?: RequestInit,
+): Promise<Document> => {
+  const formData = new FormData();
+  formData.append(`file`, uploadDocumentBody.file);
+
+  return customFetch<Document>(getUploadDocumentUrl(id), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getUploadDocumentMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadDocument>>,
+    TError,
+    { id: number; data: BodyType<UploadDocumentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadDocument>>,
+  TError,
+  { id: number; data: BodyType<UploadDocumentBody> },
+  TContext
+> => {
+  const mutationKey = ["uploadDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadDocument>>,
+    { id: number; data: BodyType<UploadDocumentBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return uploadDocument(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadDocument>>
+>;
+export type UploadDocumentMutationBody = BodyType<UploadDocumentBody>;
+export type UploadDocumentMutationError = ErrorType<Error>;
+
+/**
+ * @summary Upload a document file (multipart/form-data). Backend validates, uploads to object storage, and updates the document record.
+ */
+export const useUploadDocument = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadDocument>>,
+    TError,
+    { id: number; data: BodyType<UploadDocumentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadDocument>>,
+  TError,
+  { id: number; data: BodyType<UploadDocumentBody> },
+  TContext
+> => {
+  return useMutation(getUploadDocumentMutationOptions(options));
 };
 
 /**

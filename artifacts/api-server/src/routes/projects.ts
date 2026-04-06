@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import multer from "multer";
 import { db } from "@workspace/db";
 import { projectsTable, documentsTable, notificationsTable, paymentsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -10,6 +11,7 @@ const objectStorage = new ObjectStorageService();
 
 const ALLOWED_CONTENT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
 
 const router: IRouter = Router();
 
@@ -172,25 +174,28 @@ router.get("/jestor/sync/:jestorId", async (req, res) => {
   }
 });
 
+function formatDocument(d: typeof documentsTable.$inferSelect) {
+  return {
+    id: d.id,
+    projectId: d.projectId,
+    name: d.name,
+    type: d.type,
+    category: d.category,
+    required: d.required,
+    description: d.description ?? null,
+    fileUrl: d.fileUrl ?? null,
+    uploadedAt: d.uploadedAt ? d.uploadedAt.toISOString() : null,
+    createdAt: d.createdAt.toISOString(),
+  };
+}
+
 router.get("/documents", requireAuth, async (req, res) => {
   try {
     const docs = await db
       .select()
       .from(documentsTable)
       .where(eq(documentsTable.projectId, req.sessionProjectId!));
-    res.json(
-      docs.map((d) => ({
-        id: d.id,
-        projectId: d.projectId,
-        name: d.name,
-        type: d.type,
-        category: d.category,
-        required: d.required,
-        description: d.description,
-        fileUrl: d.fileUrl,
-        createdAt: d.createdAt.toISOString(),
-      }))
-    );
+    res.json(docs.map(formatDocument));
   } catch (err) {
     req.log.error({ err }, "Failed to list documents");
     res.status(500).json({ message: "Internal server error" });
@@ -267,26 +272,83 @@ router.patch("/documents/:id/complete-upload", requireAuth, async (req, res) => 
     }
 
     const fileUrl = `/api/storage${objectPath}`;
+    const uploadedAt = new Date();
 
     const [updated] = await db
       .update(documentsTable)
-      .set({ fileUrl, type: "available_download" })
+      .set({ fileUrl, objectPath, uploadedAt, type: "available_download" })
       .where(eq(documentsTable.id, id))
       .returning();
 
-    res.json({
-      id: updated.id,
-      projectId: updated.projectId,
-      name: updated.name,
-      type: updated.type,
-      category: updated.category,
-      required: updated.required,
-      description: updated.description,
-      fileUrl: updated.fileUrl,
-      createdAt: updated.createdAt.toISOString(),
-    });
+    res.json(formatDocument(updated));
   } catch (err) {
     req.log.error({ err }, "Failed to complete document upload");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+router.post("/documents/:id/upload", requireAuth, upload.single("file"), async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ message: "ID inválido" });
+    return;
+  }
+
+  if (!req.file) {
+    res.status(400).json({ message: "Arquivo não enviado" });
+    return;
+  }
+
+  const { mimetype, buffer, size } = req.file;
+
+  if (!ALLOWED_CONTENT_TYPES.includes(mimetype)) {
+    res.status(400).json({ message: "Tipo de arquivo não permitido. Use PDF, JPG ou PNG." });
+    return;
+  }
+
+  if (size > MAX_FILE_SIZE) {
+    res.status(400).json({ message: "Arquivo muito grande. Máximo de 10 MB." });
+    return;
+  }
+
+  try {
+    const [doc] = await db
+      .select()
+      .from(documentsTable)
+      .where(and(eq(documentsTable.id, id), eq(documentsTable.projectId, req.sessionProjectId!)));
+
+    if (!doc) {
+      res.status(404).json({ message: "Documento não encontrado" });
+      return;
+    }
+
+    const uploadURL = await objectStorage.getObjectEntityUploadURL();
+    const objectPath = objectStorage.normalizeObjectEntityPath(uploadURL);
+
+    const gcsRes = await fetch(uploadURL, {
+      method: "PUT",
+      body: buffer,
+      headers: { "Content-Type": mimetype },
+    });
+
+    if (!gcsRes.ok) {
+      req.log.error({ status: gcsRes.status }, "GCS upload failed");
+      res.status(502).json({ message: "Falha ao enviar para o armazenamento" });
+      return;
+    }
+
+    const fileUrl = `/api/storage${objectPath}`;
+    const uploadedAt = new Date();
+
+    const [updated] = await db
+      .update(documentsTable)
+      .set({ fileUrl, objectPath, uploadedAt, type: "available_download" })
+      .where(eq(documentsTable.id, id))
+      .returning();
+
+    res.json(formatDocument(updated));
+  } catch (err) {
+    req.log.error({ err }, "Failed to upload document");
     res.status(500).json({ message: "Erro interno" });
   }
 });

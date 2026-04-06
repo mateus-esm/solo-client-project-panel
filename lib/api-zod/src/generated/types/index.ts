@@ -27,6 +27,7 @@ export * from "./paymentStatus";
 export * from "./project";
 export * from "./requestOtpBody";
 export * from "./updatePaymentStatusBody";
+export * from "./uploadDocumentBody";
 export * from "./uploadUrlRequest";
 export * from "./uploadUrlResponse";
 export * from "./verifyOtpBody";

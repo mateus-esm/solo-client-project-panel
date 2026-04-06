@@ -7,6 +7,9 @@ import {
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
 import { resolveSession } from "../lib/auth";
+import { db } from "@workspace/db";
+import { documentsTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -100,6 +103,22 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const session = await resolveSession(sessionToken);
     if (!session) {
       res.status(401).json({ error: "Sessão expirada" });
+      return;
+    }
+
+    const [docRecord] = await db
+      .select({ projectId: documentsTable.projectId })
+      .from(documentsTable)
+      .where(eq(documentsTable.objectPath, objectPath))
+      .limit(1);
+
+    if (!docRecord) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    if (docRecord.projectId !== session.projectId) {
+      res.status(403).json({ error: "Acesso negado" });
       return;
     }
 
