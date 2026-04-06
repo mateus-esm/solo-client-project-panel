@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Bell, CheckCircle2, AlertCircle, Info, Activity } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { staggerContainerFast, itemLeft } from "@/lib/animations";
+import { staggerContainerFast, itemLeft, redBullSpring } from "@/lib/animations";
 
 export default function Notifications() {
   const { data: notifications, isLoading } = useListNotifications();
@@ -27,7 +27,7 @@ export default function Notifications() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 420, damping: 32 }}
+          transition={redBullSpring}
           className="glass-card grain-overlay rounded-3xl p-8 mb-10 overflow-hidden relative"
         >
           <div className="absolute top-0 right-0 w-48 h-48 bg-primary/8 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />

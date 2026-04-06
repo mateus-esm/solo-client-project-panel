@@ -32,3 +32,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 WEBHOOK_SECRET = "solo_5xk9nzjvj8u2jcv3"
+RESEND_FROM_EMAIL = "Solo Energia <comercial@comercial.soloenergia.com.br>"

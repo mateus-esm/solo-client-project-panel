@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { FileText, Download, Upload, CheckCircle2, FolderOpen, FolderInput } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { staggerContainer, itemUp } from "@/lib/animations";
+import { staggerContainer, itemUp, redBullSpring } from "@/lib/animations";
 
 const STATIC_ENTRADA_DOCS = [
   { name: "RG / CNH", description: "Documento de identidade do titular" },
@@ -166,7 +166,7 @@ export default function Documents() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 420, damping: 32 }}
+          transition={redBullSpring}
           className="glass-card grain-overlay rounded-3xl p-8 mb-10 overflow-hidden relative"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/8 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />

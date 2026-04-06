@@ -77,10 +77,10 @@ export function Layout({ children }: LayoutProps) {
                     {isActive && (
                       <motion.div
                         layoutId="nav-indicator"
-                        className="absolute -bottom-[28px] left-0 right-0 h-[2px] rounded-full"
+                        className="absolute -bottom-[28px] left-0 right-0 h-px rounded-full"
                         style={{ background: "var(--brand-gradient)" }}
                         initial={false}
-                        transition={{ type: "spring", stiffness: 520, damping: 32 }}
+                        transition={redBullSpring}
                       />
                     )}
                   </Link>
@@ -133,7 +133,7 @@ export function Layout({ children }: LayoutProps) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ type: "spring", stiffness: 420, damping: 32 }}
+            transition={redBullSpring}
             className="md:hidden border-b border-border bg-card/95 backdrop-blur-xl overflow-hidden"
           >
             <div className="px-4 py-4 space-y-2">
@@ -198,7 +198,7 @@ export function Layout({ children }: LayoutProps) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          transition={{ type: "spring", stiffness: 420, damping: 32 }}
+          transition={redBullSpring}
         >
           {children}
         </motion.div>
