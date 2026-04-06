@@ -5,7 +5,6 @@ import {
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { ObjectPermission } from "../lib/objectAcl";
 import { resolveSession } from "../lib/auth";
 import { db } from "@workspace/db";
 import { documentsTable } from "@workspace/db/schema";
@@ -22,6 +21,17 @@ const objectStorageService = new ObjectStorageService();
  * Then uploads the file directly to the returned presigned URL.
  */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+  const sessionToken = req.cookies?.solo_session;
+  if (!sessionToken) {
+    res.status(401).json({ error: "Não autenticado" });
+    return;
+  }
+  const session = await resolveSession(sessionToken);
+  if (!session) {
+    res.status(401).json({ error: "Sessão expirada" });
+    return;
+  }
+
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });

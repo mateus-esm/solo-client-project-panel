@@ -196,29 +196,6 @@ export interface WebhookResult {
   phase_name?: string | null;
 }
 
-export interface DocumentRequestUploadBody {
-  /** Original file name */
-  name: string;
-  /** File size in bytes */
-  size: number;
-  /** MIME type (application/pdf, image/jpeg, image/png) */
-  contentType: string;
-}
-
-export interface DocumentRequestUploadResponse {
-  /** Presigned GCS URL for PUT upload */
-  uploadURL: string;
-  /** Normalized object path to store in database */
-  objectPath: string;
-}
-
-export interface DocumentCompleteUploadBody {
-  /** Object path returned by request-upload */
-  objectPath: string;
-  /** Original file name for display */
-  fileName?: string | null;
-}
-
 export interface UploadUrlRequest {
   name: string;
   size: number;

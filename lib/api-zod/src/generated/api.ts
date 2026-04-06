@@ -318,60 +318,6 @@ export const JestorProjectWebhookResponse = zod.object({
 });
 
 /**
- * @summary Request a presigned URL to upload a file for a specific document
- */
-export const RequestDocumentUploadParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const RequestDocumentUploadBody = zod.object({
-  name: zod.string().describe("Original file name"),
-  size: zod.number().describe("File size in bytes"),
-  contentType: zod
-    .string()
-    .describe("MIME type (application\/pdf, image\/jpeg, image\/png)"),
-});
-
-export const RequestDocumentUploadResponse = zod.object({
-  uploadURL: zod.string().describe("Presigned GCS URL for PUT upload"),
-  objectPath: zod
-    .string()
-    .describe("Normalized object path to store in database"),
-});
-
-/**
- * @summary Mark a document upload as complete and set the file URL
- */
-export const CompleteDocumentUploadParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const CompleteDocumentUploadBody = zod.object({
-  objectPath: zod.string().describe("Object path returned by request-upload"),
-  fileName: zod.string().nullish().describe("Original file name for display"),
-});
-
-export const CompleteDocumentUploadResponse = zod.object({
-  id: zod.number(),
-  projectId: zod.number(),
-  name: zod.string(),
-  type: zod.enum(["pending_upload", "available_download"]),
-  category: zod
-    .enum(["entrada", "intra_projeto"])
-    .describe(
-      "entrada = docs the client provides; intra_projeto = docs Solo Energia generates",
-    ),
-  required: zod.boolean(),
-  description: zod.string().nullish(),
-  fileUrl: zod.string().nullish(),
-  uploadedAt: zod
-    .string()
-    .nullish()
-    .describe("ISO timestamp when the file was uploaded"),
-  createdAt: zod.string(),
-});
-
-/**
  * @summary Upload a document file (multipart/form-data). Backend validates, uploads to object storage, and updates the document record.
  */
 export const UploadDocumentParams = zod.object({
