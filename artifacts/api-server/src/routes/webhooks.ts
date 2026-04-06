@@ -154,6 +154,20 @@ router.post("/webhooks/jestor/project", async (req, res) => {
       }
       await sendEmail(client_email, notification.emailSubject, notification.emailHtml);
 
+      // Handle optional payments array on create
+      const createPaymentsPayload = req.body.payments as Array<{
+        installment_number: number;
+        amount: number;
+        due_date: string;
+        paid_date?: string | null;
+        status?: string;
+        description?: string | null;
+      }> | undefined;
+
+      if (createPaymentsPayload && Array.isArray(createPaymentsPayload)) {
+        await upsertPayments(project.id, createPaymentsPayload);
+      }
+
       req.log.info({ project_id: project.id, jestor_id }, "New project created via Jestor webhook");
 
       res.status(201).json({

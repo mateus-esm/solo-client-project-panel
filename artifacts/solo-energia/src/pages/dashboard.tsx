@@ -11,7 +11,7 @@ import { staggerContainer, itemUp, momentumEase } from "@/lib/animations";
 
 const STEPS = [
   { id: 1, title: "Onboarding", desc: "Boas-vindas e configuração" },
-  { id: 2, title: "Engenharia", desc: "Projeto técnico e plantas" },
+  { id: 2, title: "Projeto Técnico", desc: "Engenharia e plantas" },
   { id: 3, title: "Homologação", desc: "Trâmites com concessionária" },
   { id: 4, title: "Logística", desc: "Rastreio de equipamentos" },
   { id: 5, title: "Execução", desc: "Instalação física" },

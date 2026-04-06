@@ -110,7 +110,11 @@ export function buildPhaseNotification(
     },
     6: {
       title: "Usina Solar Ativada! ☀️🎉",
-      body: `Parabéns, ${firstName}! Sua usina solar está ativa e gerando energia limpa. Acesse o portal para ativar o monitoramento em tempo real.`,
+      body: `Parabéns, ${firstName}! Sua usina solar está ativa e gerando energia limpa. Em breve nossa equipe agendará o treinamento de monitoramento com você.`,
+    },
+    7: {
+      title: "Treinamento Concluído! 🎓",
+      body: `${firstName}, você está pronto para monitorar e aproveitar ao máximo sua usina solar. Acesse o portal para ativar o monitoramento em tempo real e acompanhar a geração de energia.`,
     },
   };
 
