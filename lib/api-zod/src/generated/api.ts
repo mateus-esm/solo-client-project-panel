@@ -325,7 +325,7 @@ export const UploadDocumentParams = zod.object({
 });
 
 export const UploadDocumentBody = zod.object({
-  file: zod.instanceof(File).describe("PDF, JPG, or PNG file; max 10 MB"),
+  file: zod.any().describe("PDF, JPG, or PNG file; max 10 MB"),
 });
 
 export const UploadDocumentResponse = zod.object({

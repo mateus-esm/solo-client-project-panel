@@ -8,5 +8,5 @@
 
 export type UploadDocumentBody = {
   /** PDF, JPG, or PNG file; max 10 MB */
-  file: Blob;
+  file: unknown;
 };

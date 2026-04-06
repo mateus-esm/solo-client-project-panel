@@ -15,9 +15,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX
 
 const router: IRouter = Router();
 
-declare module "express-serve-static-core" {
-  interface Request {
-    sessionProjectId?: number;
+declare global {
+  namespace Express {
+    interface Request {
+      sessionProjectId?: number;
+    }
   }
 }
 
@@ -83,7 +85,7 @@ router.get("/projects", requireAuth, async (req, res) => {
 
 router.get("/projects/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (id !== req.sessionProjectId) {
       res.status(403).json({ message: "Acesso negado" });
       return;
@@ -203,7 +205,7 @@ router.get("/documents", requireAuth, async (req, res) => {
 });
 
 router.post("/documents/:id/upload", requireAuth, upload.single("file"), async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ message: "ID inválido" });
     return;
@@ -234,6 +236,11 @@ router.post("/documents/:id/upload", requireAuth, upload.single("file"), async (
 
     if (!doc) {
       res.status(404).json({ message: "Documento não encontrado" });
+      return;
+    }
+
+    if (doc.category !== "entrada") {
+      res.status(403).json({ message: "Upload não permitido para este tipo de documento" });
       return;
     }
 
@@ -293,7 +300,7 @@ router.get("/notifications", requireAuth, async (req, res) => {
 
 router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const [notification] = await db
       .select()
       .from(notificationsTable)
