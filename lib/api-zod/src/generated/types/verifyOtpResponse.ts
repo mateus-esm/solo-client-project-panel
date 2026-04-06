@@ -6,7 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface VerifyOtpResponse {
-  message: string;
-  projectId: number;
-}
+export type VerifyOtpResponse =
+  | {
+      status: "ok";
+      message: string;
+      projectId: number;
+    }
+  | {
+      status: "no_project";
+      message: string;
+    };

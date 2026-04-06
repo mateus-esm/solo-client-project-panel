@@ -33,10 +33,17 @@ export const VerifyOtpBody = zod.object({
   code: zod.string(),
 });
 
-export const VerifyOtpResponse = zod.object({
-  message: zod.string(),
-  projectId: zod.number(),
-});
+export const VerifyOtpResponse = zod.union([
+  zod.object({
+    status: zod.enum(["ok"]),
+    message: zod.string(),
+    projectId: zod.number(),
+  }),
+  zod.object({
+    status: zod.enum(["no_project"]),
+    message: zod.string(),
+  }),
+]);
 
 /**
  * @summary Get the current authenticated user

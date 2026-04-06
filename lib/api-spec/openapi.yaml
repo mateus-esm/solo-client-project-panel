@@ -71,13 +71,19 @@ paths:
               $ref: "#/components/schemas/VerifyOtpBody"
       responses:
         "200":
-          description: Authenticated
+          description: OTP verified — either authenticated (status=ok) or no project linked (status=no_project)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/VerifyOtpResponse"
         "401":
           description: Invalid or expired code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Too many attempts
           content:
             application/json:
               schema:
@@ -326,15 +332,32 @@ components:
         - code
 
     VerifyOtpResponse:
-      type: object
-      properties:
-        message:
-          type: string
-        projectId:
-          type: integer
-      required:
-        - message
-        - projectId
+      oneOf:
+        - title: AuthSuccess
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [ok]
+            message:
+              type: string
+            projectId:
+              type: integer
+          required:
+            - status
+            - message
+            - projectId
+        - title: NoProject
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [no_project]
+            message:
+              type: string
+          required:
+            - status
+            - message
 
     AuthUser:
       type: object

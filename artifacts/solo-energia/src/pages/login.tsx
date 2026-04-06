@@ -83,7 +83,7 @@ export default function Login() {
     try {
       const result = await verifyOtp({ email, code });
 
-      if ((result as { status?: string }).status === "no_project") {
+      if (result.status === "no_project") {
         setStep("no_project");
         return;
       }
