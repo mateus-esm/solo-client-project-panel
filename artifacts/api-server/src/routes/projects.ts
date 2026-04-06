@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction, type RequestHandler } from "express";
 import multer from "multer";
 import { db } from "@workspace/db";
 import { projectsTable, documentsTable, notificationsTable, paymentsTable } from "@workspace/db/schema";
@@ -11,7 +11,17 @@ const objectStorage = new ObjectStorageService();
 
 const ALLOWED_CONTENT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
+const _upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
+
+const uploadSingle: RequestHandler = (req, res, next) => {
+  _upload.single("file")(req, res, (err) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      res.status(400).json({ message: "Arquivo muito grande. Máximo de 10 MB." });
+      return;
+    }
+    next(err as Error);
+  });
+};
 
 const router: IRouter = Router();
 
@@ -204,7 +214,7 @@ router.get("/documents", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/documents/:id/upload", requireAuth, upload.single("file"), async (req, res) => {
+router.post("/documents/:id/upload", requireAuth, uploadSingle, async (req, res) => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ message: "ID inválido" });
@@ -216,15 +226,10 @@ router.post("/documents/:id/upload", requireAuth, upload.single("file"), async (
     return;
   }
 
-  const { mimetype, buffer, size } = req.file;
+  const { mimetype, buffer } = req.file;
 
   if (!ALLOWED_CONTENT_TYPES.includes(mimetype)) {
     res.status(400).json({ message: "Tipo de arquivo não permitido. Use PDF, JPG ou PNG." });
-    return;
-  }
-
-  if (size > MAX_FILE_SIZE) {
-    res.status(400).json({ message: "Arquivo muito grande. Máximo de 10 MB." });
     return;
   }
 
