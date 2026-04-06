@@ -64,6 +64,22 @@ export const insertNotificationSchema = createInsertSchema(notificationsTable).o
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notificationsTable.$inferSelect;
 
+export const paymentsTable = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  installmentNumber: integer("installment_number").notNull(),
+  amount: real("amount").notNull(),
+  dueDate: text("due_date").notNull(),
+  paidDate: text("paid_date"),
+  status: text("status").notNull().default("pending"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPaymentSchema = createInsertSchema(paymentsTable).omit({ id: true, createdAt: true });
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof paymentsTable.$inferSelect;
+
 export const otpCodesTable = pgTable("otp_codes", {
   id: serial("id").primaryKey(),
   email: text("email").notNull(),

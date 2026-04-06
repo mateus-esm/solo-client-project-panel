@@ -17,6 +17,8 @@ tags:
     description: Document operations
   - name: notifications
     description: Notification operations
+  - name: payments
+    description: Payment installment operations
   - name: webhooks
     description: Jestor webhook endpoints
 paths:
@@ -227,6 +229,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Notification"
+
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List payment installments for the authenticated user's project
+      responses:
+        "200":
+          description: List of payment installments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Create a payment installment (webhook use — requires webhook secret)
+      security:
+        - webhookSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentBody"
+      responses:
+        "201":
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /payments/{id}:
+    patch:
+      operationId: updatePaymentStatus
+      tags: [payments]
+      summary: Update payment status (webhook use — requires webhook secret)
+      security:
+        - webhookSecret: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePaymentStatusBody"
+      responses:
+        "200":
+          description: Updated payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /webhooks/jestor/project:
     post:
@@ -515,6 +596,78 @@ components:
         - message
         - read
         - createdAt
+
+    PaymentStatus:
+      type: string
+      enum: [paid, pending, overdue]
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        installmentNumber:
+          type: integer
+        amount:
+          type: number
+        dueDate:
+          type: string
+        paidDate:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - projectId
+        - installmentNumber
+        - amount
+        - dueDate
+        - status
+        - createdAt
+
+    CreatePaymentBody:
+      type: object
+      properties:
+        projectId:
+          type: integer
+        installmentNumber:
+          type: integer
+        amount:
+          type: number
+        dueDate:
+          type: string
+        paidDate:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        description:
+          type: string
+          nullable: true
+      required:
+        - projectId
+        - installmentNumber
+        - amount
+        - dueDate
+
+    UpdatePaymentStatusBody:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        paidDate:
+          type: string
+          nullable: true
+      required:
+        - status
 
     JestorWebhookPayload:
       type: object

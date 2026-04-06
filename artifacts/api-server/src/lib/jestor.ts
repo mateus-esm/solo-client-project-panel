@@ -102,13 +102,14 @@ export async function listJestorProjects(filters?: object[]): Promise<JestorProj
 
 /**
  * Maps Jestor's status_projeto string to our portal's step number.
- * Phases: 1=Onboarding, 2=Engenharia, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação
+ * Phases: 1=Onboarding, 2=Engenharia, 3=Homologação, 4=Logística, 5=Execução, 6=Ativação, 7=Treinamento
  */
 export function mapJestorStatusToStep(statusProjeto: string | undefined | null): number {
   if (!statusProjeto) return 1;
   const normalized = statusProjeto.toLowerCase().trim()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+  if (normalized.includes("treinamento") || normalized.includes("pos-venda") || normalized.includes("pos venda") || normalized.includes("pós-venda") || normalized.includes("pós venda") || normalized.includes("concluido treinamento")) return 7;
   if (normalized.includes("onboarding")) return 1;
   if (normalized.includes("engenharia") || normalized.includes("projeto tecnico") || normalized.includes("tecnico")) return 2;
   if (normalized.includes("homolog")) return 3;
@@ -119,6 +120,6 @@ export function mapJestorStatusToStep(statusProjeto: string | undefined | null):
 }
 
 export function stepCompletionPercent(step: number): number {
-  const map: Record<number, number> = { 1: 10, 2: 30, 3: 50, 4: 65, 5: 85, 6: 100 };
+  const map: Record<number, number> = { 1: 10, 2: 28, 3: 45, 4: 60, 5: 78, 6: 92, 7: 100 };
   return map[step] ?? 0;
 }
