@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { logger } from "./logger";
 
+export type SendResult = { ok: true } | { ok: false; error: string };
+
 let _resend: Resend | null = null;
 function getResend(): Resend {
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
@@ -24,37 +26,45 @@ function getPortalUrl(): string {
   return "https://soloenergia.replit.app";
 }
 
-export async function sendWhatsApp(phone: string, text: string): Promise<void> {
+export async function sendWhatsApp(phone: string, text: string): Promise<SendResult> {
   const waUrl = process.env.WHATSAPP_API_URL;
   const waKey = process.env.WHATSAPP_API_KEY;
   if (!waUrl || !waKey) {
     logger.warn("WhatsApp not configured — WHATSAPP_API_URL or WHATSAPP_API_KEY missing");
-    return;
+    return { ok: false, error: "WhatsApp não configurado" };
   }
-  const number = normalizePhone(phone);
-  const res = await fetch(waUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: waKey },
-    body: JSON.stringify({ number, text }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    logger.error({ status: res.status, body }, "WhatsApp send failed");
-    throw new Error(`WhatsApp API error: ${res.status}`);
+  try {
+    const number = normalizePhone(phone);
+    const res = await fetch(waUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: waKey },
+      body: JSON.stringify({ number, text }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      logger.error({ status: res.status, body }, "WhatsApp send failed");
+      return { ok: false, error: `WhatsApp API error: ${res.status}` };
+    }
+    logger.info({ number }, "WhatsApp message sent");
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "WhatsApp send exception");
+    return { ok: false, error: msg };
   }
-  logger.info({ number }, "WhatsApp message sent");
 }
 
-export async function sendInviteEmail(to: string, clientName: string): Promise<void> {
+export async function sendInviteEmail(to: string, clientName: string): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) {
     logger.warn("Resend not configured — RESEND_API_KEY missing");
-    return;
+    return { ok: false, error: "Email não configurado" };
   }
-  const portalUrl = getPortalUrl();
-  const loginUrl = `${portalUrl}/login`;
-  const firstName = clientName.split(" ")[0];
+  try {
+    const portalUrl = getPortalUrl();
+    const loginUrl = `${portalUrl}/login`;
+    const firstName = clientName.split(" ")[0];
 
-  const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -100,24 +110,31 @@ export async function sendInviteEmail(to: string, clientName: string): Promise<v
 </body>
 </html>`;
 
-  await getResend().emails.send({
-    from: FROM_EMAIL,
-    to,
-    subject: "☀️ Seu portal Solar está pronto — Solo Energia",
-    html,
-  });
-  logger.info({ to }, "Invite email sent");
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: "☀️ Seu portal Solar está pronto — Solo Energia",
+      html,
+    });
+    logger.info({ to }, "Invite email sent");
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "Invite email send failed");
+    return { ok: false, error: msg };
+  }
 }
 
-export async function sendMessageEmail(to: string, clientName: string, title: string, body: string): Promise<void> {
+export async function sendMessageEmail(to: string, clientName: string, title: string, body: string): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) {
     logger.warn("Resend not configured — RESEND_API_KEY missing");
-    return;
+    return { ok: false, error: "Email não configurado" };
   }
-  const portalUrl = getPortalUrl();
-  const firstName = clientName.split(" ")[0];
+  try {
+    const portalUrl = getPortalUrl();
+    const firstName = clientName.split(" ")[0];
 
-  const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -155,13 +172,19 @@ export async function sendMessageEmail(to: string, clientName: string, title: st
 </body>
 </html>`;
 
-  await getResend().emails.send({
-    from: FROM_EMAIL,
-    to,
-    subject: `☀️ ${title} — Solo Energia`,
-    html,
-  });
-  logger.info({ to, title }, "Message email sent");
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `☀️ ${title} — Solo Energia`,
+      html,
+    });
+    logger.info({ to, title }, "Message email sent");
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "Message email send failed");
+    return { ok: false, error: msg };
+  }
 }
 
 export function buildInviteWhatsAppText(clientName: string): string {
