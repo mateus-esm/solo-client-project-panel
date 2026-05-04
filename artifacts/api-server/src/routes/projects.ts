@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { getJestorProject, mapJestorStatusToStep, stepCompletionPercent } from "../lib/jestor";
 import { resolveSession } from "../lib/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { getProjectMeta, getDocumentDisplayCategory } from "./admin";
 
 const objectStorage = new ObjectStorageService();
 
@@ -50,6 +51,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 function formatProject(p: typeof projectsTable.$inferSelect) {
+  const meta = getProjectMeta(p.id);
   return {
     id: p.id,
     clientName: p.clientName,
@@ -75,6 +77,8 @@ function formatProject(p: typeof projectsTable.$inferSelect) {
     dataDePagamento: p.dataDePagamento,
     dataDeCompras: p.dataDeCompras,
     dataDeEntregaDoEquipamento: p.dataDeEntregaDoEquipamento,
+    schedulingLink: meta.schedulingLink,
+    sectionVisibility: meta.sectionVisibility,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -193,6 +197,7 @@ function formatDocument(d: typeof documentsTable.$inferSelect) {
     name: d.name,
     type: d.type,
     category: d.category,
+    displayCategory: getDocumentDisplayCategory(d.id, d.category),
     required: d.required,
     description: d.description ?? null,
     fileUrl: d.fileUrl ?? null,

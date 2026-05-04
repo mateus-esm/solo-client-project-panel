@@ -4,7 +4,7 @@ import { Bell, LayoutDashboard, FileText, Menu, X, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import logoLight from "@assets/001_1775433962945.png";
-import { useListNotifications } from "@workspace/api-client-react";
+import { useListNotifications, useListProjects } from "@workspace/api-client-react";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { redBullSpring } from "@/lib/animations";
 import { ChatWidget } from "@/components/chat-widget";
@@ -12,6 +12,18 @@ import { ChatWidget } from "@/components/chat-widget";
 interface LayoutProps {
   children: ReactNode;
 }
+
+type SectionVisibility = {
+  payments?: boolean;
+  scheduling?: boolean;
+  tracking?: boolean;
+  chat?: boolean;
+};
+
+type ProjectWithMeta = {
+  sectionVisibility?: SectionVisibility;
+  [key: string]: unknown;
+};
 
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
@@ -23,39 +35,37 @@ export function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
   const logoutMutation = useLogout();
 
+  const { data: projects } = useListProjects();
+  const project = (projects?.[0] as unknown as ProjectWithMeta) ?? null;
+  const sectionViz: SectionVisibility = project?.sectionVisibility ?? { payments: true, scheduling: true, tracking: true, chat: true };
+  const showChat = sectionViz.chat !== false;
+
   const navItems = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/documents", label: "Documentos", icon: FileText },
-    { href: "/notifications", label: "Notificações", icon: Bell, badge: unreadCount },
-  ];
+    { href: "/", label: "Dashboard", icon: LayoutDashboard, show: true },
+    { href: "/documents", label: "Documentos", icon: FileText, show: true },
+    { href: "/notifications", label: "Notificações", icon: Bell, badge: unreadCount, show: true },
+  ].filter((i) => i.show);
 
   function getInitials(name: string) {
-    return name
-      .split(" ")
-      .slice(0, 2)
-      .map((w) => w[0])
-      .join("")
-      .toUpperCase();
+    return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
-      {/* Top Navbar — grain texture + glass */}
+      {/* Top Navbar */}
       <header className="grain-overlay sticky top-0 z-50 w-full border-b border-border/40 bg-background/85 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="flex justify-between items-center h-20">
-            {/* Logo with micro hover animation */}
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center group">
                 <img
                   src={logoLight}
-                  alt="Solo Energia — Você no controle da sua energia"
+                  alt="Solo Energia"
                   className="h-8 w-auto object-contain opacity-90 transition-all duration-300 group-hover:opacity-100 group-hover:scale-[1.04] group-hover:brightness-110"
                 />
               </Link>
             </div>
 
-            {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-8">
               {navItems.map((item) => {
                 const isActive = location === item.href;
@@ -63,9 +73,7 @@ export function Layout({ children }: LayoutProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`relative flex items-center gap-2 text-sm font-medium transition-colors duration-200 hover:text-primary ${
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    }`}
+                    className={`relative flex items-center gap-2 text-sm font-medium transition-colors duration-200 hover:text-primary ${isActive ? "text-primary" : "text-muted-foreground"}`}
                   >
                     <item.icon className="w-4 h-4" />
                     {item.label}
@@ -74,7 +82,6 @@ export function Layout({ children }: LayoutProps) {
                         {item.badge}
                       </span>
                     )}
-                    {/* Sliding orange race-line indicator */}
                     {isActive && (
                       <motion.div
                         layoutId="nav-indicator"
@@ -89,7 +96,6 @@ export function Layout({ children }: LayoutProps) {
               })}
             </nav>
 
-            {/* Profile & Mobile Toggle */}
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-border">
                 {user && (
@@ -131,9 +137,7 @@ export function Layout({ children }: LayoutProps) {
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
             transition={redBullSpring}
             className="md:hidden border-b border-border bg-card/95 backdrop-blur-xl overflow-hidden"
           >
@@ -146,9 +150,7 @@ export function Layout({ children }: LayoutProps) {
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center justify-between p-4 rounded-xl transition-colors ${
-                      isActive
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "text-muted-foreground hover:bg-secondary"
+                      isActive ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:bg-secondary"
                     }`}
                   >
                     <div className="flex items-center gap-3 font-medium">
@@ -167,10 +169,7 @@ export function Layout({ children }: LayoutProps) {
               {user && (
                 <>
                   <div className="flex items-center gap-3 px-4 pt-3 pb-1 border-t border-border mt-2">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                      style={{ background: "var(--brand-gradient-135)" }}
-                    >
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0" style={{ background: "var(--brand-gradient-135)" }}>
                       {getInitials(user.clientName)}
                     </div>
                     <div>
@@ -196,17 +195,15 @@ export function Layout({ children }: LayoutProps) {
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           key={location}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
           transition={redBullSpring}
         >
           {children}
         </motion.div>
       </main>
 
-      {/* Floating AI Chat Widget */}
-      <ChatWidget />
+      {/* Floating AI Chat Widget — respects sectionVisibility.chat */}
+      {showChat && <ChatWidget />}
     </div>
   );
 }

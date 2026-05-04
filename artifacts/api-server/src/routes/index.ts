@@ -6,6 +6,7 @@ import webhooksRouter from "./webhooks";
 import storageRouter from "./storage";
 import chatRouter from "./chat";
 import schedulingRouter from "./scheduling";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(webhooksRouter);
 router.use(storageRouter);
 router.use(chatRouter);
 router.use(schedulingRouter);
+router.use(adminRouter);
 
 export default router;

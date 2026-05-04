@@ -2,6 +2,32 @@ import { pgTable, serial, text, integer, real, timestamp, boolean } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export const SectionVisibilitySchema = z.object({
+  payments: z.boolean().default(true),
+  scheduling: z.boolean().default(true),
+  tracking: z.boolean().default(true),
+  chat: z.boolean().default(true),
+});
+
+export type SectionVisibility = z.infer<typeof SectionVisibilitySchema>;
+
+export const DEFAULT_SECTION_VISIBILITY: SectionVisibility = {
+  payments: true,
+  scheduling: true,
+  tracking: true,
+  chat: true,
+};
+
+export const DOCUMENT_DISPLAY_CATEGORIES = [
+  "cliente",
+  "engenharia",
+  "fiscal",
+  "legal",
+  "equipamentos",
+] as const;
+
+export type DocumentDisplayCategory = typeof DOCUMENT_DISPLAY_CATEGORIES[number];
+
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
   jestorId: text("jestor_id").unique(),
