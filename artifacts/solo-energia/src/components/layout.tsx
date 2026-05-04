@@ -7,6 +7,7 @@ import logoLight from "@assets/001_1775433962945.png";
 import { useListNotifications } from "@workspace/api-client-react";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { redBullSpring } from "@/lib/animations";
+import { ChatWidget } from "@/components/chat-widget";
 
 interface LayoutProps {
   children: ReactNode;
@@ -203,6 +204,9 @@ export function Layout({ children }: LayoutProps) {
           {children}
         </motion.div>
       </main>
+
+      {/* Floating AI Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }

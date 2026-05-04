@@ -51,16 +51,17 @@ artifacts-monorepo/
 └── scripts/
 ```
 
-## 6-Phase Pipeline
+## 7-Phase Pipeline
 
 | Step | Name | Jestor status_projeto (mapped) |
 |------|------|-------------------------------|
 | 1 | Onboarding | "Onboarding" |
-| 2 | Engenharia | "Engenharia" / "Projeto Técnico" |
+| 2 | Projeto Técnico | "Engenharia" / "Projeto Técnico" |
 | 3 | Homologação | "Homologação" |
 | 4 | Logística | "Logística" / "Compras" / "Entrega" |
 | 5 | Execução | "Execução" / "Instalação" / "Obra" |
 | 6 | Ativação | "Ativação" / "Concluído" |
+| 7 | Treinamento | "Treinamento" |
 
 ## Authentication
 
@@ -96,6 +97,9 @@ All routes under `/api`:
 - `GET /api/jestor/sync/:jestorId` — pull latest data from Jestor API and update portal
 - `POST /api/webhooks/jestor/project` — **unified Jestor webhook** (create + update)
   - Header: `x-webhook-secret: <WEBHOOK_SECRET env var>`
+- `POST /api/chat` — streaming SSE AI assistant (GPT-5.2, project-context-aware, Portuguese)
+- `GET /api/scheduling` — list scheduling requests for session's project
+- `POST /api/scheduling` — create scheduling request + WhatsApp notify team
 
 ## Jestor Webhook Payload
 
@@ -163,12 +167,29 @@ Jestor::curlCall($url, "POST", json_encode($data), [
 | `WHATSAPP_API_TOKEN` | Evolution API apikey |
 | `RESEND_API_KEY` | Resend API key for email notifications |
 | `PORTAL_URL` | Public URL of the portal (for WhatsApp/email links) |
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Replit AI proxy base URL (provisioned by OpenAI integration) |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | Replit AI proxy key (provisioned by OpenAI integration) |
+| `SOLO_TEAM_PHONE` | Team WhatsApp phone number for scheduling notifications |
+
+## AI Chat Widget
+
+Floating orange chat button (bottom-right) appears on all authenticated pages. Uses streaming SSE from `POST /api/chat`. The assistant:
+- Speaks only Portuguese (BR)
+- Has full context of the client's project (name, step, city, power, activation date)
+- Answers questions about the 7-phase installation process
+- Gracefully handles errors without crashing
+
+## Scheduling (Step 4 — Logística)
+
+When `statusStep === 4`, a scheduling card appears on the dashboard allowing clients to request a visit date. On submit, the team receives a WhatsApp notification via `SOLO_TEAM_PHONE`. Uses `SOLO_TEAM_PHONE` env var (defaults to placeholder if unset).
 
 ## Database Schema
 
-- `projects` — all Jestor fields mapped + status_step (1-6), dates, valor_projeto, forma_pagamento
+- `projects` — all Jestor fields mapped + status_step (1-7), dates, valor_projeto, forma_pagamento
 - `documents` — type (pending_upload/available_download), **category** (entrada/intra_projeto), **required** (bool)
 - `notifications` — timeline per project, readable via PATCH /read
+- `scheduling_requests` — project agendamentos with requestedDate, notes, status (pending/confirmed/cancelled)
+- `sessions` / `otp_codes` — auth tables
 
 ## Document Categories
 

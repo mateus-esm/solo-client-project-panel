@@ -1,0 +1,31 @@
+Aqui está o **Roadmap de Produto** focado na experiência do utilizador e no valor de negócio. Ele foi estruturado em *Sprints* lógicos, cada um guiado por **Hero Stories** (Histórias Épicas) que traduzem a visão aspiracional para que o seu Engenheiro de Software possa fazer o detalhamento técnico e a quebra de tarefas.
+### Sprint 1: A Primeira Impressão (Fundação & Onboarding)
+**Objetivo:** Criar o ambiente base do portal com a identidade visual premium e garantir que o cliente tenha um primeiro acesso mágico e sem fricções após assinar o contrato.
+ * **Hero Story 1: O Acesso Mágico**
+   * *"Como um novo cliente Solo Energia, quero clicar num link que recebi no WhatsApp e entrar imediatamente no meu portal exclusivo, sem precisar de criar senhas complexas, para sentir que acabei de contratar uma empresa de tecnologia de ponta."*
+ * **Hero Story 2: Boas-vindas e Visão Geral**
+   * *"Como utilizador do portal, quero ver uma interface limpa em Dark Mode que me dê as boas-vindas, mostre um resumo do que acabei de adquirir e disponibilize imediatamente o link para o pagamento da minha entrada."*
+### Sprint 2: O Coração Visual (A Jornada da Liberdade)
+**Objetivo:** Implementar o motor principal do aplicativo: a linha do tempo dinâmica (Stepper). Esta sprint elimina a "caixa preta" da engenharia e coloca o cliente no controlo.
+ * **Hero Story 3: O Mapa da Obra**
+   * *"Como cliente ansioso, quero ver uma linha do tempo clara com os 7 estágios do meu projeto (do Onboarding ao Treinamento) logo na página inicial, para saber exatamente onde estamos e o que falta para a minha usina ser ligada."*
+ * **Hero Story 4: Transparência e Previsibilidade**
+   * *"Como cliente organizado, quero clicar na fase atual do meu projeto (ex: Homologação) e ver sub-estágios, datas previstas e observações dos consultores da Solo, para não ter de ligar para o suporte a perguntar 'como estão as coisas'."*
+### Sprint 3: O Cofre Digital Vitalício
+**Objetivo:** Transformar o portal na pasta digital oficial do ativo solar do cliente, centralizando finanças, documentos técnicos e manuais.
+ * **Hero Story 5: A Central de Documentos**
+   * *"Como dono da usina, quero um repositório seguro onde eu possa fazer o download do meu contrato, projeto técnico e notas fiscais, além de poder anexar o meu RG e IPTU facilmente, para ter tudo organizado num só lugar."*
+ * **Hero Story 6: Clareza Financeira**
+   * *"Como um investidor do meu próprio imóvel, quero conseguir visualizar o que já paguei e as parcelas futuras, para ter total previsibilidade do meu fluxo de caixa sem precisar de perguntar ao setor financeiro."*
+ * **Hero Story 7: Cofre de Equipamentos**
+   * *"Como proprietário, quero aceder aos datasheets dos meus painéis e inversores, além das credenciais de acesso às plataformas da concessionária, para garantir que tenho o controlo total do meu património."*
+### Sprint 4: Engajamento, Comunicação e o "Handover"
+**Objetivo:** Adicionar a camada de comunicação proativa, mecânicas de viralização orgânica e a ponte final para o início do ciclo de vida útil da usina.
+ * **Hero Story 8: Celebração e Partilha (O Momento 'Uau')**
+   * *"Como um cliente orgulhoso, quero ver animações de celebração quando o meu projeto avançar de fase e ter um botão rápido para partilhar o meu 'status de futuro gerador de energia' no Instagram e WhatsApp, junto com o meu link de indicação."*
+ * **Hero Story 9: O Assistente Proativo**
+   * *"Como um cliente ocupado, quero receber notificações dentro do app e alertas amigáveis no meu WhatsApp sempre que houver uma atualização crítica ou uma pendência minha, para que a obra não atrase."*
+ * **Hero Story 10: A Ponte para o Futuro (Handover)**
+   * *"Como cliente que acaba de receber o Treinamento, quero ver um botão de destaque que me leve diretamente para o aplicativo 'Solo Monitoramento', para começar a acompanhar a minha geração de energia em tempo real sem precisar de novos registos."*
+**Como utilizar este documento com o seu Dev:**
+Passe esta visão estratégica para ele. O papel dele agora será pegar nesta *Sprint 1*, por exemplo, e quebrar em tarefas técnicas no repositório (ex: "Configurar Supabase Auth", "Criar tabela de Projects", "Montar layout base no Tailwind", "Criar rota de webhook do Jestor").

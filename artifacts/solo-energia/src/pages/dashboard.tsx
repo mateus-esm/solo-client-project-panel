@@ -1,13 +1,15 @@
 import { useListProjects, useListPayments } from "@workspace/api-client-react";
 import type { Project, Payment } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
-import { motion } from "framer-motion";
-import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, ClipboardList, Banknote } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, ClipboardList, Banknote, CalendarPlus, CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useEffect } from "react";
-import { staggerContainer, itemUp, momentumEase } from "@/lib/animations";
+import { staggerContainer, itemUp, momentumEase, redBullSpring } from "@/lib/animations";
+
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
 const STEPS = [
   { id: 1, title: "Onboarding", desc: "Boas-vindas e configuração" },
@@ -54,6 +56,33 @@ export default function Dashboard() {
     const t = setTimeout(() => setGaugePercent(project.completionPercent ?? 0), 180);
     return () => clearTimeout(t);
   }, [project?.completionPercent]);
+
+  // Scheduling state
+  const [schedDate, setSchedDate] = useState("");
+  const [schedNotes, setSchedNotes] = useState("");
+  const [schedLoading, setSchedLoading] = useState(false);
+  const [schedSent, setSchedSent] = useState(false);
+
+  async function handleSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    if (!schedDate || schedLoading) return;
+    setSchedLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/scheduling`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ requestedDate: schedDate, notes: schedNotes }),
+      });
+      if (res.ok) {
+        setSchedSent(true);
+      }
+    } catch {
+      // silently fail for now
+    } finally {
+      setSchedLoading(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -478,6 +507,93 @@ export default function Dashboard() {
             </Link>
           </motion.div>
         </div>
+
+        {/* Scheduling CTA — shown when step 4 (Logística) */}
+        {currentStep === 4 && (
+          <motion.div variants={itemUp} className="glass-card grain-overlay rounded-3xl overflow-hidden">
+            <div className="relative p-8">
+              <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-gradient)" }}>
+                    <CalendarPlus className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-display">Agendar Visita Técnica</h2>
+                    <p className="text-sm text-muted-foreground">Indique sua disponibilidade para a instalação</p>
+                  </div>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {schedSent ? (
+                    <motion.div
+                      key="success"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={redBullSpring}
+                      className="flex flex-col items-center gap-3 py-6 text-center"
+                    >
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center mb-2" style={{ background: "rgba(74,222,128,0.12)" }}>
+                        <CheckCircle2 className="w-9 h-9" style={{ color: "#4ADE80" }} />
+                      </div>
+                      <p className="text-lg font-bold text-foreground">Solicitação enviada!</p>
+                      <p className="text-muted-foreground text-sm max-w-xs">
+                        Nossa equipe vai confirmar o agendamento em breve via WhatsApp.
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.form
+                      key="form"
+                      onSubmit={handleSchedule}
+                      className="flex flex-col sm:flex-row gap-4 items-end"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0, y: -8 }}
+                    >
+                      <div className="flex-1 space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+                          Data preferida
+                        </label>
+                        <input
+                          type="date"
+                          value={schedDate}
+                          onChange={(e) => setSchedDate(e.target.value)}
+                          required
+                          min={new Date().toISOString().split("T")[0]}
+                          className="w-full bg-secondary text-foreground rounded-xl px-4 py-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+                        />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
+                          Observações (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={schedNotes}
+                          onChange={(e) => setSchedNotes(e.target.value)}
+                          placeholder="Ex: só posso à tarde"
+                          className="w-full bg-secondary text-foreground rounded-xl px-4 py-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition placeholder:text-muted-foreground"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!schedDate || schedLoading}
+                        className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all hover:opacity-90 active:scale-95"
+                        style={{ background: "var(--brand-gradient)" }}
+                      >
+                        {schedLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CalendarPlus className="w-4 h-4" />
+                        )}
+                        Solicitar Agendamento
+                      </button>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Financial info cards */}
         {(project.valorProjeto || project.formaDePagamento || project.dataInicioPrevista) && (
