@@ -34,6 +34,9 @@ declare global {
   }
 }
 
+// In-memory comprovante storage (consistent with other in-memory stores; resets on restart)
+const comprovanteStore = new Map<number, { buffer: Buffer; filename: string; mimeType: string }>();
+
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies?.solo_session;
   if (!token) {
@@ -339,6 +342,7 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
 });
 
 function formatPayment(p: typeof paymentsTable.$inferSelect) {
+  const comp = comprovanteStore.get(p.id);
   return {
     id: p.id,
     projectId: p.projectId,
@@ -348,6 +352,7 @@ function formatPayment(p: typeof paymentsTable.$inferSelect) {
     paidDate: p.paidDate ?? null,
     status: p.status,
     description: p.description ?? null,
+    comprovanteFilename: comp?.filename ?? null,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -363,6 +368,57 @@ router.get("/payments", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to list payments");
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/payments/:id/comprovante", requireAuth, uploadSingle, async (req, res) => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
+  if (!req.file) { res.status(400).json({ message: "Arquivo não enviado" }); return; }
+
+  const { mimetype, buffer, originalname } = req.file;
+  if (!ALLOWED_CONTENT_TYPES.includes(mimetype)) {
+    res.status(400).json({ message: "Tipo de arquivo não permitido. Use PDF, JPG ou PNG." }); return;
+  }
+
+  try {
+    const [payment] = await db
+      .select()
+      .from(paymentsTable)
+      .where(and(eq(paymentsTable.id, id), eq(paymentsTable.projectId, req.sessionProjectId!)));
+
+    if (!payment) { res.status(404).json({ message: "Pagamento não encontrado" }); return; }
+
+    comprovanteStore.set(id, { buffer, filename: originalname, mimeType: mimetype });
+    req.log.info({ payment_id: id }, "Comprovante uploaded");
+    res.json({ ok: true, filename: originalname });
+  } catch (err) {
+    req.log.error({ err }, "Failed to upload comprovante");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+router.get("/payments/:id/comprovante", requireAuth, async (req, res) => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
+
+  try {
+    const [payment] = await db
+      .select()
+      .from(paymentsTable)
+      .where(and(eq(paymentsTable.id, id), eq(paymentsTable.projectId, req.sessionProjectId!)));
+
+    if (!payment) { res.status(404).json({ message: "Pagamento não encontrado" }); return; }
+
+    const comp = comprovanteStore.get(id);
+    if (!comp) { res.status(404).json({ message: "Comprovante não encontrado" }); return; }
+
+    res.setHeader("Content-Type", comp.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(comp.filename)}"`);
+    res.send(comp.buffer);
+  } catch (err) {
+    req.log.error({ err }, "Failed to serve comprovante");
+    res.status(500).json({ message: "Erro interno" });
   }
 });
 

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, LayoutDashboard, FileText, Menu, X, LogOut } from "lucide-react";
+import { Bell, LayoutDashboard, FileText, Menu, X, LogOut, Wallet } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import logoLight from "@assets/001_1775433962945.png";
@@ -43,6 +43,7 @@ export function Layout({ children }: LayoutProps) {
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard, show: true },
     { href: "/documents", label: "Documentos", icon: FileText, show: true },
+    { href: "/finance", label: "Financeiro", icon: Wallet, show: sectionViz.payments !== false },
     { href: "/notifications", label: "Notificações", icon: Bell, badge: unreadCount, show: true },
   ].filter((i) => i.show);
 

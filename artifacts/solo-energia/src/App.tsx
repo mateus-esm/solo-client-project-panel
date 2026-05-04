@@ -11,6 +11,7 @@ import customFontUrl from "@assets/NeueMontreal-Bold_1774472757874.otf";
 import Dashboard from "@/pages/dashboard";
 import Documents from "@/pages/documents";
 import Notifications from "@/pages/notifications";
+import Finance from "@/pages/finance";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/login";
@@ -96,6 +97,9 @@ function Router() {
       </Route>
       <Route path="/notifications">
         {() => <AuthGuard><Notifications /></AuthGuard>}
+      </Route>
+      <Route path="/finance">
+        {() => <AuthGuard><Finance /></AuthGuard>}
       </Route>
 
       {/* Admin panel */}
