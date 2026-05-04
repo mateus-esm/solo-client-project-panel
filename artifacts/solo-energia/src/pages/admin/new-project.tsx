@@ -1,13 +1,176 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Send, Smartphone, Mail, X, CheckCircle2 } from "lucide-react";
 
 const STEPS = ["Onboarding", "Projeto Técnico", "Homologação", "Logística", "Execução", "Ativação", "Treinamento"];
+
+type Channel = "whatsapp" | "email" | "both";
+
+function ChannelPicker({ value, onChange }: { value: Channel; onChange: (v: Channel) => void }) {
+  const opts: { v: Channel; label: string; icon: React.ElementType }[] = [
+    { v: "whatsapp", label: "WhatsApp", icon: Smartphone },
+    { v: "email", label: "Email", icon: Mail },
+    { v: "both", label: "Ambos", icon: Send },
+  ];
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onChange(o.v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            value === o.v
+              ? "bg-primary/15 border-primary/40 text-primary"
+              : "bg-secondary border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <o.icon className="w-3.5 h-3.5" />
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+type InviteModalProps = {
+  projectId: number;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  onClose: () => void;
+  onNavigate: () => void;
+};
+
+function InviteModal({ projectId, clientName, clientEmail, clientPhone, onClose, onNavigate }: InviteModalProps) {
+  const [channel, setChannel] = useState<Channel>("both");
+  const [customMsg, setCustomMsg] = useState("");
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  async function sendInvite() {
+    setSending(true);
+    setResult(null);
+    try {
+      const res = await fetch(`/api/admin/projects/${projectId}/invite`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel, customMessage: customMsg || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const sent: string[] = data.sent ?? [];
+        const failed: string[] = data.failed ?? [];
+        const sentLabel = sent.join(" + ") || "nenhum";
+        setResult({
+          ok: true,
+          msg: failed.length
+            ? `Enviado via ${sentLabel}. Falha: ${failed.join("; ")}`
+            : `Convite enviado via ${sentLabel}!`,
+        });
+      } else {
+        setResult({ ok: false, msg: data.message ?? "Erro ao enviar" });
+      }
+    } catch {
+      setResult({ ok: false, msg: "Erro de conexão" });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md glass-card rounded-3xl p-6 space-y-5 border border-border/60">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <CheckCircle2 className="w-5 h-5 text-green-400" />
+              <h2 className="text-base font-bold text-foreground">Projeto criado!</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">Deseja enviar um convite de acesso ao portal para <span className="text-foreground font-medium">{clientName}</span>?</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Client info */}
+        <div className="bg-secondary/50 rounded-xl px-4 py-3 text-xs space-y-1">
+          <div className="flex gap-2"><span className="text-muted-foreground w-12">Email</span><span className="text-foreground">{clientEmail}</span></div>
+          {clientPhone && <div className="flex gap-2"><span className="text-muted-foreground w-12">Tel</span><span className="text-foreground">{clientPhone}</span></div>}
+          {!clientPhone && <div className="text-yellow-400">⚠ Sem telefone — WhatsApp indisponível</div>}
+        </div>
+
+        {/* Channel picker */}
+        <div className="space-y-2">
+          <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Canal de Envio</label>
+          <ChannelPicker value={channel} onChange={setChannel} />
+        </div>
+
+        {/* Custom WA message */}
+        {(channel === "whatsapp" || channel === "both") && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              Mensagem WhatsApp <span className="normal-case">(opcional)</span>
+            </label>
+            <textarea
+              value={customMsg}
+              onChange={(e) => setCustomMsg(e.target.value)}
+              rows={3}
+              placeholder="Deixe em branco para usar a mensagem padrão…"
+              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+            />
+          </div>
+        )}
+
+        {/* Result */}
+        {result && (
+          <div className={`text-sm px-3 py-2 rounded-xl border ${result.ok ? "bg-green-500/10 border-green-500/20 text-green-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+            {result.msg}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={onNavigate}
+            className="flex-1 px-4 py-2.5 text-sm font-bold bg-secondary hover:bg-white/10 rounded-xl text-foreground transition-colors"
+          >
+            Ir para o Editor
+          </button>
+          {!result?.ok && (
+            <button
+              onClick={sendInvite}
+              disabled={sending}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl text-white disabled:opacity-50 hover:opacity-90 transition-all"
+              style={{ background: "var(--brand-gradient)" }}
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Enviar Convite
+            </button>
+          )}
+          {result?.ok && (
+            <button
+              onClick={onNavigate}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl text-white hover:opacity-90 transition-all"
+              style={{ background: "var(--brand-gradient)" }}
+            >
+              Continuar
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminNewProject() {
   const [, navigate] = useLocation();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [createdProject, setCreatedProject] = useState<{ id: number; clientName: string; clientEmail: string; clientPhone: string } | null>(null);
 
   const [form, setForm] = useState({
     clientName: "",
@@ -54,7 +217,12 @@ export default function AdminNewProject() {
 
       if (res.ok) {
         const project = await res.json();
-        navigate(`/admin/projects/${project.id}`);
+        setCreatedProject({
+          id: project.id,
+          clientName: project.clientName,
+          clientEmail: project.clientEmail,
+          clientPhone: project.clientPhone ?? "",
+        });
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.message ?? "Erro ao criar projeto");
@@ -66,8 +234,23 @@ export default function AdminNewProject() {
     }
   }
 
+  function goToEditor() {
+    if (createdProject) navigate(`/admin/projects/${createdProject.id}`);
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {createdProject && (
+        <InviteModal
+          projectId={createdProject.id}
+          clientName={createdProject.clientName}
+          clientEmail={createdProject.clientEmail}
+          clientPhone={createdProject.clientPhone}
+          onClose={goToEditor}
+          onNavigate={goToEditor}
+        />
+      )}
+
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/85 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
           <Link href="/admin" className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary">
@@ -96,16 +279,16 @@ export default function AdminNewProject() {
               <Input type="email" value={form.clientEmail} onChange={(v) => handleChange("clientEmail", v)} placeholder="joao@email.com" required />
             </Field>
             <Field label="Telefone / WhatsApp">
-              <Input value={form.clientPhone} onChange={(v) => handleChange("clientPhone", v)} placeholder="(11) 99999-9999" />
+              <Input value={form.clientPhone} onChange={(v) => handleChange("clientPhone", v)} placeholder="(85) 99999-9999" />
             </Field>
           </Section>
 
           <Section title="Localização">
             <Field label="Cidade">
-              <Input value={form.city} onChange={(v) => handleChange("city", v)} placeholder="São Paulo" />
+              <Input value={form.city} onChange={(v) => handleChange("city", v)} placeholder="Fortaleza" />
             </Field>
             <Field label="Estado">
-              <Input value={form.state} onChange={(v) => handleChange("state", v)} placeholder="SP" />
+              <Input value={form.state} onChange={(v) => handleChange("state", v)} placeholder="CE" />
             </Field>
           </Section>
 

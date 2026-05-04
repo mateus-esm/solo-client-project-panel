@@ -849,8 +849,13 @@ function NotificacoesTab({
       });
       const data = await res.json();
       if (res.ok) {
-        const warnings = data.warnings?.join("; ") ?? "";
-        setInviteResult({ ok: true, msg: warnings ? `Enviado (avisos: ${warnings})` : "Convite enviado com sucesso!" });
+        const sent: string[] = data.sent ?? [];
+        const failed: string[] = data.failed ?? [];
+        const sentLabel = sent.join(" + ") || "nenhum";
+        const msg = failed.length
+          ? `Enviado via ${sentLabel}. Falha: ${failed.join("; ")}`
+          : `Convite enviado via ${sentLabel}!`;
+        setInviteResult({ ok: true, msg });
         setInviteCustomMsg("");
       } else {
         setInviteResult({ ok: false, msg: data.message ?? "Erro ao enviar convite" });
@@ -872,8 +877,13 @@ function NotificacoesTab({
       });
       const data = await res.json();
       if (res.ok) {
-        const warnings = data.warnings?.join("; ") ?? "";
-        setMsgResult({ ok: true, msg: warnings ? `Enviado (avisos: ${warnings})` : "Mensagem enviada e notificação criada!" });
+        const sent: string[] = data.sent ?? [];
+        const failed: string[] = data.failed ?? [];
+        const sentLabel = sent.join(" + ") || "portal";
+        const msg = failed.length
+          ? `Enviado via ${sentLabel}. Falha: ${failed.join("; ")}`
+          : `Mensagem enviada via ${sentLabel} e notificação criada!`;
+        setMsgResult({ ok: true, msg });
         setMsgTitle("");
         setMsgText("");
         onRefresh();

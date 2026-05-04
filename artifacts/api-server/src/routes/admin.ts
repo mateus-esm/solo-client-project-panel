@@ -507,23 +507,28 @@ router.post("/admin/projects/:id/invite", requireAdmin, async (req, res) => {
     const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
     if (!project) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
 
-    const errors: string[] = [];
+    const sent: string[] = [];
+    const failed: string[] = [];
 
     if (channel === "whatsapp" || channel === "both") {
       if (!project.clientPhone) {
-        errors.push("Telefone do cliente não cadastrado");
+        failed.push("whatsapp: telefone não cadastrado");
       } else {
         const text = customMessage?.trim() || buildInviteWhatsAppText(project.clientName);
-        await sendWhatsApp(project.clientPhone, text).catch((e: Error) => errors.push(`WhatsApp: ${e.message}`));
+        const result = await sendWhatsApp(project.clientPhone, text);
+        if (result.ok) sent.push("whatsapp");
+        else failed.push(`whatsapp: ${result.error}`);
       }
     }
 
     if (channel === "email" || channel === "both") {
-      await sendInviteEmail(project.clientEmail, project.clientName).catch((e: Error) => errors.push(`Email: ${e.message}`));
+      const result = await sendInviteEmail(project.clientEmail, project.clientName);
+      if (result.ok) sent.push("email");
+      else failed.push(`email: ${result.error}`);
     }
 
-    req.log.info({ project_id: projectId, channel }, "Admin: client invite sent");
-    res.json({ ok: true, warnings: errors.length ? errors : undefined });
+    req.log.info({ project_id: projectId, channel, sent }, "Admin: client invite sent");
+    res.json({ ok: true, sent, failed: failed.length ? failed : undefined });
   } catch (err) {
     req.log.error({ err }, "Admin: failed to send invite");
     res.status(500).json({ message: "Erro interno" });
@@ -545,7 +550,8 @@ router.post("/admin/projects/:id/message", requireAdmin, async (req, res) => {
     const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
     if (!project) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
 
-    const errors: string[] = [];
+    const sent: string[] = [];
+    const failed: string[] = [];
 
     const [notif] = await db.insert(notificationsTable)
       .values({ projectId, title, message: text, read: false })
@@ -553,19 +559,23 @@ router.post("/admin/projects/:id/message", requireAdmin, async (req, res) => {
 
     if (channel === "whatsapp" || channel === "both") {
       if (!project.clientPhone) {
-        errors.push("Telefone do cliente não cadastrado");
+        failed.push("whatsapp: telefone não cadastrado");
       } else {
         const waText = buildMessageWhatsAppText(project.clientName, title, text);
-        await sendWhatsApp(project.clientPhone, waText).catch((e: Error) => errors.push(`WhatsApp: ${e.message}`));
+        const result = await sendWhatsApp(project.clientPhone, waText);
+        if (result.ok) sent.push("whatsapp");
+        else failed.push(`whatsapp: ${result.error}`);
       }
     }
 
     if (channel === "email" || channel === "both") {
-      await sendMessageEmail(project.clientEmail, project.clientName, title, text).catch((e: Error) => errors.push(`Email: ${e.message}`));
+      const result = await sendMessageEmail(project.clientEmail, project.clientName, title, text);
+      if (result.ok) sent.push("email");
+      else failed.push(`email: ${result.error}`);
     }
 
-    req.log.info({ project_id: projectId, channel, notif_id: notif.id }, "Admin: message broadcast sent");
-    res.json({ ok: true, notificationId: notif.id, warnings: errors.length ? errors : undefined });
+    req.log.info({ project_id: projectId, channel, sent, notif_id: notif.id }, "Admin: message broadcast sent");
+    res.json({ ok: true, sent, notificationId: notif.id, failed: failed.length ? failed : undefined });
   } catch (err) {
     req.log.error({ err }, "Admin: failed to broadcast message");
     res.status(500).json({ message: "Erro interno" });
