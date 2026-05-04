@@ -61,7 +61,21 @@ export default function Dashboard() {
   const [schedDate, setSchedDate] = useState("");
   const [schedNotes, setSchedNotes] = useState("");
   const [schedLoading, setSchedLoading] = useState(false);
-  const [schedSent, setSchedSent] = useState(false);
+  const [schedRequest, setSchedRequest] = useState<{
+    id: number; requestedDate: string; notes: string | null; status: string;
+  } | null | undefined>(undefined); // undefined = not yet loaded
+
+  // Fetch most recent scheduling request on mount (when in step 4)
+  useEffect(() => {
+    if (!project || project.statusStep !== 4) return;
+    fetch(`${BASE_URL}/api/scheduling`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data: { id: number; requestedDate: string; notes: string | null; status: string }[]) => {
+        const active = data.find((r) => ["pending", "confirmed", "client_confirmed"].includes(r.status));
+        setSchedRequest(active ?? null);
+      })
+      .catch(() => setSchedRequest(null));
+  }, [project?.id, project?.statusStep]);
 
   async function handleSchedule(e: React.FormEvent) {
     e.preventDefault();
@@ -75,10 +89,30 @@ export default function Dashboard() {
         body: JSON.stringify({ requestedDate: schedDate, notes: schedNotes }),
       });
       if (res.ok) {
-        setSchedSent(true);
+        const created = await res.json() as { id: number; requestedDate: string; notes: string | null; status: string };
+        setSchedRequest(created);
       }
     } catch {
-      // silently fail for now
+      // silently fail
+    } finally {
+      setSchedLoading(false);
+    }
+  }
+
+  async function handleConfirmAvailability() {
+    if (!schedRequest || schedLoading) return;
+    setSchedLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/scheduling/${schedRequest.id}/confirm-client`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (res.ok) {
+        const updated = await res.json() as { id: number; requestedDate: string; notes: string | null; status: string };
+        setSchedRequest(updated);
+      }
+    } catch {
+      // silently fail
     } finally {
       setSchedLoading(false);
     }
@@ -509,7 +543,7 @@ export default function Dashboard() {
         </div>
 
         {/* Scheduling CTA — shown when step 4 (Logística) */}
-        {currentStep === 4 && (
+        {currentStep === 4 && schedRequest !== undefined && (
           <motion.div variants={itemUp} className="glass-card grain-overlay rounded-3xl overflow-hidden">
             <div className="relative p-8">
               <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
@@ -519,15 +553,16 @@ export default function Dashboard() {
                     <CalendarPlus className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-display">Agendar Visita Técnica</h2>
-                    <p className="text-sm text-muted-foreground">Indique sua disponibilidade para a instalação</p>
+                    <h2 className="text-xl font-display">Visita Técnica</h2>
+                    <p className="text-sm text-muted-foreground">Agendamento da instalação</p>
                   </div>
                 </div>
 
                 <AnimatePresence mode="wait">
-                  {schedSent ? (
+                  {/* State: client already confirmed */}
+                  {schedRequest?.status === "client_confirmed" && (
                     <motion.div
-                      key="success"
+                      key="client-confirmed"
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={redBullSpring}
@@ -536,17 +571,86 @@ export default function Dashboard() {
                       <div className="w-16 h-16 rounded-full flex items-center justify-center mb-2" style={{ background: "rgba(74,222,128,0.12)" }}>
                         <CheckCircle2 className="w-9 h-9" style={{ color: "#4ADE80" }} />
                       </div>
-                      <p className="text-lg font-bold text-foreground">Solicitação enviada!</p>
-                      <p className="text-muted-foreground text-sm max-w-xs">
-                        Nossa equipe vai confirmar o agendamento em breve via WhatsApp.
+                      <p className="text-lg font-bold text-foreground">Visita confirmada!</p>
+                      <p className="text-muted-foreground text-sm">
+                        Data: <span className="font-semibold text-foreground">{safeFormatDate(schedRequest.requestedDate) ?? schedRequest.requestedDate}</span>
+                      </p>
+                      <p className="text-muted-foreground text-xs max-w-xs">
+                        Nossa equipe chegará no horário combinado. Qualquer dúvida, entre em contato via WhatsApp.
                       </p>
                     </motion.div>
-                  ) : (
+                  )}
+
+                  {/* State: team confirmed — client needs to confirm availability */}
+                  {schedRequest?.status === "confirmed" && (
+                    <motion.div
+                      key="team-confirmed"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={redBullSpring}
+                      className="space-y-4"
+                    >
+                      <div className="flex items-start gap-4 p-4 rounded-2xl border" style={{ background: "rgba(245,166,35,0.08)", borderColor: "rgba(245,166,35,0.3)" }}>
+                        <Calendar className="w-5 h-5 mt-0.5 shrink-0" style={{ color: "#F5A623" }} />
+                        <div>
+                          <p className="font-bold text-foreground text-sm">A equipe confirmou a data!</p>
+                          <p className="text-muted-foreground text-sm mt-0.5">
+                            Visita agendada para: <span className="font-semibold text-foreground">{safeFormatDate(schedRequest.requestedDate) ?? schedRequest.requestedDate}</span>
+                          </p>
+                          {schedRequest.notes && (
+                            <p className="text-muted-foreground text-xs mt-1">{schedRequest.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleConfirmAvailability}
+                        disabled={schedLoading}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
+                        style={{ background: "var(--brand-gradient)" }}
+                      >
+                        {schedLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4" />
+                        )}
+                        Confirmar minha disponibilidade
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {/* State: pending — waiting for team */}
+                  {schedRequest?.status === "pending" && (
+                    <motion.div
+                      key="pending"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={redBullSpring}
+                      className="flex items-center gap-4 p-4 rounded-2xl border"
+                      style={{ background: "rgba(255,72,30,0.06)", borderColor: "rgba(255,72,30,0.2)" }}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-foreground text-sm">Solicitação enviada!</p>
+                        <p className="text-muted-foreground text-sm">
+                          Data preferida: <span className="font-semibold text-foreground">{safeFormatDate(schedRequest.requestedDate) ?? schedRequest.requestedDate}</span>
+                        </p>
+                        <p className="text-muted-foreground text-xs mt-0.5">
+                          Aguardando confirmação da equipe Solo via WhatsApp.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* State: no request yet — show form */}
+                  {schedRequest === null && (
                     <motion.form
                       key="form"
                       onSubmit={handleSchedule}
                       className="flex flex-col sm:flex-row gap-4 items-end"
-                      initial={{ opacity: 1 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       exit={{ opacity: 0, y: -8 }}
                     >
                       <div className="flex-1 space-y-1">
