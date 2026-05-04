@@ -4,6 +4,22 @@ import { logger } from "./logger";
 export type SendResult = { ok: true } | { ok: false; error: string };
 
 let _resend: Resend | null = null;
+
+export async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
+  try {
+    const { data, error } = await getResend().emails.send({ from: getFromEmail(), to, subject, html });
+    if (error) {
+      logger.error({ error }, "sendEmail failed (Resend API error)");
+      return { ok: false, error: error.message };
+    }
+    logger.info({ to, subject, email_id: data?.id }, "Email sent");
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "sendEmail failed");
+    return { ok: false, error: msg };
+  }
+}
 function getResend(): Resend {
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
   return _resend;

@@ -90,6 +90,10 @@ export default function AdminDashboard() {
         body: JSON.stringify({ channel: quickSend.channel, text: quickSend.text.trim() }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setQuickSend((s) => s && { ...s, sending: false, result: { sent: [], failed: [data.message ?? `Erro ${res.status}`] } });
+        return;
+      }
       setQuickSend((s) => s && { ...s, sending: false, result: { sent: data.sent ?? [], failed: data.failed } });
     } catch {
       setQuickSend((s) => s && { ...s, sending: false, result: { sent: [], failed: ["Erro de rede"] } });
