@@ -230,7 +230,7 @@ export default function Dashboard() {
                   </span>
                 </div>
 
-                <div className="h-1 bg-secondary rounded-full overflow-hidden max-w-xs mb-2">
+                <div className="h-1 bg-secondary rounded-full overflow-hidden max-w-xs mb-4">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: "var(--brand-gradient)" }}
@@ -239,15 +239,25 @@ export default function Dashboard() {
                     transition={{ duration: 1.6, ease: momentumEase, delay: 0.4 }}
                   />
                 </div>
-                {activationDate && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="w-3 h-3" />
-                    Ativação prevista:
-                    <span className="text-foreground font-medium ml-0.5">
-                      {safeFormatDate(activationDate, "MMM 'de' yyyy")}
+
+                <div className="flex flex-wrap gap-4">
+                  <span className="flex items-center gap-1.5 text-xs">
+                    <Zap className="w-3 h-3 text-yellow-500 shrink-0" />
+                    <span className="text-foreground font-bold tabular-nums">{(project.systemPower ?? 0).toFixed(1)} kWp</span>
+                  </span>
+                  {project.city && (
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
+                      <span className="text-foreground font-bold">{project.city}{project.state ? `, ${project.state}` : ""}</span>
                     </span>
-                  </p>
-                )}
+                  )}
+                  {activationDate && (
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <Calendar className="w-3 h-3 shrink-0" style={{ color: "#4ADE80" }} />
+                      <span className="text-foreground font-bold">{safeFormatDate(activationDate, "MMM 'de' yyyy")}</span>
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* SVG circular gauge */}
@@ -379,10 +389,15 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground mt-0.5 hidden lg:block max-w-[110px] mx-auto leading-snug">
                         {step.desc}
                       </p>
-                      {stepDate && (
+                      {(stepDate || (!isCompleted && !isActive)) && (
                         <p className={`text-[10px] font-mono mt-1 hidden md:block max-w-[110px] mx-auto truncate ${isActive ? "text-primary" : isCompleted ? "text-foreground/40" : "text-muted-foreground/40"}`}>
-                          {safeFormatDate(stepDate, "dd/MM/yy")}
-                          {!isCompleted && !isActive && <span className="opacity-60"> (est.)</span>}
+                          {stepDate
+                            ? <>
+                                {safeFormatDate(stepDate, "dd/MM/yy")}
+                                {!isCompleted && !isActive && <span className="opacity-60"> (est.)</span>}
+                              </>
+                            : <span className="opacity-50">— previsto</span>
+                          }
                         </p>
                       )}
                     </div>

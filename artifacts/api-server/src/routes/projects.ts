@@ -391,7 +391,7 @@ router.post("/payments/:id/comprovante", requireAuth, uploadSingle, async (req, 
 
     comprovanteStore.set(id, { buffer, filename: originalname, mimeType: mimetype });
     req.log.info({ payment_id: id }, "Comprovante uploaded");
-    res.json({ ok: true, filename: originalname });
+    res.json({ ok: true, filename: originalname, url: `/api/payments/${id}/comprovante` });
   } catch (err) {
     req.log.error({ err }, "Failed to upload comprovante");
     res.status(500).json({ message: "Erro interno" });
