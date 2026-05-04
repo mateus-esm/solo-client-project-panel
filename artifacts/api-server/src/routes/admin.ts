@@ -540,13 +540,14 @@ router.post("/admin/projects/:id/invite", requireAdmin, async (req, res) => {
 router.post("/admin/projects/:id/message", requireAdmin, async (req, res) => {
   try {
     const projectId = parseInt(String(req.params.id), 10);
-    const { channel, title, text } = req.body as { channel?: string; title?: string; text?: string };
+    const { channel, text, title: rawTitle } = req.body as { channel?: string; text?: string; title?: string };
     if (!channel || !["whatsapp", "email", "both"].includes(channel)) {
       res.status(400).json({ message: "channel deve ser whatsapp, email ou both" }); return;
     }
-    if (!title || !text) {
-      res.status(400).json({ message: "title e text são obrigatórios" }); return;
+    if (!text) {
+      res.status(400).json({ message: "text é obrigatório" }); return;
     }
+    const title = rawTitle?.trim() || "Atualização do seu projeto";
     const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
     if (!project) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
 
