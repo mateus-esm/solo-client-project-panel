@@ -16,6 +16,13 @@ import { requireAdmin, verifyAdminPassword, createAdminSession, deleteAdminSessi
 import { comprovanteStore } from "../lib/comprovanteStore";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { stepCompletionPercent } from "../lib/jestor";
+import {
+  sendWhatsApp,
+  sendInviteEmail,
+  sendMessageEmail,
+  buildInviteWhatsAppText,
+  buildMessageWhatsAppText,
+} from "../lib/messaging";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -485,6 +492,83 @@ router.delete("/admin/notifications/:id", requireAdmin, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Admin: failed to delete notification"); res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+// ─── Invite ───────────────────────────────────────────────────────────────────
+
+router.post("/admin/projects/:id/invite", requireAdmin, async (req, res) => {
+  try {
+    const projectId = parseInt(String(req.params.id), 10);
+    const { channel, customMessage } = req.body as { channel?: string; customMessage?: string };
+    if (!channel || !["whatsapp", "email", "both"].includes(channel)) {
+      res.status(400).json({ message: "channel deve ser whatsapp, email ou both" }); return;
+    }
+    const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
+    if (!project) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
+
+    const errors: string[] = [];
+
+    if (channel === "whatsapp" || channel === "both") {
+      if (!project.clientPhone) {
+        errors.push("Telefone do cliente não cadastrado");
+      } else {
+        const text = customMessage?.trim() || buildInviteWhatsAppText(project.clientName);
+        await sendWhatsApp(project.clientPhone, text).catch((e: Error) => errors.push(`WhatsApp: ${e.message}`));
+      }
+    }
+
+    if (channel === "email" || channel === "both") {
+      await sendInviteEmail(project.clientEmail, project.clientName).catch((e: Error) => errors.push(`Email: ${e.message}`));
+    }
+
+    req.log.info({ project_id: projectId, channel }, "Admin: client invite sent");
+    res.json({ ok: true, warnings: errors.length ? errors : undefined });
+  } catch (err) {
+    req.log.error({ err }, "Admin: failed to send invite");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+// ─── Broadcast Message ────────────────────────────────────────────────────────
+
+router.post("/admin/projects/:id/message", requireAdmin, async (req, res) => {
+  try {
+    const projectId = parseInt(String(req.params.id), 10);
+    const { channel, title, text } = req.body as { channel?: string; title?: string; text?: string };
+    if (!channel || !["whatsapp", "email", "both"].includes(channel)) {
+      res.status(400).json({ message: "channel deve ser whatsapp, email ou both" }); return;
+    }
+    if (!title || !text) {
+      res.status(400).json({ message: "title e text são obrigatórios" }); return;
+    }
+    const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
+    if (!project) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
+
+    const errors: string[] = [];
+
+    const [notif] = await db.insert(notificationsTable)
+      .values({ projectId, title, message: text, read: false })
+      .returning();
+
+    if (channel === "whatsapp" || channel === "both") {
+      if (!project.clientPhone) {
+        errors.push("Telefone do cliente não cadastrado");
+      } else {
+        const waText = buildMessageWhatsAppText(project.clientName, title, text);
+        await sendWhatsApp(project.clientPhone, waText).catch((e: Error) => errors.push(`WhatsApp: ${e.message}`));
+      }
+    }
+
+    if (channel === "email" || channel === "both") {
+      await sendMessageEmail(project.clientEmail, project.clientName, title, text).catch((e: Error) => errors.push(`Email: ${e.message}`));
+    }
+
+    req.log.info({ project_id: projectId, channel, notif_id: notif.id }, "Admin: message broadcast sent");
+    res.json({ ok: true, notificationId: notif.id, warnings: errors.length ? errors : undefined });
+  } catch (err) {
+    req.log.error({ err }, "Admin: failed to broadcast message");
+    res.status(500).json({ message: "Erro interno" });
   }
 });
 

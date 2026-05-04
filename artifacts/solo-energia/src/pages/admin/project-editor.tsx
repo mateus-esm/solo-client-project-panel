@@ -3,6 +3,7 @@ import { useParams, Link } from "wouter";
 import {
   ArrowLeft, Save, Loader2, Plus, Trash2, Upload, Eye, CheckCircle2,
   FileText, Bell, Calendar, CreditCard, Settings, Download, RotateCcw, X,
+  Send, Mail, Smartphone, Link2,
 } from "lucide-react";
 import { useAdminLogout } from "@/hooks/use-admin-auth";
 import logoLight from "@assets/001_1775433962945.png";
@@ -243,7 +244,14 @@ export default function AdminProjectEditor() {
           <PagamentosTab projectId={projectId} payments={payments} onRefresh={loadPayments} />
         )}
         {activeTab === "notificacoes" && (
-          <NotificacoesTab projectId={projectId} notifications={notifications} onRefresh={loadNotifications} />
+          <NotificacoesTab
+            projectId={projectId}
+            notifications={notifications}
+            onRefresh={loadNotifications}
+            clientName={project.clientName}
+            clientEmail={project.clientEmail}
+            clientPhone={(project as Record<string, unknown>).clientPhone as string | null}
+          />
         )}
         {activeTab === "agendamento" && (
           <AgendamentoTab schedRequests={schedRequests} onRefresh={loadScheduling} />
@@ -755,11 +763,61 @@ function PagamentosTab({ projectId, payments, onRefresh }: { projectId: number; 
 
 // ─── Notificações Tab ─────────────────────────────────────────────────────────
 
-function NotificacoesTab({ projectId, notifications, onRefresh }: { projectId: number; notifications: Notification[]; onRefresh: () => void }) {
+type Channel = "whatsapp" | "email" | "both";
+
+function ChannelPicker({ value, onChange }: { value: Channel; onChange: (v: Channel) => void }) {
+  const opts: { v: Channel; label: string; icon: React.ElementType }[] = [
+    { v: "whatsapp", label: "WhatsApp", icon: Smartphone },
+    { v: "email", label: "Email", icon: Mail },
+    { v: "both", label: "Ambos", icon: Send },
+  ];
+  return (
+    <div className="flex gap-2">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onChange(o.v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            value === o.v
+              ? "bg-primary/15 border-primary/40 text-primary"
+              : "bg-secondary border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <o.icon className="w-3.5 h-3.5" />
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function NotificacoesTab({
+  projectId, notifications, onRefresh,
+  clientName, clientEmail, clientPhone,
+}: {
+  projectId: number;
+  notifications: Notification[];
+  onRefresh: () => void;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string | null;
+}) {
   const [showAdd, setShowAdd] = useState(false);
   const [newN, setNewN] = useState({ title: "", message: "" });
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+
+  const [inviteChannel, setInviteChannel] = useState<Channel>("both");
+  const [inviteCustomMsg, setInviteCustomMsg] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const [msgChannel, setMsgChannel] = useState<Channel>("both");
+  const [msgTitle, setMsgTitle] = useState("");
+  const [msgText, setMsgText] = useState("");
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const [msgResult, setMsgResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   async function addNotification() {
     setAdding(true);
@@ -781,65 +839,217 @@ function NotificacoesTab({ projectId, notifications, onRefresh }: { projectId: n
     onRefresh();
   }
 
+  async function sendInvite() {
+    setInviting(true);
+    setInviteResult(null);
+    try {
+      const res = await apiFetch(`/api/admin/projects/${projectId}/invite`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: inviteChannel, customMessage: inviteCustomMsg || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const warnings = data.warnings?.join("; ") ?? "";
+        setInviteResult({ ok: true, msg: warnings ? `Enviado (avisos: ${warnings})` : "Convite enviado com sucesso!" });
+        setInviteCustomMsg("");
+      } else {
+        setInviteResult({ ok: false, msg: data.message ?? "Erro ao enviar convite" });
+      }
+    } catch {
+      setInviteResult({ ok: false, msg: "Erro de conexão" });
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function sendMessage() {
+    setSendingMsg(true);
+    setMsgResult(null);
+    try {
+      const res = await apiFetch(`/api/admin/projects/${projectId}/message`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: msgChannel, title: msgTitle, text: msgText }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const warnings = data.warnings?.join("; ") ?? "";
+        setMsgResult({ ok: true, msg: warnings ? `Enviado (avisos: ${warnings})` : "Mensagem enviada e notificação criada!" });
+        setMsgTitle("");
+        setMsgText("");
+        onRefresh();
+      } else {
+        setMsgResult({ ok: false, msg: data.message ?? "Erro ao enviar" });
+      }
+    } catch {
+      setMsgResult({ ok: false, msg: "Erro de conexão" });
+    } finally {
+      setSendingMsg(false);
+    }
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <button onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl text-white hover:opacity-90"
-          style={{ background: "var(--brand-gradient)" }}>
-          <Plus className="w-4 h-4" /> Nova Notificação
-        </button>
+    <div className="space-y-6">
+
+      {/* ── Convidar Cliente ── */}
+      <div className="glass-card rounded-3xl p-6 space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-border">
+          <Link2 className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-bold text-foreground">Convidar Cliente</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-xs text-muted-foreground">
+          <span><span className="font-mono text-foreground">{clientName}</span></span>
+          <span>{clientEmail}</span>
+          <span>{clientPhone ?? <span className="text-yellow-400">⚠ Sem telefone cadastrado</span>}</span>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2 block">Canal de Envio</label>
+            <ChannelPicker value={inviteChannel} onChange={setInviteChannel} />
+          </div>
+          {(inviteChannel === "whatsapp" || inviteChannel === "both") && (
+            <div>
+              <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 block">
+                Mensagem WhatsApp personalizada <span className="normal-case">(opcional — usa padrão se vazio)</span>
+              </label>
+              <textarea
+                value={inviteCustomMsg}
+                onChange={(e) => setInviteCustomMsg(e.target.value)}
+                rows={3}
+                placeholder="Olá! Seu portal está pronto…"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+              />
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={sendInvite}
+              disabled={inviting}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl text-white disabled:opacity-50 hover:opacity-90 transition-all"
+              style={{ background: "var(--brand-gradient)" }}
+            >
+              {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Enviar Convite
+            </button>
+            {inviteResult && (
+              <span className={`text-sm font-medium ${inviteResult.ok ? "text-green-400" : "text-red-400"}`}>
+                {inviteResult.msg}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
-      {showAdd && (
-        <div className="glass-card rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-bold">Nova Notificação</h3>
+      {/* ── Enviar Mensagem ── */}
+      <div className="glass-card rounded-3xl p-6 space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-border">
+          <Send className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-bold text-foreground">Enviar Mensagem</h2>
+          <span className="text-xs text-muted-foreground ml-1">(também cria notificação no portal)</span>
+        </div>
+        <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground font-mono uppercase">Título</label>
-            <input value={newN.title} onChange={(e) => setNewN((p) => ({ ...p, title: e.target.value }))} placeholder="Ex: Projeto aprovado!"
-              className="mt-1 w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
+            <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2 block">Canal de Envio</label>
+            <ChannelPicker value={msgChannel} onChange={setMsgChannel} />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-mono uppercase">Mensagem</label>
-            <textarea value={newN.message} onChange={(e) => setNewN((p) => ({ ...p, message: e.target.value }))} rows={3}
-              placeholder="Detalhes da notificação…"
-              className="mt-1 w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" />
+            <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 block">Título</label>
+            <input
+              value={msgTitle}
+              onChange={(e) => setMsgTitle(e.target.value)}
+              placeholder="Ex: Equipamentos a caminho!"
+              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm font-bold bg-secondary rounded-xl hover:bg-white/10">Cancelar</button>
-            <button onClick={addNotification} disabled={!newN.title || !newN.message || adding}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl text-white disabled:opacity-50 hover:opacity-90"
-              style={{ background: "var(--brand-gradient)" }}>
-              {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
-              Enviar
+          <div>
+            <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 block">Mensagem</label>
+            <textarea
+              value={msgText}
+              onChange={(e) => setMsgText(e.target.value)}
+              rows={4}
+              placeholder="Detalhe a atualização para o cliente…"
+              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={sendMessage}
+              disabled={!msgTitle || !msgText || sendingMsg}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl text-white disabled:opacity-50 hover:opacity-90 transition-all"
+              style={{ background: "var(--brand-gradient)" }}
+            >
+              {sendingMsg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+              Enviar Mensagem
             </button>
+            {msgResult && (
+              <span className={`text-sm font-medium ${msgResult.ok ? "text-green-400" : "text-red-400"}`}>
+                {msgResult.msg}
+              </span>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
-      {notifications.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Nenhuma notificação enviada</p>
+      {/* ── Histórico de Notificações ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-foreground">Histórico de Notificações</h3>
+          <button onClick={() => setShowAdd(!showAdd)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl text-white hover:opacity-90"
+            style={{ background: "var(--brand-gradient)" }}>
+            <Plus className="w-3.5 h-3.5" /> Notificação Interna
+          </button>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {notifications.map((n) => (
-            <div key={n.id} className="glass-card rounded-2xl p-4 flex items-start gap-3">
-              <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.read ? "bg-muted-foreground" : "bg-primary"}`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold">{n.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
-                <p className="text-xs text-muted-foreground mt-1 font-mono">{new Date(n.createdAt).toLocaleDateString("pt-BR")}</p>
-              </div>
-              <button onClick={() => deleteNotif(n.id)} disabled={deleting === n.id}
-                className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
-                {deleting === n.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+
+        {showAdd && (
+          <div className="glass-card rounded-2xl p-5 space-y-3">
+            <h3 className="text-sm font-bold">Nova Notificação (apenas no portal)</h3>
+            <div>
+              <label className="text-xs text-muted-foreground font-mono uppercase">Título</label>
+              <input value={newN.title} onChange={(e) => setNewN((p) => ({ ...p, title: e.target.value }))} placeholder="Ex: Projeto aprovado!"
+                className="mt-1 w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground font-mono uppercase">Mensagem</label>
+              <textarea value={newN.message} onChange={(e) => setNewN((p) => ({ ...p, message: e.target.value }))} rows={3}
+                placeholder="Detalhes da notificação…"
+                className="mt-1 w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm font-bold bg-secondary rounded-xl hover:bg-white/10">Cancelar</button>
+              <button onClick={addNotification} disabled={!newN.title || !newN.message || adding}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl text-white disabled:opacity-50 hover:opacity-90"
+                style={{ background: "var(--brand-gradient)" }}>
+                {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                Adicionar
               </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+
+        {notifications.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Nenhuma notificação enviada ainda</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {notifications.map((n) => (
+              <div key={n.id} className="glass-card rounded-2xl p-4 flex items-start gap-3">
+                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.read ? "bg-muted-foreground" : "bg-primary"}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold">{n.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                  <p className="text-xs text-muted-foreground mt-1 font-mono">{new Date(n.createdAt).toLocaleDateString("pt-BR")}</p>
+                </div>
+                <button onClick={() => deleteNotif(n.id)} disabled={deleting === n.id}
+                  className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
+                  {deleting === n.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
