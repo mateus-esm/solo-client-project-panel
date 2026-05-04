@@ -101,9 +101,6 @@ export default function Finance() {
       >
         {/* Page Header */}
         <motion.div variants={itemUp}>
-          <p className="text-xs text-muted-foreground uppercase tracking-[0.22em] font-mono mb-2">
-            Portal do Cliente
-          </p>
           <h1 className="text-3xl md:text-4xl font-display">Financeiro</h1>
         </motion.div>
 
@@ -140,13 +137,11 @@ export default function Finance() {
               <p className="text-2xl font-display tabular-nums leading-none" style={{ color: "#4ADE80" }}>
                 {formatBRL(totalPaid)}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                {totalProject ? `${paidPercent}% do total` : "Total pago"}
-              </p>
+              <p className="text-xs text-muted-foreground mt-2">Total pago</p>
             </div>
           </div>
 
-          {/* Saldo Devedor */}
+          {/* Saldo em Aberto */}
           <div
             className="glass-card rounded-3xl p-6 flex flex-col gap-4"
             style={
@@ -165,7 +160,7 @@ export default function Finance() {
                   : <CheckCircle2 className="w-5 h-5" style={{ color: "#4ADE80" }} />
                 }
               </div>
-              <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Devedor</span>
+              <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Em Aberto</span>
             </div>
             <div>
               <p
@@ -175,7 +170,7 @@ export default function Finance() {
                 {remaining !== null ? formatBRL(remaining) : "—"}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                {remaining === 0 ? "Quitado ✓" : remaining !== null ? "Saldo em aberto" : "Sem info de total"}
+                {remaining === 0 ? "Quitado ✓" : remaining !== null ? "A pagar" : "—"}
               </p>
             </div>
           </div>
@@ -358,21 +353,6 @@ export default function Finance() {
               })}
             </div>
 
-            {/* Footer */}
-            <div className="px-6 md:px-8 py-5 border-t border-border/30 flex flex-col sm:flex-row justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground font-mono">Parcelas pagas:</span>
-                <span className="text-sm font-bold tabular-nums" style={{ color: "#4ADE80" }}>
-                  {payments.filter((p: Payment) => p.status === "paid").length} / {payments.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground font-mono">Total pago:</span>
-                <span className="font-bold tabular-nums font-mono" style={{ color: "#4ADE80" }}>
-                  {formatBRL(totalPaid)}
-                </span>
-              </div>
-            </div>
           </motion.div>
         ) : (
           <motion.div variants={itemUp} className="glass-card rounded-3xl p-14 flex flex-col items-center text-center gap-4">
