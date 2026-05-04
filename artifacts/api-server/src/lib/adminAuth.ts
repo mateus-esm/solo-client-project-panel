@@ -1,16 +1,21 @@
 import { randomBytes, createHash, timingSafeEqual } from "crypto";
 import { logger } from "./logger";
 import type { Request, Response, NextFunction } from "express";
+import { db, adminSessionsTable } from "@workspace/db";
+import { eq, lt } from "drizzle-orm";
 
 const ADMIN_SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
-type AdminSession = { expiresAt: number };
-
-// In-memory admin sessions (single owner; resets on server restart)
-const adminSessions = new Map<string, AdminSession>();
-
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+async function purgeExpiredSessions(): Promise<void> {
+  try {
+    await db.delete(adminSessionsTable).where(lt(adminSessionsTable.expiresAt, new Date()));
+  } catch (err) {
+    logger.warn({ err }, "Failed to purge expired admin sessions");
+  }
 }
 
 export async function verifyAdminPassword(password: string): Promise<boolean> {
@@ -32,16 +37,23 @@ export async function verifyAdminPassword(password: string): Promise<boolean> {
 export async function createAdminSession(): Promise<string> {
   const token = randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
-  adminSessions.set(tokenHash, { expiresAt: Date.now() + ADMIN_SESSION_DURATION_MS });
+  const expiresAt = new Date(Date.now() + ADMIN_SESSION_DURATION_MS);
+  await db.insert(adminSessionsTable).values({ tokenHash, expiresAt });
+  purgeExpiredSessions();
   return token;
 }
 
 export async function resolveAdminSession(token: string): Promise<boolean> {
   const tokenHash = hashToken(token);
-  const session = adminSessions.get(tokenHash);
-  if (!session) return false;
-  if (Date.now() > session.expiresAt) {
-    adminSessions.delete(tokenHash);
+  const rows = await db
+    .select()
+    .from(adminSessionsTable)
+    .where(eq(adminSessionsTable.tokenHash, tokenHash))
+    .limit(1);
+  if (rows.length === 0) return false;
+  const session = rows[0];
+  if (new Date() > session.expiresAt) {
+    await db.delete(adminSessionsTable).where(eq(adminSessionsTable.tokenHash, tokenHash));
     return false;
   }
   return true;
@@ -49,7 +61,7 @@ export async function resolveAdminSession(token: string): Promise<boolean> {
 
 export async function deleteAdminSession(token: string): Promise<void> {
   const tokenHash = hashToken(token);
-  adminSessions.delete(tokenHash);
+  await db.delete(adminSessionsTable).where(eq(adminSessionsTable.tokenHash, tokenHash));
 }
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {

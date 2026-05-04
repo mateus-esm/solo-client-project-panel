@@ -137,3 +137,10 @@ export const sessionsTable = pgTable("sessions", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const adminSessionsTable = pgTable("admin_sessions", {
+  id: serial("id").primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
