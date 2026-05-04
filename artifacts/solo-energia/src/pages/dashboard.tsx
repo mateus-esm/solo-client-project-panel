@@ -1,4 +1,4 @@
-import { useListProjects, useListPayments } from "@workspace/api-client-react";
+import { useListProjects, useListPayments, useListSchedulingRequests, useCreateSchedulingRequest, useConfirmClientAvailability, SchedulingRequestStatus } from "@workspace/api-client-react";
 import type { Project, Payment } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,65 +57,29 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, [project?.completionPercent]);
 
-  // Scheduling state
+  // Scheduling — use generated hooks (always fetch; gate display in JSX)
+  const isStep4 = (project?.statusStep ?? 0) === 4;
+  const { data: schedList, isLoading: schedListLoading } = useListSchedulingRequests();
+  const activeRequest = (isStep4 && schedList)
+    ? schedList.find((r) =>
+        (["pending", "confirmed", "client_confirmed"] as string[]).includes(r.status)
+      ) ?? null
+    : undefined;
+
   const [schedDate, setSchedDate] = useState("");
   const [schedNotes, setSchedNotes] = useState("");
-  const [schedLoading, setSchedLoading] = useState(false);
-  const [schedRequest, setSchedRequest] = useState<{
-    id: number; requestedDate: string; notes: string | null; status: string;
-  } | null | undefined>(undefined); // undefined = not yet loaded
+  const createScheduling = useCreateSchedulingRequest();
+  const confirmAvailability = useConfirmClientAvailability();
 
-  // Fetch most recent scheduling request on mount (when in step 4)
-  useEffect(() => {
-    if (!project || project.statusStep !== 4) return;
-    fetch(`${BASE_URL}/api/scheduling`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((data: { id: number; requestedDate: string; notes: string | null; status: string }[]) => {
-        const active = data.find((r) => ["pending", "confirmed", "client_confirmed"].includes(r.status));
-        setSchedRequest(active ?? null);
-      })
-      .catch(() => setSchedRequest(null));
-  }, [project?.id, project?.statusStep]);
-
-  async function handleSchedule(e: React.FormEvent) {
+  function handleSchedule(e: React.FormEvent) {
     e.preventDefault();
-    if (!schedDate || schedLoading) return;
-    setSchedLoading(true);
-    try {
-      const res = await fetch(`${BASE_URL}/api/scheduling`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ requestedDate: schedDate, notes: schedNotes }),
-      });
-      if (res.ok) {
-        const created = await res.json() as { id: number; requestedDate: string; notes: string | null; status: string };
-        setSchedRequest(created);
-      }
-    } catch {
-      // silently fail
-    } finally {
-      setSchedLoading(false);
-    }
+    if (!schedDate || createScheduling.isPending) return;
+    createScheduling.mutate({ data: { requestedDate: schedDate, notes: schedNotes || undefined } });
   }
 
-  async function handleConfirmAvailability() {
-    if (!schedRequest || schedLoading) return;
-    setSchedLoading(true);
-    try {
-      const res = await fetch(`${BASE_URL}/api/scheduling/${schedRequest.id}/confirm-client`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-      if (res.ok) {
-        const updated = await res.json() as { id: number; requestedDate: string; notes: string | null; status: string };
-        setSchedRequest(updated);
-      }
-    } catch {
-      // silently fail
-    } finally {
-      setSchedLoading(false);
-    }
+  function handleConfirmAvailability() {
+    if (!activeRequest || confirmAvailability.isPending) return;
+    confirmAvailability.mutate({ id: activeRequest.id });
   }
 
   if (isLoading) {
@@ -543,7 +507,7 @@ export default function Dashboard() {
         </div>
 
         {/* Scheduling CTA — shown when step 4 (Logística) */}
-        {currentStep === 4 && schedRequest !== undefined && (
+        {currentStep === 4 && !schedListLoading && (
           <motion.div variants={itemUp} className="glass-card grain-overlay rounded-3xl overflow-hidden">
             <div className="relative p-8">
               <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
@@ -560,7 +524,7 @@ export default function Dashboard() {
 
                 <AnimatePresence mode="wait">
                   {/* State: client already confirmed */}
-                  {schedRequest?.status === "client_confirmed" && (
+                  {activeRequest?.status === SchedulingRequestStatus.client_confirmed && (
                     <motion.div
                       key="client-confirmed"
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -573,7 +537,7 @@ export default function Dashboard() {
                       </div>
                       <p className="text-lg font-bold text-foreground">Visita confirmada!</p>
                       <p className="text-muted-foreground text-sm">
-                        Data: <span className="font-semibold text-foreground">{safeFormatDate(schedRequest.requestedDate) ?? schedRequest.requestedDate}</span>
+                        Data: <span className="font-semibold text-foreground">{safeFormatDate(activeRequest?.requestedDate) ?? activeRequest?.requestedDate}</span>
                       </p>
                       <p className="text-muted-foreground text-xs max-w-xs">
                         Nossa equipe chegará no horário combinado. Qualquer dúvida, entre em contato via WhatsApp.
@@ -582,7 +546,7 @@ export default function Dashboard() {
                   )}
 
                   {/* State: team confirmed — client needs to confirm availability */}
-                  {schedRequest?.status === "confirmed" && (
+                  {activeRequest?.status === SchedulingRequestStatus.confirmed && (
                     <motion.div
                       key="team-confirmed"
                       initial={{ opacity: 0, y: 8 }}
@@ -595,20 +559,20 @@ export default function Dashboard() {
                         <div>
                           <p className="font-bold text-foreground text-sm">A equipe confirmou a data!</p>
                           <p className="text-muted-foreground text-sm mt-0.5">
-                            Visita agendada para: <span className="font-semibold text-foreground">{safeFormatDate(schedRequest.requestedDate) ?? schedRequest.requestedDate}</span>
+                            Visita agendada para: <span className="font-semibold text-foreground">{safeFormatDate(activeRequest?.requestedDate) ?? activeRequest?.requestedDate}</span>
                           </p>
-                          {schedRequest.notes && (
-                            <p className="text-muted-foreground text-xs mt-1">{schedRequest.notes}</p>
+                          {activeRequest?.notes && (
+                            <p className="text-muted-foreground text-xs mt-1">{activeRequest.notes}</p>
                           )}
                         </div>
                       </div>
                       <button
                         onClick={handleConfirmAvailability}
-                        disabled={schedLoading}
+                        disabled={confirmAvailability.isPending}
                         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
                         style={{ background: "var(--brand-gradient)" }}
                       >
-                        {schedLoading ? (
+                        {confirmAvailability.isPending ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <CheckCircle2 className="w-4 h-4" />
@@ -619,7 +583,7 @@ export default function Dashboard() {
                   )}
 
                   {/* State: pending — waiting for team */}
-                  {schedRequest?.status === "pending" && (
+                  {activeRequest?.status === SchedulingRequestStatus.pending && (
                     <motion.div
                       key="pending"
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -634,7 +598,7 @@ export default function Dashboard() {
                       <div>
                         <p className="font-bold text-foreground text-sm">Solicitação enviada!</p>
                         <p className="text-muted-foreground text-sm">
-                          Data preferida: <span className="font-semibold text-foreground">{safeFormatDate(schedRequest.requestedDate) ?? schedRequest.requestedDate}</span>
+                          Data preferida: <span className="font-semibold text-foreground">{safeFormatDate(activeRequest.requestedDate) ?? activeRequest.requestedDate}</span>
                         </p>
                         <p className="text-muted-foreground text-xs mt-0.5">
                           Aguardando confirmação da equipe Solo via WhatsApp.
@@ -644,7 +608,7 @@ export default function Dashboard() {
                   )}
 
                   {/* State: no request yet — show form */}
-                  {schedRequest === null && (
+                  {activeRequest === null && (
                     <motion.form
                       key="form"
                       onSubmit={handleSchedule}
@@ -680,11 +644,11 @@ export default function Dashboard() {
                       </div>
                       <button
                         type="submit"
-                        disabled={!schedDate || schedLoading}
+                        disabled={!schedDate || createScheduling.isPending}
                         className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all hover:opacity-90 active:scale-95"
                         style={{ background: "var(--brand-gradient)" }}
                       >
-                        {schedLoading ? (
+                        {createScheduling.isPending ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <CalendarPlus className="w-4 h-4" />

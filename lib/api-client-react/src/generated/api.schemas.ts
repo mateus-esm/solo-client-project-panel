@@ -219,6 +219,7 @@ export type SchedulingRequestStatus =
 export const SchedulingRequestStatus = {
   pending: "pending",
   confirmed: "confirmed",
+  client_confirmed: "client_confirmed",
   cancelled: "cancelled",
 } as const;
 

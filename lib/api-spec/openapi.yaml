@@ -492,6 +492,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "409":
+          description: Active scheduling request already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /scheduling/{id}/confirm-client:
+    patch:
+      operationId: confirmClientAvailability
+      tags: [scheduling]
+      summary: Client confirms their availability after team has confirmed the date
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scheduling request updated to client_confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulingRequest"
+        "400":
+          description: Request is not in confirmed state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Scheduling request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   securitySchemes:
@@ -947,7 +990,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [pending, confirmed, cancelled]
+          enum: [pending, confirmed, client_confirmed, cancelled]
         createdAt:
           type: string
           format: date-time

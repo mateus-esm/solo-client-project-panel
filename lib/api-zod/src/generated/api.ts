@@ -416,7 +416,7 @@ export const ListSchedulingRequestsResponseItem = zod.object({
   projectId: zod.number(),
   requestedDate: zod.string(),
   notes: zod.string().nullish(),
-  status: zod.enum(["pending", "confirmed", "cancelled"]),
+  status: zod.enum(["pending", "confirmed", "client_confirmed", "cancelled"]),
   createdAt: zod.date(),
 });
 export const ListSchedulingRequestsResponse = zod.array(
@@ -431,4 +431,20 @@ export const CreateSchedulingRequestBody = zod.object({
     .string()
     .describe("ISO date string for the requested execution date"),
   notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Client confirms their availability after team has confirmed the date
+ */
+export const ConfirmClientAvailabilityParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ConfirmClientAvailabilityResponse = zod.object({
+  id: zod.number(),
+  projectId: zod.number(),
+  requestedDate: zod.string(),
+  notes: zod.string().nullish(),
+  status: zod.enum(["pending", "confirmed", "client_confirmed", "cancelled"]),
+  createdAt: zod.date(),
 });

@@ -1637,3 +1637,87 @@ export const useCreateSchedulingRequest = <
 > => {
   return useMutation(getCreateSchedulingRequestMutationOptions(options));
 };
+
+/**
+ * @summary Client confirms their availability after team has confirmed the date
+ */
+export const getConfirmClientAvailabilityUrl = (id: number) => {
+  return `/api/scheduling/${id}/confirm-client`;
+};
+
+export const confirmClientAvailability = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SchedulingRequest> => {
+  return customFetch<SchedulingRequest>(getConfirmClientAvailabilityUrl(id), {
+    ...options,
+    method: "PATCH",
+  });
+};
+
+export const getConfirmClientAvailabilityMutationOptions = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof confirmClientAvailability>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof confirmClientAvailability>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["confirmClientAvailability"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof confirmClientAvailability>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return confirmClientAvailability(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConfirmClientAvailabilityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof confirmClientAvailability>>
+>;
+
+export type ConfirmClientAvailabilityMutationError = ErrorType<Error>;
+
+/**
+ * @summary Client confirms their availability after team has confirmed the date
+ */
+export const useConfirmClientAvailability = <
+  TError = ErrorType<Error>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof confirmClientAvailability>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof confirmClientAvailability>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getConfirmClientAvailabilityMutationOptions(options));
+};
