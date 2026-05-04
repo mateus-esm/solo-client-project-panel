@@ -389,17 +389,15 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground mt-0.5 hidden lg:block max-w-[110px] mx-auto leading-snug">
                         {step.desc}
                       </p>
-                      {(stepDate || (!isCompleted && !isActive)) && (
-                        <p className={`text-[10px] font-mono mt-1 hidden md:block max-w-[110px] mx-auto truncate ${isActive ? "text-primary" : isCompleted ? "text-foreground/40" : "text-muted-foreground/40"}`}>
-                          {stepDate
-                            ? <>
-                                {safeFormatDate(stepDate, "dd/MM/yy")}
-                                {!isCompleted && !isActive && <span className="opacity-60"> (est.)</span>}
-                              </>
-                            : <span className="opacity-50">— previsto</span>
-                          }
-                        </p>
-                      )}
+                      <p className={`text-[10px] font-mono mt-1 hidden md:block max-w-[110px] mx-auto truncate ${isActive ? "text-primary" : isCompleted ? "text-foreground/40" : "text-muted-foreground/40"}`}>
+                        {stepDate
+                          ? <>
+                              {safeFormatDate(stepDate, "dd/MM/yy")}
+                              {!isCompleted && !isActive && <span className="opacity-60"> (est.)</span>}
+                            </>
+                          : <span className="opacity-50">— previsto</span>
+                        }
+                      </p>
                     </div>
                   </div>
                 );

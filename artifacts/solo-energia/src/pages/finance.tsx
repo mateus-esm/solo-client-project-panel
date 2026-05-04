@@ -31,6 +31,7 @@ export default function Finance() {
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [uploading, setUploading] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<number | null>(null);
   const [comprovanteMap, setComprovanteMap] = useState<Record<number, string>>({});
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function Finance() {
 
   async function handleUpload(paymentId: number, file: File) {
     setUploading(paymentId);
+    setUploadError(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -61,9 +63,11 @@ export default function Finance() {
         const data = await res.json() as { filename: string };
         setComprovanteMap((prev) => ({ ...prev, [paymentId]: data.filename }));
         setExpandedId(null);
+      } else {
+        setUploadError(paymentId);
       }
     } catch (_) {
-      // silent fail — in-memory storage
+      setUploadError(paymentId);
     } finally {
       setUploading(null);
     }
@@ -315,28 +319,35 @@ export default function Finance() {
                                 </div>
                               </div>
                             ) : (
-                              <label className="flex items-center justify-center gap-2 w-full py-5 rounded-xl border border-dashed border-border hover:border-primary/40 hover:bg-primary/[0.03] cursor-pointer transition-all group">
-                                {uploading === p.id ? (
-                                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                                ) : (
-                                  <>
-                                    <Upload className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                                      Anexar comprovante — PDF, JPG, PNG (máx. 10 MB)
-                                    </span>
-                                  </>
+                              <div className="space-y-2">
+                                {uploadError === p.id && (
+                                  <p className="text-xs text-red-400 font-mono flex items-center gap-1.5">
+                                    <span>✕</span> Falha no envio — verifique o formato e tente novamente.
+                                  </p>
                                 )}
-                                <input
-                                  type="file"
-                                  accept=".pdf,image/jpeg,image/png"
-                                  className="hidden"
-                                  disabled={uploading === p.id}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) void handleUpload(p.id, file);
-                                  }}
-                                />
-                              </label>
+                                <label className="flex items-center justify-center gap-2 w-full py-5 rounded-xl border border-dashed border-border hover:border-primary/40 hover:bg-primary/[0.03] cursor-pointer transition-all group">
+                                  {uploading === p.id ? (
+                                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Upload className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                      <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                                        Anexar comprovante — PDF, JPG, PNG (máx. 10 MB)
+                                      </span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept=".pdf,image/jpeg,image/png"
+                                    className="hidden"
+                                    disabled={uploading === p.id}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) void handleUpload(p.id, file);
+                                    }}
+                                  />
+                                </label>
+                              </div>
                             )}
                           </div>
                         </motion.div>
