@@ -47,7 +47,7 @@ function getDeliveryDate(project: Project): string | null | undefined {
 function getStepDate(stepId: number, project: Project): string | null {
   switch (stepId) {
     case 1: return project.dataInicioPrevista ?? null;
-    case 2: return ((project as unknown) as Record<string, unknown>).dataDeCompras as string ?? null;
+    case 2: return project.dataDeCompras ?? null;
     case 4: return project.dataDeEntregaDoEquipamento ?? null;
     case 5: return project.dataConclusaoPrevista ?? project.estimatedDate ?? null;
     case 6: return project.estimatedActivation ?? null;
@@ -382,6 +382,7 @@ export default function Dashboard() {
                       {stepDate && (
                         <p className={`text-[10px] font-mono mt-1 hidden md:block max-w-[110px] mx-auto truncate ${isActive ? "text-primary" : isCompleted ? "text-foreground/40" : "text-muted-foreground/40"}`}>
                           {safeFormatDate(stepDate, "dd/MM/yy")}
+                          {!isCompleted && !isActive && <span className="opacity-60"> (est.)</span>}
                         </p>
                       )}
                     </div>
@@ -409,7 +410,7 @@ export default function Dashboard() {
           {/* Phase Details */}
           {hasPhaseDetails && (
             <motion.div variants={itemUp}>
-              <CollapsibleSection title="Detalhes da Fase" icon={Info} defaultOpen>
+              <CollapsibleSection title="Detalhes da Fase" icon={Info}>
                 <div className="space-y-4">
                   {currentStep === 4 && (
                     <div className="ferrari-stripe rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-border/30">
@@ -514,7 +515,7 @@ export default function Dashboard() {
           {/* Scheduling — only visible when step === 5 (Execução) */}
           {currentStep === 5 && !schedListLoading && (
             <motion.div variants={itemUp}>
-              <CollapsibleSection title="Agendamento de Execução" icon={CalendarPlus} defaultOpen>
+              <CollapsibleSection title="Agendamento de Execução" icon={CalendarPlus}>
                 <AnimatePresence mode="wait">
                   {activeRequest?.status === SchedulingRequestStatus.client_confirmed && (
                     <motion.div

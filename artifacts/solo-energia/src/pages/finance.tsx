@@ -1,5 +1,5 @@
 import { useListProjects, useListPayments } from "@workspace/api-client-react";
-import type { Payment } from "@workspace/api-client-react";
+import type { Payment as BasePayment } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Banknote, CheckCircle2, AlertCircle, Upload, Download, ChevronDown, Loader2, FileText } from "lucide-react";
@@ -7,6 +7,8 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useEffect } from "react";
 import { staggerContainer, itemUp, redBullSpring } from "@/lib/animations";
+
+type Payment = BasePayment & { comprovanteFilename?: string | null };
 
 function safeFormatDate(dateStr: string | null | undefined, fmt = "dd/MM/yyyy"): string | null {
   if (!dateStr) return null;
@@ -34,9 +36,8 @@ export default function Finance() {
   useEffect(() => {
     if (!payments) return;
     const initial: Record<number, string> = {};
-    payments.forEach((p) => {
-      const filename = (p as Payment & { comprovanteFilename?: string }).comprovanteFilename;
-      if (filename) initial[p.id] = filename;
+    (payments as Payment[]).forEach((p) => {
+      if (p.comprovanteFilename) initial[p.id] = p.comprovanteFilename;
     });
     setComprovanteMap(initial);
   }, [payments]);
@@ -51,7 +52,7 @@ export default function Finance() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`/api/client/payments/${paymentId}/comprovante`, {
+      const res = await fetch(`/api/payments/${paymentId}/comprovante`, {
         method: "POST",
         body: fd,
         credentials: "include",
@@ -289,7 +290,7 @@ export default function Finance() {
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
                                   <a
-                                    href={`/api/client/payments/${p.id}/comprovante`}
+                                    href={`/api/payments/${p.id}/comprovante`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
