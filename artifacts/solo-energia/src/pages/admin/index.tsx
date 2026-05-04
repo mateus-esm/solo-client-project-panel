@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Users, Plus, Search, ChevronRight, Zap, MapPin, Activity, LogOut, Loader2, Trash2 } from "lucide-react";
+import { Users, Plus, Search, ChevronRight, Zap, MapPin, LogOut, Loader2, Trash2, Send, X } from "lucide-react";
 import { useAdminLogout } from "@/hooks/use-admin-auth";
 import logoLight from "@assets/001_1775433962945.png";
 
@@ -30,12 +30,23 @@ type Project = {
   createdAt: string;
 };
 
+type Channel = "whatsapp" | "email" | "both";
+
+type QuickSendState = {
+  project: Project;
+  channel: Channel;
+  text: string;
+  sending: boolean;
+  result: { sent: string[]; failed?: string[] } | null;
+};
+
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStep, setFilterStep] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [quickSend, setQuickSend] = useState<QuickSendState | null>(null);
   const logoutMutation = useAdminLogout();
 
   async function fetchProjects() {
@@ -61,6 +72,27 @@ export default function AdminDashboard() {
       setProjects((prev) => prev.filter((p) => p.id !== id));
     } finally {
       setDeleting(null);
+    }
+  }
+
+  function openQuickSend(project: Project) {
+    setQuickSend({ project, channel: "whatsapp", text: "", sending: false, result: null });
+  }
+
+  async function handleQuickSend() {
+    if (!quickSend || !quickSend.text.trim()) return;
+    setQuickSend((s) => s && { ...s, sending: true, result: null });
+    try {
+      const res = await fetch(`/api/admin/projects/${quickSend.project.id}/message`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: quickSend.channel, text: quickSend.text.trim() }),
+      });
+      const data = await res.json();
+      setQuickSend((s) => s && { ...s, sending: false, result: { sent: data.sent ?? [], failed: data.failed } });
+    } catch {
+      setQuickSend((s) => s && { ...s, sending: false, result: { sent: [], failed: ["Erro de rede"] } });
     }
   }
 
@@ -213,6 +245,13 @@ export default function AdminDashboard() {
                 {/* Actions */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
+                    onClick={() => openQuickSend(project)}
+                    title="Enviar mensagem rápida"
+                    className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleDelete(project.id)}
                     disabled={deleting === project.id}
                     className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
@@ -232,6 +271,89 @@ export default function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {/* Quick-send message modal */}
+      {quickSend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Enviar Mensagem</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">{quickSend.project.clientName}</p>
+              </div>
+              <button
+                onClick={() => setQuickSend(null)}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Channel picker */}
+            <div className="flex gap-2 mb-4">
+              {(["whatsapp", "email", "both"] as Channel[]).map((ch) => (
+                <button
+                  key={ch}
+                  onClick={() => setQuickSend((s) => s && { ...s, channel: ch })}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    quickSend.channel === ch
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-white/20"
+                  }`}
+                >
+                  {ch === "whatsapp" ? "WhatsApp" : ch === "email" ? "E-mail" : "Ambos"}
+                </button>
+              ))}
+            </div>
+
+            {/* Message textarea */}
+            <textarea
+              value={quickSend.text}
+              onChange={(e) => setQuickSend((s) => s && { ...s, text: e.target.value })}
+              placeholder="Digite a mensagem para o cliente…"
+              rows={4}
+              disabled={quickSend.sending || !!quickSend.result}
+              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50"
+            />
+
+            {/* Result feedback */}
+            {quickSend.result && (
+              <div className="mt-3 space-y-1">
+                {quickSend.result.sent.length > 0 && (
+                  <p className="text-xs text-green-400">
+                    ✓ Enviado via: {quickSend.result.sent.join(", ")}
+                  </p>
+                )}
+                {quickSend.result.failed && quickSend.result.failed.length > 0 && (
+                  <p className="text-xs text-red-400">
+                    ✗ Falha: {quickSend.result.failed.join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setQuickSend(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-secondary hover:bg-white/10 text-foreground transition-colors"
+              >
+                {quickSend.result ? "Fechar" : "Cancelar"}
+              </button>
+              {!quickSend.result && (
+                <button
+                  onClick={handleQuickSend}
+                  disabled={quickSend.sending || !quickSend.text.trim()}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "var(--brand-gradient)" }}
+                >
+                  {quickSend.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Enviar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

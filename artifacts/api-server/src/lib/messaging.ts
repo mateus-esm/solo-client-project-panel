@@ -9,7 +9,14 @@ function getResend(): Resend {
   return _resend;
 }
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "Solo Energia <noreply@soloenergia.com.br>";
+function getFromEmail(): string {
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!from) {
+    logger.error("RESEND_FROM_EMAIL env not set — email sending will fail");
+    throw new Error("RESEND_FROM_EMAIL não configurado");
+  }
+  return from;
+}
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -110,13 +117,17 @@ export async function sendInviteEmail(to: string, clientName: string): Promise<S
 </body>
 </html>`;
 
-    await getResend().emails.send({
-      from: FROM_EMAIL,
+    const { data, error } = await getResend().emails.send({
+      from: getFromEmail(),
       to,
       subject: "☀️ Seu portal Solar está pronto — Solo Energia",
       html,
     });
-    logger.info({ to }, "Invite email sent");
+    if (error) {
+      logger.error({ error }, "Invite email send failed (Resend API error)");
+      return { ok: false, error: error.message };
+    }
+    logger.info({ to, email_id: data?.id }, "Invite email sent");
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -172,13 +183,17 @@ export async function sendMessageEmail(to: string, clientName: string, title: st
 </body>
 </html>`;
 
-    await getResend().emails.send({
-      from: FROM_EMAIL,
+    const { data, error } = await getResend().emails.send({
+      from: getFromEmail(),
       to,
       subject: `☀️ ${title} — Solo Energia`,
       html,
     });
-    logger.info({ to, title }, "Message email sent");
+    if (error) {
+      logger.error({ error }, "Message email send failed (Resend API error)");
+      return { ok: false, error: error.message };
+    }
+    logger.info({ to, title, email_id: data?.id }, "Message email sent");
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
