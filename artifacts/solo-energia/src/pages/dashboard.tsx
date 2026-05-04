@@ -1,5 +1,6 @@
-import { useListProjects, useListPayments, useListSchedulingRequests, useCreateSchedulingRequest, useConfirmClientAvailability, SchedulingRequestStatus } from "@workspace/api-client-react";
+import { useListProjects, useListPayments, useListSchedulingRequests, useCreateSchedulingRequest, useConfirmClientAvailability, SchedulingRequestStatus, getListSchedulingRequestsQueryKey } from "@workspace/api-client-react";
 import type { Project, Payment } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, ClipboardList, Banknote, CalendarPlus, CheckCircle2, Loader2 } from "lucide-react";
@@ -9,7 +10,6 @@ import { ptBR } from "date-fns/locale";
 import { useState, useEffect } from "react";
 import { staggerContainer, itemUp, momentumEase, redBullSpring } from "@/lib/animations";
 
-const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
 const STEPS = [
   { id: 1, title: "Onboarding", desc: "Boas-vindas e configuração" },
@@ -66,10 +66,29 @@ export default function Dashboard() {
       ) ?? null
     : undefined;
 
+  const queryClient = useQueryClient();
+  const schedQueryKey = getListSchedulingRequestsQueryKey();
+
   const [schedDate, setSchedDate] = useState("");
   const [schedNotes, setSchedNotes] = useState("");
-  const createScheduling = useCreateSchedulingRequest();
-  const confirmAvailability = useConfirmClientAvailability();
+
+  const createScheduling = useCreateSchedulingRequest({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: schedQueryKey });
+        setSchedDate("");
+        setSchedNotes("");
+      },
+    },
+  });
+
+  const confirmAvailability = useConfirmClientAvailability({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: schedQueryKey });
+      },
+    },
+  });
 
   function handleSchedule(e: React.FormEvent) {
     e.preventDefault();
