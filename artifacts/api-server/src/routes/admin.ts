@@ -13,6 +13,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAdmin, verifyAdminPassword, createAdminSession, deleteAdminSession } from "../lib/adminAuth";
+import { comprovanteStore } from "../lib/comprovanteStore";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { stepCompletionPercent } from "../lib/jestor";
 
@@ -187,7 +188,7 @@ router.post("/admin/projects", requireAdmin, async (req, res) => {
 
 router.get("/admin/projects/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
     if (!project) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
     res.json(formatProject(project));
@@ -199,7 +200,7 @@ router.get("/admin/projects/:id", requireAdmin, async (req, res) => {
 
 router.patch("/admin/projects/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const {
       clientName, clientEmail, clientPhone, systemPower, statusStep,
       city, state, valorProjeto, formaDePagamento, observacoesGerais,
@@ -257,7 +258,7 @@ router.patch("/admin/projects/:id", requireAdmin, async (req, res) => {
 
 router.delete("/admin/projects/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     await db.delete(projectsTable).where(eq(projectsTable.id, id));
     projectSectionVisibility.delete(id);
     projectSchedulingLink.delete(id);
@@ -289,7 +290,7 @@ function formatDocument(d: typeof documentsTable.$inferSelect) {
 
 router.get("/admin/projects/:id/documents", requireAdmin, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = parseInt(String(req.params.id), 10);
     const docs = await db.select().from(documentsTable).where(eq(documentsTable.projectId, projectId)).orderBy(documentsTable.createdAt);
     res.json(docs.map(formatDocument));
   } catch (err) {
@@ -300,7 +301,7 @@ router.get("/admin/projects/:id/documents", requireAdmin, async (req, res) => {
 
 router.post("/admin/projects/:id/documents", requireAdmin, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = parseInt(String(req.params.id), 10);
     const { name, category, displayCategory, required, description } = req.body;
     if (!name || !category) { res.status(400).json({ message: "name e category são obrigatórios" }); return; }
 
@@ -319,7 +320,7 @@ router.post("/admin/projects/:id/documents", requireAdmin, async (req, res) => {
 
 router.patch("/admin/documents/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { name, category, displayCategory, required, description } = req.body;
 
     const update: Partial<typeof documentsTable.$inferInsert> = {};
@@ -375,7 +376,7 @@ router.post("/admin/documents/:id/upload", requireAdmin, uploadSingle, async (re
 
 router.delete("/admin/documents/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     await db.delete(documentsTable).where(eq(documentsTable.id, id));
     documentDisplayCategory.delete(id);
     res.json({ ok: true });
@@ -399,7 +400,7 @@ function formatPayment(p: typeof paymentsTable.$inferSelect) {
 
 router.get("/admin/projects/:id/payments", requireAdmin, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = parseInt(String(req.params.id), 10);
     const payments = await db.select().from(paymentsTable).where(eq(paymentsTable.projectId, projectId)).orderBy(paymentsTable.installmentNumber);
     res.json(payments.map(formatPayment));
   } catch (err) {
@@ -409,7 +410,7 @@ router.get("/admin/projects/:id/payments", requireAdmin, async (req, res) => {
 
 router.post("/admin/projects/:id/payments", requireAdmin, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = parseInt(String(req.params.id), 10);
     const { installmentNumber, amount, dueDate, paidDate, status, description } = req.body;
     if (!installmentNumber || amount === undefined || !dueDate) {
       res.status(400).json({ message: "installmentNumber, amount e dueDate são obrigatórios" }); return;
@@ -426,7 +427,7 @@ router.post("/admin/projects/:id/payments", requireAdmin, async (req, res) => {
 
 router.patch("/admin/payments/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { installmentNumber, amount, dueDate, paidDate, status, description } = req.body;
     const update: Partial<typeof paymentsTable.$inferInsert> = {};
     if (installmentNumber !== undefined) update.installmentNumber = Number(installmentNumber);
@@ -445,7 +446,7 @@ router.patch("/admin/payments/:id", requireAdmin, async (req, res) => {
 
 router.delete("/admin/payments/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     await db.delete(paymentsTable).where(eq(paymentsTable.id, id));
     res.json({ ok: true });
   } catch (err) {
@@ -457,7 +458,7 @@ router.delete("/admin/payments/:id", requireAdmin, async (req, res) => {
 
 router.get("/admin/projects/:id/notifications", requireAdmin, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = parseInt(String(req.params.id), 10);
     const notifs = await db.select().from(notificationsTable).where(eq(notificationsTable.projectId, projectId)).orderBy(desc(notificationsTable.createdAt));
     res.json(notifs.map((n) => ({ id: n.id, projectId: n.projectId, title: n.title, message: n.message, read: n.read, createdAt: n.createdAt.toISOString() })));
   } catch (err) {
@@ -467,7 +468,7 @@ router.get("/admin/projects/:id/notifications", requireAdmin, async (req, res) =
 
 router.post("/admin/projects/:id/notifications", requireAdmin, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = parseInt(String(req.params.id), 10);
     const { title, message } = req.body;
     if (!title || !message) { res.status(400).json({ message: "title e message são obrigatórios" }); return; }
     const [notif] = await db.insert(notificationsTable).values({ projectId, title, message, read: false }).returning();
@@ -479,7 +480,7 @@ router.post("/admin/projects/:id/notifications", requireAdmin, async (req, res) 
 
 router.delete("/admin/notifications/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     await db.delete(notificationsTable).where(eq(notificationsTable.id, id));
     res.json({ ok: true });
   } catch (err) {
@@ -491,7 +492,7 @@ router.delete("/admin/notifications/:id", requireAdmin, async (req, res) => {
 
 router.get("/admin/projects/:id/scheduling", requireAdmin, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = parseInt(String(req.params.id), 10);
     const requests = await db.select().from(schedulingRequestsTable).where(eq(schedulingRequestsTable.projectId, projectId)).orderBy(desc(schedulingRequestsTable.createdAt));
     res.json(requests.map((r) => ({ id: r.id, projectId: r.projectId, requestedDate: r.requestedDate, notes: r.notes, status: r.status, createdAt: r.createdAt.toISOString() })));
   } catch (err) {
@@ -501,7 +502,7 @@ router.get("/admin/projects/:id/scheduling", requireAdmin, async (req, res) => {
 
 router.patch("/admin/scheduling/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { status, requestedDate, notes } = req.body;
     const update: Partial<typeof schedulingRequestsTable.$inferInsert> = {};
     if (status !== undefined) update.status = status;
@@ -513,6 +514,43 @@ router.patch("/admin/scheduling/:id", requireAdmin, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Admin: failed to update scheduling"); res.status(500).json({ message: "Erro interno" });
   }
+});
+
+// ─── Admin Comprovante Upload/Download ────────────────────────────────────────
+
+router.post("/admin/payments/:id/comprovante", requireAdmin, uploadSingle, async (req, res) => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
+  if (!req.file) { res.status(400).json({ message: "Arquivo não enviado" }); return; }
+
+  const { mimetype, buffer, originalname } = req.file;
+  if (!ALLOWED_CONTENT_TYPES.includes(mimetype)) {
+    res.status(400).json({ message: "Tipo de arquivo não permitido. Use PDF, JPG ou PNG." }); return;
+  }
+
+  try {
+    const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, id));
+    if (!payment) { res.status(404).json({ message: "Pagamento não encontrado" }); return; }
+
+    comprovanteStore.set(id, { buffer, filename: originalname, mimeType: mimetype });
+    req.log.info({ payment_id: id }, "Admin: comprovante uploaded");
+    res.json({ ok: true, filename: originalname, url: `/api/payments/${id}/comprovante` });
+  } catch (err) {
+    req.log.error({ err }, "Admin: failed to upload comprovante");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+router.get("/admin/payments/:id/comprovante", requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
+
+  const comp = comprovanteStore.get(id);
+  if (!comp) { res.status(404).json({ message: "Comprovante não encontrado" }); return; }
+
+  res.setHeader("Content-Type", comp.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(comp.filename)}"`);
+  res.send(comp.buffer);
 });
 
 export { projectSchedulingLink, projectSectionVisibility };

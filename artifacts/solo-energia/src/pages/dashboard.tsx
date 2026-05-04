@@ -3,7 +3,7 @@ import type { Project } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, MapPin, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, CalendarPlus, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
+import { Check, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, CalendarPlus, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -216,7 +216,7 @@ export default function Dashboard() {
 
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 md:gap-12">
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground uppercase tracking-[0.22em] font-mono mb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-[0.22em] font-mono mb-4 truncate">
                   Portal do Cliente{project.city ? ` · ${project.city}, ${project.state}` : ""}
                 </p>
                 <h1 className="text-4xl lg:text-5xl font-display leading-tight mb-5">
@@ -245,12 +245,6 @@ export default function Dashboard() {
                     <Zap className="w-3 h-3 text-yellow-500 shrink-0" />
                     <span className="text-foreground font-bold tabular-nums">{(project.systemPower ?? 0).toFixed(1)} kWp</span>
                   </span>
-                  {project.city && (
-                    <span className="flex items-center gap-1.5 text-xs">
-                      <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
-                      <span className="text-foreground font-bold">{project.city}{project.state ? `, ${project.state}` : ""}</span>
-                    </span>
-                  )}
                   {activationDate && (
                     <span className="flex items-center gap-1.5 text-xs">
                       <Calendar className="w-3 h-3 shrink-0" style={{ color: "#4ADE80" }} />
@@ -291,34 +285,6 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-          </div>
-        </motion.div>
-
-        {/* ── KPI Strip ─────────────────────────────────────────────────── */}
-        <motion.div variants={itemUp} className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2.5 glass-card rounded-2xl px-4 py-2.5 border border-border/50">
-            <Zap className="w-4 h-4 text-yellow-500 shrink-0" />
-            <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Potência</span>
-            <span className="text-sm font-bold tabular-nums">{(project.systemPower ?? 0).toFixed(1)} kWp</span>
-          </div>
-          {project.city && (
-            <div className="flex items-center gap-2.5 glass-card rounded-2xl px-4 py-2.5 border border-border/50">
-              <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
-              <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Local</span>
-              <span className="text-sm font-bold">{project.city}{project.state ? `, ${project.state}` : ""}</span>
-            </div>
-          )}
-          {activationDate && (
-            <div className="flex items-center gap-2.5 glass-card rounded-2xl px-4 py-2.5 border border-border/50">
-              <Calendar className="w-4 h-4 shrink-0" style={{ color: "#4ADE80" }} />
-              <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Ativação</span>
-              <span className="text-sm font-bold">{safeFormatDate(activationDate, "MMM 'de' yyyy")}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2.5 glass-card rounded-2xl px-4 py-2.5 border border-border/50">
-            <Activity className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Conclusão</span>
-            <span className="text-sm font-bold tabular-nums brand-gradient-text">{completionPct}%</span>
           </div>
         </motion.div>
 

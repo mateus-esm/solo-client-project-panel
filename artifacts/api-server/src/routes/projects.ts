@@ -7,6 +7,7 @@ import { getJestorProject, mapJestorStatusToStep, stepCompletionPercent } from "
 import { resolveSession } from "../lib/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { getProjectMeta, getDocumentDisplayCategory } from "./admin";
+import { comprovanteStore } from "../lib/comprovanteStore";
 
 const objectStorage = new ObjectStorageService();
 
@@ -33,9 +34,6 @@ declare global {
     }
   }
 }
-
-// In-memory comprovante storage (consistent with other in-memory stores; resets on restart)
-const comprovanteStore = new Map<number, { buffer: Buffer; filename: string; mimeType: string }>();
 
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies?.solo_session;
