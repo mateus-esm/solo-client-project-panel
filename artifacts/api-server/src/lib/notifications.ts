@@ -20,7 +20,7 @@ export async function sendWhatsApp(phone: string, message: string): Promise<void
   const numberWithCountry = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
 
   try {
-    const url = `${apiUrl.replace(/\/$/, "")}/v1/message/sendText/${WHATSAPP_INSTANCE}`;
+    const url = `${apiUrl.replace(/\/$/, "")}/v1/message/send/${WHATSAPP_INSTANCE}`;
 
     const response = await fetch(url, {
       method: "POST",
