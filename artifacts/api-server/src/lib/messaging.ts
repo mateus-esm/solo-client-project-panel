@@ -60,11 +60,11 @@ export async function sendWhatsApp(phone: string, text: string): Promise<SendRes
   }
   try {
     const number = normalizePhone(phone);
-    const endpoint = `${waUrl.replace(/\/$/, "")}/message/sendText/${WHATSAPP_INSTANCE}`;
+    const endpoint = `${waUrl.replace(/\/$/, "")}/v1/message/sendText/${WHATSAPP_INSTANCE}`;
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: waKey },
-      body: JSON.stringify({ number, text }),
+      body: JSON.stringify({ Number: number, Text: text }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");

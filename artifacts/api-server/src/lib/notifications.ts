@@ -20,8 +20,7 @@ export async function sendWhatsApp(phone: string, message: string): Promise<void
   const numberWithCountry = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
 
   try {
-    const url = `${apiUrl.replace(/\/$/, "")}/message/sendText/${WHATSAPP_INSTANCE}`;
-    const payload: WhatsAppPayload = { number: numberWithCountry, text: message };
+    const url = `${apiUrl.replace(/\/$/, "")}/v1/message/sendText/${WHATSAPP_INSTANCE}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -29,7 +28,7 @@ export async function sendWhatsApp(phone: string, message: string): Promise<void
         "Content-Type": "application/json",
         "apikey": apiToken,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ Number: numberWithCountry, Text: message }),
     });
 
     if (!response.ok) {
