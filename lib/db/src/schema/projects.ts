@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -54,6 +54,8 @@ export const projectsTable = pgTable("projects", {
   dataDePagamento: text("data_de_pagamento"),
   dataDeCompras: text("data_de_compras"),
   dataDeEntregaDoEquipamento: text("data_de_entrega_do_equipamento"),
+  schedulingLink: text("scheduling_link"),
+  sectionVisibility: jsonb("section_visibility").$type<SectionVisibility>().default(DEFAULT_SECTION_VISIBILITY),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -67,6 +69,7 @@ export const documentsTable = pgTable("documents", {
   name: text("name").notNull(),
   type: text("type").notNull(),
   category: text("category").notNull().default("entrada"),
+  displayCategory: text("display_category"),
   required: boolean("required").notNull().default(false),
   description: text("description"),
   fileUrl: text("file_url"),

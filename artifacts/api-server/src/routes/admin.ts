@@ -40,22 +40,6 @@ const uploadSingle: RequestHandler = (req, res, next) => {
   });
 };
 
-// ─── In-memory stores (persisted to DB when migration runs) ──────────────────
-// These store extra per-project/document data not yet in the DB schema
-const projectSectionVisibility = new Map<number, SectionVisibility>();
-const projectSchedulingLink = new Map<number, string>();
-const documentDisplayCategory = new Map<number, string>();
-
-export function getProjectMeta(projectId: number) {
-  return {
-    sectionVisibility: projectSectionVisibility.get(projectId) ?? { ...DEFAULT_SECTION_VISIBILITY },
-    schedulingLink: projectSchedulingLink.get(projectId) ?? null,
-  };
-}
-
-export function getDocumentDisplayCategory(documentId: number, fallbackCategory: string): string {
-  return documentDisplayCategory.get(documentId) ?? (fallbackCategory === "entrada" ? "cliente" : "engenharia");
-}
 
 // ─── Admin Auth ───────────────────────────────────────────────────────────────
 
@@ -95,7 +79,6 @@ router.get("/admin/auth/check", requireAdmin, (_req, res) => {
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
 function formatProject(p: typeof projectsTable.$inferSelect) {
-  const meta = getProjectMeta(p.id);
   return {
     id: p.id,
     jestorId: p.jestorId,
@@ -122,8 +105,8 @@ function formatProject(p: typeof projectsTable.$inferSelect) {
     dataDePagamento: p.dataDePagamento,
     dataDeCompras: p.dataDeCompras,
     dataDeEntregaDoEquipamento: p.dataDeEntregaDoEquipamento,
-    schedulingLink: meta.schedulingLink,
-    sectionVisibility: meta.sectionVisibility,
+    schedulingLink: p.schedulingLink ?? null,
+    sectionVisibility: (p.sectionVisibility as SectionVisibility) ?? { ...DEFAULT_SECTION_VISIBILITY },
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -179,11 +162,10 @@ router.post("/admin/projects", requireAdmin, async (req, res) => {
         dataDePagamento: dataDePagamento || null,
         dataDeCompras: dataDeCompras || null,
         dataDeEntregaDoEquipamento: dataDeEntregaDoEquipamento || null,
+        schedulingLink: schedulingLink || null,
+        sectionVisibility: sectionVisibility ?? DEFAULT_SECTION_VISIBILITY,
       })
       .returning();
-
-    if (schedulingLink) projectSchedulingLink.set(project.id, schedulingLink);
-    if (sectionVisibility) projectSectionVisibility.set(project.id, sectionVisibility);
 
     req.log.info({ project_id: project.id }, "Admin: project created");
     res.status(201).json(formatProject(project));
@@ -242,14 +224,8 @@ router.patch("/admin/projects/:id", requireAdmin, async (req, res) => {
     if (dataDePagamento !== undefined) updateData.dataDePagamento = dataDePagamento || null;
     if (dataDeCompras !== undefined) updateData.dataDeCompras = dataDeCompras || null;
     if (dataDeEntregaDoEquipamento !== undefined) updateData.dataDeEntregaDoEquipamento = dataDeEntregaDoEquipamento || null;
-
-    if (schedulingLink !== undefined) {
-      if (schedulingLink) projectSchedulingLink.set(id, schedulingLink);
-      else projectSchedulingLink.delete(id);
-    }
-    if (sectionVisibility !== undefined) {
-      projectSectionVisibility.set(id, sectionVisibility);
-    }
+    if (schedulingLink !== undefined) updateData.schedulingLink = schedulingLink || null;
+    if (sectionVisibility !== undefined) updateData.sectionVisibility = sectionVisibility;
 
     const [updated] = Object.keys(updateData).length > 0
       ? await db.update(projectsTable).set(updateData).where(eq(projectsTable.id, id)).returning()
@@ -267,8 +243,6 @@ router.delete("/admin/projects/:id", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     await db.delete(projectsTable).where(eq(projectsTable.id, id));
-    projectSectionVisibility.delete(id);
-    projectSchedulingLink.delete(id);
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Admin: failed to delete project");
@@ -285,7 +259,7 @@ function formatDocument(d: typeof documentsTable.$inferSelect) {
     name: d.name,
     type: d.type,
     category: d.category,
-    displayCategory: getDocumentDisplayCategory(d.id, d.category),
+    displayCategory: d.displayCategory ?? (d.category === "entrada" ? "cliente" : "engenharia"),
     required: d.required,
     description: d.description ?? null,
     fileUrl: d.fileUrl ?? null,
@@ -314,10 +288,8 @@ router.post("/admin/projects/:id/documents", requireAdmin, async (req, res) => {
 
     const [doc] = await db.insert(documentsTable).values({
       projectId, name, type: "pending_upload",
-      category, required: Boolean(required), description: description || null,
+      category, displayCategory: displayCategory || null, required: Boolean(required), description: description || null,
     }).returning();
-
-    if (displayCategory) documentDisplayCategory.set(doc.id, displayCategory);
     res.status(201).json(formatDocument(doc));
   } catch (err) {
     req.log.error({ err }, "Admin: failed to create document");
@@ -335,11 +307,7 @@ router.patch("/admin/documents/:id", requireAdmin, async (req, res) => {
     if (category !== undefined) update.category = category;
     if (required !== undefined) update.required = Boolean(required);
     if (description !== undefined) update.description = description || null;
-
-    if (displayCategory !== undefined) {
-      if (displayCategory) documentDisplayCategory.set(id, displayCategory);
-      else documentDisplayCategory.delete(id);
-    }
+    if (displayCategory !== undefined) update.displayCategory = displayCategory || null;
 
     const [updated] = Object.keys(update).length > 0
       ? await db.update(documentsTable).set(update).where(eq(documentsTable.id, id)).returning()
@@ -385,7 +353,6 @@ router.delete("/admin/documents/:id", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     await db.delete(documentsTable).where(eq(documentsTable.id, id));
-    documentDisplayCategory.delete(id);
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Admin: failed to delete document");
@@ -648,5 +615,4 @@ router.get("/admin/payments/:id/comprovante", requireAdmin, async (req, res) => 
   res.send(comp.buffer);
 });
 
-export { projectSchedulingLink, projectSectionVisibility };
 export default router;
