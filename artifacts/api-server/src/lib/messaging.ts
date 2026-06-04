@@ -49,6 +49,8 @@ function getPortalUrl(): string {
   return "https://soloenergia.replit.app";
 }
 
+const WHATSAPP_INSTANCE = "solobusiness";
+
 export async function sendWhatsApp(phone: string, text: string): Promise<SendResult> {
   const waUrl = process.env.WHATSAPP_API_URL;
   const waKey = process.env.WHATSAPP_API_KEY;
@@ -58,7 +60,8 @@ export async function sendWhatsApp(phone: string, text: string): Promise<SendRes
   }
   try {
     const number = normalizePhone(phone);
-    const res = await fetch(waUrl, {
+    const endpoint = `${waUrl.replace(/\/$/, "")}/message/sendText/${WHATSAPP_INSTANCE}`;
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: waKey },
       body: JSON.stringify({ number, text }),

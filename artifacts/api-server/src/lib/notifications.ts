@@ -9,10 +9,10 @@ interface WhatsAppPayload {
 
 export async function sendWhatsApp(phone: string, message: string): Promise<void> {
   const apiUrl = process.env.WHATSAPP_API_URL;
-  const apiToken = process.env.WHATSAPP_API_TOKEN;
+  const apiToken = process.env.WHATSAPP_API_KEY;
 
   if (!apiUrl || !apiToken) {
-    logger.warn("WhatsApp not configured (WHATSAPP_API_URL or WHATSAPP_API_TOKEN missing) — skipping");
+    logger.warn("WhatsApp not configured (WHATSAPP_API_URL or WHATSAPP_API_KEY missing) — skipping");
     return;
   }
 
@@ -20,7 +20,7 @@ export async function sendWhatsApp(phone: string, message: string): Promise<void
   const numberWithCountry = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
 
   try {
-    const url = `${apiUrl}/v1/message/sendText/${WHATSAPP_INSTANCE}`;
+    const url = `${apiUrl.replace(/\/$/, "")}/message/sendText/${WHATSAPP_INSTANCE}`;
     const payload: WhatsAppPayload = { number: numberWithCountry, text: message };
 
     const response = await fetch(url, {
