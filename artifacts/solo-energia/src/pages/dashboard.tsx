@@ -1,5 +1,5 @@
 import { useListProjects, useListSchedulingRequests, useCreateSchedulingRequest, useConfirmClientAvailability, SchedulingRequestStatus, getListSchedulingRequestsQueryKey } from "@workspace/api-client-react";
-import type { Project } from "@workspace/api-client-react";
+import type { Project, SectionVisibility } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
@@ -105,24 +105,11 @@ function CollapsibleSection({
   );
 }
 
-type SectionVisibility = {
-  payments?: boolean;
-  scheduling?: boolean;
-  tracking?: boolean;
-  chat?: boolean;
-};
-
-type ProjectWithMeta = {
-  sectionVisibility?: SectionVisibility;
-  [key: string]: unknown;
-};
-
 export default function Dashboard() {
   const { data: projects, isLoading } = useListProjects();
   const project = projects?.[0];
 
-  const sectionViz: SectionVisibility =
-    ((project as unknown as ProjectWithMeta)?.sectionVisibility) ?? {};
+  const sectionViz: SectionVisibility = project?.sectionVisibility ?? {};
   const showScheduling = sectionViz.scheduling !== false;
   const showTracking = sectionViz.tracking !== false;
 

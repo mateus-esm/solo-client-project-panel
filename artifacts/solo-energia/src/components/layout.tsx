@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import logoLight from "@assets/001_1775433962945.png";
 import { useListNotifications, useListProjects } from "@workspace/api-client-react";
+import type { SectionVisibility } from "@workspace/api-client-react";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { redBullSpring } from "@/lib/animations";
 import { ChatWidget } from "@/components/chat-widget";
@@ -12,18 +13,6 @@ import { ChatWidget } from "@/components/chat-widget";
 interface LayoutProps {
   children: ReactNode;
 }
-
-type SectionVisibility = {
-  payments?: boolean;
-  scheduling?: boolean;
-  tracking?: boolean;
-  chat?: boolean;
-};
-
-type ProjectWithMeta = {
-  sectionVisibility?: SectionVisibility;
-  [key: string]: unknown;
-};
 
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
@@ -36,8 +25,8 @@ export function Layout({ children }: LayoutProps) {
   const logoutMutation = useLogout();
 
   const { data: projects } = useListProjects();
-  const project = (projects?.[0] as unknown as ProjectWithMeta) ?? null;
-  const sectionViz: SectionVisibility = project?.sectionVisibility ?? { payments: true, scheduling: true, tracking: true, chat: true };
+  const project = projects?.[0] ?? null;
+  const sectionViz: SectionVisibility = project?.sectionVisibility ?? {};
   const showChat = sectionViz.chat !== false;
 
   const navItems = [

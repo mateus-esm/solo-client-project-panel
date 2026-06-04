@@ -102,6 +102,18 @@ export const ListProjectsResponseItem = zod.object({
   dataDePagamento: zod.string().nullish(),
   dataDeCompras: zod.string().nullish(),
   dataDeEntregaDoEquipamento: zod.string().nullish(),
+  schedulingLink: zod
+    .string()
+    .nullish()
+    .describe("Optional external scheduling URL set by admin (e.g. Calendly)"),
+  sectionVisibility: zod
+    .object({
+      payments: zod.boolean().optional(),
+      scheduling: zod.boolean().optional(),
+      tracking: zod.boolean().optional(),
+      chat: zod.boolean().optional(),
+    })
+    .optional(),
   createdAt: zod.string(),
 });
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
@@ -151,6 +163,18 @@ export const GetProjectResponse = zod.object({
   dataDePagamento: zod.string().nullish(),
   dataDeCompras: zod.string().nullish(),
   dataDeEntregaDoEquipamento: zod.string().nullish(),
+  schedulingLink: zod
+    .string()
+    .nullish()
+    .describe("Optional external scheduling URL set by admin (e.g. Calendly)"),
+  sectionVisibility: zod
+    .object({
+      payments: zod.boolean().optional(),
+      scheduling: zod.boolean().optional(),
+      tracking: zod.boolean().optional(),
+      chat: zod.boolean().optional(),
+    })
+    .optional(),
   createdAt: zod.string(),
 });
 
@@ -170,6 +194,12 @@ export const ListDocumentsResponseItem = zod.object({
     .enum(["entrada", "intra_projeto"])
     .describe(
       "entrada = docs the client provides; intra_projeto = docs Solo Energia generates",
+    ),
+  displayCategory: zod
+    .string()
+    .nullish()
+    .describe(
+      "Display grouping: cliente | engenharia | fiscal | legal | equipamentos",
     ),
   required: zod.boolean(),
   description: zod.string().nullish(),
@@ -325,7 +355,7 @@ export const UploadDocumentParams = zod.object({
 });
 
 export const UploadDocumentBody = zod.object({
-  file: zod.any().describe("PDF, JPG, or PNG file; max 10 MB"),
+  file: zod.instanceof(File).describe("PDF, JPG, or PNG file; max 10 MB"),
 });
 
 export const UploadDocumentResponse = zod.object({
@@ -337,6 +367,12 @@ export const UploadDocumentResponse = zod.object({
     .enum(["entrada", "intra_projeto"])
     .describe(
       "entrada = docs the client provides; intra_projeto = docs Solo Energia generates",
+    ),
+  displayCategory: zod
+    .string()
+    .nullish()
+    .describe(
+      "Display grouping: cliente | engenharia | fiscal | legal | equipamentos",
     ),
   required: zod.boolean(),
   description: zod.string().nullish(),
@@ -393,6 +429,18 @@ export const SyncJestorProjectResponse = zod.object({
   dataDePagamento: zod.string().nullish(),
   dataDeCompras: zod.string().nullish(),
   dataDeEntregaDoEquipamento: zod.string().nullish(),
+  schedulingLink: zod
+    .string()
+    .nullish()
+    .describe("Optional external scheduling URL set by admin (e.g. Calendly)"),
+  sectionVisibility: zod
+    .object({
+      payments: zod.boolean().optional(),
+      scheduling: zod.boolean().optional(),
+      tracking: zod.boolean().optional(),
+      chat: zod.boolean().optional(),
+    })
+    .optional(),
   createdAt: zod.string(),
 });
 

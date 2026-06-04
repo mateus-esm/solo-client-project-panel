@@ -43,6 +43,13 @@ export interface AuthUser {
   clientEmail: string;
 }
 
+export interface SectionVisibility {
+  payments?: boolean;
+  scheduling?: boolean;
+  tracking?: boolean;
+  chat?: boolean;
+}
+
 export interface Project {
   id: number;
   clientName: string;
@@ -73,6 +80,9 @@ export interface Project {
   dataDePagamento?: string | null;
   dataDeCompras?: string | null;
   dataDeEntregaDoEquipamento?: string | null;
+  /** Optional external scheduling URL set by admin (e.g. Calendly) */
+  schedulingLink?: string | null;
+  sectionVisibility?: SectionVisibility;
   createdAt: string;
 }
 
@@ -101,6 +111,8 @@ export interface Document {
   type: DocumentType;
   /** entrada = docs the client provides; intra_projeto = docs Solo Energia generates */
   category: DocumentCategory;
+  /** Display grouping: cliente | engenharia | fiscal | legal | equipamentos */
+  displayCategory?: string | null;
   required: boolean;
   description?: string | null;
   fileUrl?: string | null;

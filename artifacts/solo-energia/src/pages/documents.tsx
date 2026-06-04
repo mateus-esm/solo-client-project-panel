@@ -28,9 +28,6 @@ const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"
 const ALLOWED_EXT = ".pdf,.jpg,.jpeg,.png";
 const MAX_SIZE = 10 * 1024 * 1024;
 
-// Extended document type includes extra fields returned by the API
-type ExtendedDocument = Document & { displayCategory?: string };
-
 // Display category config: icon, label, subtitle, section number
 const DISPLAY_CATEGORIES: {
   key: string;
@@ -66,13 +63,13 @@ const STATIC_PLACEHOLDERS: Record<string, { name: string; description: string }[
   ],
 };
 
-function getDisplayCategory(doc: ExtendedDocument): string {
+function getDisplayCategory(doc: Document): string {
   if (doc.displayCategory) return doc.displayCategory;
   return doc.category === "entrada" ? "cliente" : "engenharia";
 }
 
 interface DocCardProps {
-  doc: ExtendedDocument;
+  doc: Document;
   onUploaded: () => void;
 }
 
@@ -230,18 +227,18 @@ function CategorySection({
   IconComponent: React.ComponentType<{ className?: string }>;
   iconBg: string;
   iconColor: string;
-  docs: ExtendedDocument[];
+  docs: Document[];
   onUploaded: () => void;
 }) {
   const [open, setOpen] = useState(true);
   const staticDocs = STATIC_PLACEHOLDERS[catKey];
   const hasLiveDocs = docs.length > 0;
 
-  // Count badge: for "entrada" docs, show X of Y uploaded
-  const entradaDocs = docs.filter((d) => d.category === "entrada");
-  const uploadedCount = entradaDocs.filter((d) => d.type === "available_download").length;
+  // Count badge: show how many docs have a file (uploaded or available) out of total in section
+  const withFile = docs.filter((d) => d.fileUrl != null).length;
   const totalCount = hasLiveDocs ? docs.length : (staticDocs?.length ?? 0);
-  const showBadge = hasLiveDocs && entradaDocs.length > 0;
+  const allFilled = hasLiveDocs && withFile === docs.length;
+  const showBadge = hasLiveDocs;
 
   return (
     <section className="glass-card rounded-3xl overflow-hidden">
@@ -263,11 +260,11 @@ function CategorySection({
         <div className="flex items-center gap-3 shrink-0 ml-4">
           {showBadge && (
             <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg tabular-nums ${
-              uploadedCount === entradaDocs.length
+              allFilled
                 ? "bg-emerald-500/10 text-emerald-400"
                 : "bg-yellow-500/10 text-yellow-500"
             }`}>
-              {uploadedCount}/{entradaDocs.length}
+              {withFile}/{docs.length}
             </span>
           )}
           {!showBadge && totalCount > 0 && (
@@ -316,15 +313,14 @@ function CategorySection({
 
 export default function Documents() {
   const queryClient = useQueryClient();
-  const { data: rawDocuments, isLoading } = useListDocuments();
-  const documents = (rawDocuments ?? []) as ExtendedDocument[];
+  const { data: documents = [], isLoading } = useListDocuments();
 
   const handleUploaded = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
   }, [queryClient]);
 
   // Group by displayCategory
-  const grouped: Record<string, ExtendedDocument[]> = {};
+  const grouped: Record<string, Document[]> = {};
   for (const doc of documents) {
     const key = getDisplayCategory(doc);
     if (!grouped[key]) grouped[key] = [];

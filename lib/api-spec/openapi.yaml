@@ -701,6 +701,12 @@ components:
         dataDeEntregaDoEquipamento:
           type: string
           nullable: true
+        schedulingLink:
+          type: string
+          nullable: true
+          description: Optional external scheduling URL set by admin (e.g. Calendly)
+        sectionVisibility:
+          $ref: "#/components/schemas/SectionVisibility"
         createdAt:
           type: string
       required:
@@ -713,6 +719,18 @@ components:
         - state
         - completionPercent
         - createdAt
+
+    SectionVisibility:
+      type: object
+      properties:
+        payments:
+          type: boolean
+        scheduling:
+          type: boolean
+        tracking:
+          type: boolean
+        chat:
+          type: boolean
 
     Document:
       type: object
@@ -730,6 +748,10 @@ components:
           type: string
           enum: [entrada, intra_projeto]
           description: "entrada = docs the client provides; intra_projeto = docs Solo Energia generates"
+        displayCategory:
+          type: string
+          nullable: true
+          description: "Display grouping: cliente | engenharia | fiscal | legal | equipamentos"
         required:
           type: boolean
         description:
