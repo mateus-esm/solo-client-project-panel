@@ -48,6 +48,11 @@ export interface SectionVisibility {
   scheduling?: boolean;
   tracking?: boolean;
   chat?: boolean;
+  documents_cliente?: boolean;
+  documents_engenharia?: boolean;
+  documents_fiscal?: boolean;
+  documents_legal?: boolean;
+  documents_equipamentos?: boolean;
 }
 
 export interface Project {

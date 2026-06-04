@@ -32,11 +32,16 @@ const SCHED_STATUSES = [
   { value: "cancelled", label: "Cancelado" },
 ];
 
+type SectionViz = {
+  payments: boolean; scheduling: boolean; tracking: boolean; chat: boolean;
+  documents_cliente: boolean; documents_engenharia: boolean;
+  documents_fiscal: boolean; documents_legal: boolean; documents_equipamentos: boolean;
+};
 type Project = Record<string, unknown> & {
   id: number;
   clientName: string;
   clientEmail: string;
-  sectionVisibility: { payments: boolean; scheduling: boolean; tracking: boolean; chat: boolean };
+  sectionVisibility: SectionViz;
   schedulingLink: string | null;
 };
 type Doc = { id: number; name: string; type: string; category: string; displayCategory: string; required: boolean; description: string | null; fileUrl: string | null; uploadedAt: string | null; createdAt: string };
@@ -67,7 +72,11 @@ export default function AdminProjectEditor() {
 
   // Form state for Geral tab
   const [form, setForm] = useState<Record<string, string>>({});
-  const [sectionViz, setSectionViz] = useState({ payments: true, scheduling: true, tracking: true, chat: true });
+  const [sectionViz, setSectionViz] = useState<SectionViz>({
+    payments: true, scheduling: true, tracking: true, chat: true,
+    documents_cliente: true, documents_engenharia: true,
+    documents_fiscal: true, documents_legal: true, documents_equipamentos: true,
+  });
   const [schedulingLink, setSchedulingLink] = useState("");
 
   useEffect(() => {
@@ -99,7 +108,11 @@ export default function AdminProjectEditor() {
           dataDeCompras: p.dataDeCompras ?? "",
           dataDeEntregaDoEquipamento: p.dataDeEntregaDoEquipamento ?? "",
         });
-        setSectionViz(p.sectionVisibility ?? { payments: true, scheduling: true, tracking: true, chat: true });
+        setSectionViz(p.sectionVisibility ?? {
+          payments: true, scheduling: true, tracking: true, chat: true,
+          documents_cliente: true, documents_engenharia: true,
+          documents_fiscal: true, documents_legal: true, documents_equipamentos: true,
+        });
         setSchedulingLink(p.schedulingLink ?? "");
       } finally {
         setLoading(false);
@@ -268,8 +281,8 @@ function GeralTab({
 }: {
   form: Record<string, string>;
   setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  sectionViz: { payments: boolean; scheduling: boolean; tracking: boolean; chat: boolean };
-  setSectionViz: React.Dispatch<React.SetStateAction<{ payments: boolean; scheduling: boolean; tracking: boolean; chat: boolean }>>;
+  sectionViz: SectionViz;
+  setSectionViz: React.Dispatch<React.SetStateAction<SectionViz>>;
   schedulingLink: string;
   setSchedulingLink: React.Dispatch<React.SetStateAction<string>>;
   saving: boolean;
@@ -336,29 +349,66 @@ function GeralTab({
       </Section>
 
       {/* Visibilidade de Seções */}
-      <div className="glass-card rounded-3xl p-6">
-        <h2 className="text-base font-bold text-foreground mb-1 pb-3 border-b border-border">Visibilidade de Seções</h2>
-        <p className="text-xs text-muted-foreground mb-4">Desative seções que não fazem sentido para este cliente</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {(Object.keys(sectionViz) as (keyof typeof sectionViz)[]).map((key) => {
-            const labels: Record<string, string> = { payments: "Pagamentos", scheduling: "Agendamento", tracking: "Rastreamento", chat: "Chat IA" };
-            return (
-              <button
-                key={key}
-                onClick={() => setSectionViz((p) => ({ ...p, [key]: !p[key] }))}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-                  sectionViz[key]
-                    ? "bg-primary/10 border-primary/30 text-primary"
-                    : "bg-secondary border-border text-muted-foreground"
-                }`}
-              >
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${sectionViz[key] ? "bg-primary border-primary" : "border-muted-foreground"}`}>
-                  {sectionViz[key] && <CheckCircle2 className="w-3 h-3 text-white" />}
-                </div>
-                {labels[key]}
-              </button>
-            );
-          })}
+      <div className="glass-card rounded-3xl p-6 space-y-5">
+        <div>
+          <h2 className="text-base font-bold text-foreground mb-1 pb-3 border-b border-border">Visibilidade de Seções</h2>
+          <p className="text-xs text-muted-foreground mt-2">Desative seções que não fazem sentido para este cliente</p>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Portal</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {(["payments", "scheduling", "tracking", "chat"] as const).map((key) => {
+              const labels: Record<string, string> = { payments: "Pagamentos", scheduling: "Agendamento", tracking: "Rastreamento", chat: "Chat IA" };
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSectionViz((p) => ({ ...p, [key]: !p[key] }))}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                    sectionViz[key]
+                      ? "bg-primary/10 border-primary/30 text-primary"
+                      : "bg-secondary border-border text-muted-foreground"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${sectionViz[key] ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                    {sectionViz[key] && <CheckCircle2 className="w-3 h-3 text-white" />}
+                  </div>
+                  {labels[key]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Categorias de Documentos</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {(["documents_cliente", "documents_engenharia", "documents_fiscal", "documents_legal", "documents_equipamentos"] as const).map((key) => {
+              const labels: Record<string, string> = {
+                documents_cliente: "Documentos do Cliente",
+                documents_engenharia: "Projeto de Engenharia",
+                documents_fiscal: "Notas Fiscais",
+                documents_legal: "Docs Legais (ART/FSA)",
+                documents_equipamentos: "Equipamentos / Datasheets",
+              };
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSectionViz((p) => ({ ...p, [key]: !p[key] }))}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                    sectionViz[key]
+                      ? "bg-primary/10 border-primary/30 text-primary"
+                      : "bg-secondary border-border text-muted-foreground"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${sectionViz[key] ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                    {sectionViz[key] && <CheckCircle2 className="w-3 h-3 text-white" />}
+                  </div>
+                  {labels[key]}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

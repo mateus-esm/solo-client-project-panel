@@ -731,6 +731,16 @@ components:
           type: boolean
         chat:
           type: boolean
+        documents_cliente:
+          type: boolean
+        documents_engenharia:
+          type: boolean
+        documents_fiscal:
+          type: boolean
+        documents_legal:
+          type: boolean
+        documents_equipamentos:
+          type: boolean
 
     Document:
       type: object

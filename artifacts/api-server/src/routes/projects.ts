@@ -210,11 +210,23 @@ function formatDocument(d: typeof documentsTable.$inferSelect) {
 
 router.get("/documents", requireAuth, async (req, res) => {
   try {
+    const [proj] = await db
+      .select({ sectionVisibility: projectsTable.sectionVisibility })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, req.sessionProjectId!));
+    const sv: SectionVisibility = (proj?.sectionVisibility as SectionVisibility) ?? { ...DEFAULT_SECTION_VISIBILITY };
+
     const docs = await db
       .select()
       .from(documentsTable)
       .where(eq(documentsTable.projectId, req.sessionProjectId!));
-    res.json(docs.map(formatDocument));
+
+    const formatted = docs.map(formatDocument);
+    const filtered = formatted.filter((d) => {
+      const key = `documents_${d.displayCategory}` as keyof SectionVisibility;
+      return sv[key] !== false;
+    });
+    res.json(filtered);
   } catch (err) {
     req.log.error({ err }, "Failed to list documents");
     res.status(500).json({ message: "Internal server error" });
@@ -358,6 +370,13 @@ function formatPayment(p: typeof paymentsTable.$inferSelect) {
 
 router.get("/payments", requireAuth, async (req, res) => {
   try {
+    const [proj] = await db
+      .select({ sectionVisibility: projectsTable.sectionVisibility })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, req.sessionProjectId!));
+    const sv: SectionVisibility = (proj?.sectionVisibility as SectionVisibility) ?? { ...DEFAULT_SECTION_VISIBILITY };
+    if (sv.payments === false) { res.json([]); return; }
+
     const payments = await db
       .select()
       .from(paymentsTable)

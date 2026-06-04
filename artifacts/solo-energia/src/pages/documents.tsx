@@ -1,6 +1,6 @@
 import { useRef, useCallback, useState } from "react";
-import { useListDocuments, useUploadDocument } from "@workspace/api-client-react";
-import type { Document } from "@workspace/api-client-react";
+import { useListDocuments, useUploadDocument, useListProjects } from "@workspace/api-client-react";
+import type { Document, SectionVisibility } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Layout } from "@/components/layout";
@@ -314,6 +314,9 @@ function CategorySection({
 export default function Documents() {
   const queryClient = useQueryClient();
   const { data: documents = [], isLoading } = useListDocuments();
+  const { data: projects } = useListProjects();
+  const project = projects?.[0];
+  const sv: SectionVisibility = (project?.sectionVisibility as SectionVisibility) ?? {};
 
   const handleUploaded = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -327,11 +330,13 @@ export default function Documents() {
     grouped[key].push(doc);
   }
 
-  // Show only categories that either have live docs or have static placeholders (or always show cliente + engenharia)
+  // Show only categories that are visible per sectionVisibility, have live docs, or have static placeholders
   const alwaysShow = new Set(["cliente", "engenharia"]);
-  const visibleCategories = DISPLAY_CATEGORIES.filter(
-    (cat) => alwaysShow.has(cat.key) || (grouped[cat.key] && grouped[cat.key].length > 0)
-  );
+  const visibleCategories = DISPLAY_CATEGORIES.filter((cat) => {
+    const vizKey = `documents_${cat.key}` as keyof SectionVisibility;
+    if (sv[vizKey] === false) return false;
+    return alwaysShow.has(cat.key) || (grouped[cat.key] && grouped[cat.key].length > 0);
+  });
 
   return (
     <Layout>

@@ -7,6 +7,11 @@ export const SectionVisibilitySchema = z.object({
   scheduling: z.boolean().default(true),
   tracking: z.boolean().default(true),
   chat: z.boolean().default(true),
+  documents_cliente: z.boolean().default(true),
+  documents_engenharia: z.boolean().default(true),
+  documents_fiscal: z.boolean().default(true),
+  documents_legal: z.boolean().default(true),
+  documents_equipamentos: z.boolean().default(true),
 });
 
 export type SectionVisibility = z.infer<typeof SectionVisibilitySchema>;
@@ -16,6 +21,11 @@ export const DEFAULT_SECTION_VISIBILITY: SectionVisibility = {
   scheduling: true,
   tracking: true,
   chat: true,
+  documents_cliente: true,
+  documents_engenharia: true,
+  documents_fiscal: true,
+  documents_legal: true,
+  documents_equipamentos: true,
 };
 
 export const DOCUMENT_DISPLAY_CATEGORIES = [
