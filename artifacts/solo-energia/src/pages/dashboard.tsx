@@ -508,8 +508,8 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Scheduling — only visible when step === 5 (Execução) */}
-          {currentStep === 5 && !schedListLoading && (
+          {/* Scheduling — only visible when step === 5 (Execução) AND scheduling is enabled */}
+          {isStep5 && !schedListLoading && (
             <motion.div variants={itemUp}>
               <CollapsibleSection title="Agendamento de Execução" icon={CalendarPlus}>
                 <AnimatePresence mode="wait">
