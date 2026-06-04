@@ -1,9 +1,8 @@
-import { useListProjects, useListSchedulingRequests, useCreateSchedulingRequest, useConfirmClientAvailability, SchedulingRequestStatus, getListSchedulingRequestsQueryKey } from "@workspace/api-client-react";
+import { useListProjects } from "@workspace/api-client-react";
 import type { Project, SectionVisibility } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, CalendarPlus, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
+import { Check, Zap, Calendar, Truck, ArrowRight, MessageCircle, FileText, Activity, ShieldCheck, HardHat, Info, ExternalLink, ChevronDown } from "lucide-react";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -120,49 +119,6 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, [project?.completionPercent]);
 
-  const isStep5 = (project?.statusStep ?? 0) === 5 && showScheduling;
-  const { data: schedList, isLoading: schedListLoading } = useListSchedulingRequests();
-  const activeRequest = (isStep5 && schedList)
-    ? schedList.find((r) =>
-        (["pending", "confirmed", "client_confirmed"] as string[]).includes(r.status)
-      ) ?? null
-    : undefined;
-
-  const queryClient = useQueryClient();
-  const schedQueryKey = getListSchedulingRequestsQueryKey();
-
-  const [schedDate, setSchedDate] = useState("");
-  const [schedNotes, setSchedNotes] = useState("");
-
-  const createScheduling = useCreateSchedulingRequest({
-    mutation: {
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: schedQueryKey });
-        setSchedDate("");
-        setSchedNotes("");
-      },
-    },
-  });
-
-  const confirmAvailability = useConfirmClientAvailability({
-    mutation: {
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: schedQueryKey });
-      },
-    },
-  });
-
-  function handleSchedule(e: React.FormEvent) {
-    e.preventDefault();
-    if (!schedDate || createScheduling.isPending) return;
-    createScheduling.mutate({ data: { requestedDate: schedDate, notes: schedNotes || undefined } });
-  }
-
-  function handleConfirmAvailability() {
-    if (!activeRequest || confirmAvailability.isPending) return;
-    confirmAvailability.mutate({ id: activeRequest.id });
-  }
-
   if (isLoading) {
     return (
       <Layout>
@@ -207,6 +163,13 @@ export default function Dashboard() {
     phaseDate ||
     (currentStep >= 2 && !(currentStep === 4 && !showTracking))
   );
+
+  // Show scheduling button when: link is set, section is enabled, step is 3–5
+  const showSchedulingBtn =
+    showScheduling &&
+    !!project.schedulingLink &&
+    currentStep >= 3 &&
+    currentStep <= 5;
 
   return (
     <Layout>
@@ -499,101 +462,33 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Scheduling — only visible when step === 5 (Execução) AND scheduling is enabled */}
-          {isStep5 && !schedListLoading && (
+          {/* Scheduling — external calendar link (steps 3–5, only when link is set) */}
+          {showSchedulingBtn && (
             <motion.div variants={itemUp}>
-              <CollapsibleSection title="Agendamento de Execução" icon={CalendarPlus}>
-                <AnimatePresence mode="wait">
-                  {activeRequest?.status === SchedulingRequestStatus.client_confirmed && (
-                    <motion.div
-                      key="client-confirmed"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={redBullSpring}
-                      className="flex flex-col items-center gap-3 py-6 text-center"
-                    >
-                      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-1" style={{ background: "rgba(74,222,128,0.12)" }}>
-                        <CheckCircle2 className="w-8 h-8" style={{ color: "#4ADE80" }} />
-                      </div>
-                      <p className="text-lg font-bold text-foreground">Visita confirmada!</p>
-                      <p className="text-muted-foreground text-sm">
-                        Data: <span className="font-semibold text-foreground">{safeFormatDate(activeRequest.requestedDate) ?? activeRequest.requestedDate}</span>
-                      </p>
-                      <p className="text-muted-foreground text-xs max-w-xs">
-                        Nossa equipe chegará no horário combinado. Qualquer dúvida, fale via WhatsApp.
-                      </p>
-                    </motion.div>
-                  )}
-
-                  {activeRequest?.status === SchedulingRequestStatus.confirmed && (
-                    <motion.div key="team-confirmed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={redBullSpring} className="space-y-4 pt-1">
-                      <div className="flex items-start gap-4 p-4 rounded-2xl border" style={{ background: "rgba(245,166,35,0.08)", borderColor: "rgba(245,166,35,0.3)" }}>
-                        <Calendar className="w-5 h-5 mt-0.5 shrink-0" style={{ color: "#F5A623" }} />
-                        <div>
-                          <p className="font-bold text-foreground text-sm">A equipe confirmou a data!</p>
-                          <p className="text-muted-foreground text-sm mt-0.5">
-                            Visita: <span className="font-semibold text-foreground">{safeFormatDate(activeRequest.requestedDate) ?? activeRequest.requestedDate}</span>
-                          </p>
-                          {activeRequest.notes && <p className="text-muted-foreground text-xs mt-1">{activeRequest.notes}</p>}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleConfirmAvailability}
-                        disabled={confirmAvailability.isPending}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
-                        style={{ background: "var(--brand-gradient)" }}
-                      >
-                        {confirmAvailability.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                        Confirmar minha disponibilidade
-                      </button>
-                    </motion.div>
-                  )}
-
-                  {activeRequest?.status === SchedulingRequestStatus.pending && (
-                    <motion.div key="pending" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={redBullSpring}
-                      className="flex items-center gap-4 p-4 rounded-2xl border mt-1"
-                      style={{ background: "rgba(255,72,30,0.06)", borderColor: "rgba(255,72,30,0.2)" }}>
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-foreground text-sm">Solicitação enviada!</p>
-                        <p className="text-muted-foreground text-sm">
-                          Data preferida: <span className="font-semibold text-foreground">{safeFormatDate(activeRequest.requestedDate) ?? activeRequest.requestedDate}</span>
-                        </p>
-                        <p className="text-muted-foreground text-xs mt-0.5">Aguardando confirmação da equipe.</p>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {activeRequest === null && (
-                    <motion.form key="form" onSubmit={handleSchedule}
-                      className="flex flex-col sm:flex-row gap-4 items-end pt-1"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -8 }}>
-                      <div className="flex-1 space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Data preferida</label>
-                        <input type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} required
-                          min={new Date().toISOString().split("T")[0]}
-                          className="w-full bg-secondary text-foreground rounded-xl px-4 py-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
-                        />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Observações (opcional)</label>
-                        <input type="text" value={schedNotes} onChange={(e) => setSchedNotes(e.target.value)} placeholder="Ex: só posso à tarde"
-                          className="w-full bg-secondary text-foreground rounded-xl px-4 py-3 text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition placeholder:text-muted-foreground"
-                        />
-                      </div>
-                      <button type="submit" disabled={!schedDate || createScheduling.isPending}
-                        className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all hover:opacity-90 active:scale-95"
-                        style={{ background: "var(--brand-gradient)" }}>
-                        {createScheduling.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarPlus className="w-4 h-4" />}
-                        Solicitar Agendamento
-                      </button>
-                    </motion.form>
-                  )}
-                </AnimatePresence>
-              </CollapsibleSection>
+              <div className="glass-card rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                    <Calendar className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-foreground text-base">Agendar Visita Técnica</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Escolha o melhor horário para a visita da nossa equipe.
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={project.schedulingLink!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90 active:scale-[0.98] w-full sm:w-auto justify-center"
+                  style={{ background: "var(--brand-gradient)" }}
+                >
+                  <Calendar className="w-4 h-4" />
+                  Agendar Agora
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+              </div>
             </motion.div>
           )}
 
