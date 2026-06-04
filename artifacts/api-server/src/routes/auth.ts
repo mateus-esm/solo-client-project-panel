@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
 import { createOtp, verifyOtp, createSession, resolveSession, deleteSession } from "../lib/auth";
 import { logger } from "../lib/logger";
+import { db } from "@workspace/db";
+import { projectsTable } from "@workspace/db/schema";
+import { asc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -155,6 +158,35 @@ router.get("/auth/me", async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, "Failed to resolve session");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+// ── Dev-only bypass (blocked in production) ───────────────────────────────
+router.post("/auth/dev-login", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ message: "Not found" });
+    return;
+  }
+
+  try {
+    const [project] = await db
+      .select({ id: projectsTable.id, clientName: projectsTable.clientName })
+      .from(projectsTable)
+      .orderBy(asc(projectsTable.id))
+      .limit(1);
+
+    if (!project) {
+      res.status(404).json({ message: "Nenhum projeto encontrado no banco. Crie um projeto primeiro pelo painel admin." });
+      return;
+    }
+
+    const token = await createSession(project.id);
+    res.cookie(COOKIE_NAME, token, getCookieOptions());
+    logger.info({ projectId: project.id }, "Dev login used");
+    res.json({ status: "ok", projectId: project.id, clientName: project.clientName });
+  } catch (err) {
+    logger.error({ err }, "Dev login failed");
     res.status(500).json({ message: "Erro interno" });
   }
 });

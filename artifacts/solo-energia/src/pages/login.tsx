@@ -3,8 +3,10 @@ import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { requestOtp, verifyOtp } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AUTH_QUERY_KEY } from "@/hooks/use-auth";
-import { Mail, ArrowRight, Loader2, ChevronLeft, AlertCircle } from "lucide-react";
+import { Mail, ArrowRight, Loader2, ChevronLeft, AlertCircle, FlaskConical } from "lucide-react";
 import logoLight from "@assets/001_1775433962945.png";
+
+const IS_DEV = import.meta.env.DEV;
 
 const containerVariants: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -101,6 +103,25 @@ export default function Login() {
         setOtp(["", "", "", "", "", ""]);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
       }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDevLogin() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/dev-login", { method: "POST", credentials: "include" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        setError(body.message ?? "Falha no login de teste.");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
+      window.location.href = "/";
+    } catch {
+      setError("Não foi possível conectar ao servidor.");
     } finally {
       setLoading(false);
     }
@@ -212,6 +233,24 @@ export default function Login() {
                     )}
                   </button>
                 </form>
+
+                {IS_DEV && (
+                  <div className="mt-6 pt-5 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={handleDevLogin}
+                      disabled={loading}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-semibold text-muted-foreground border border-dashed border-white/10 hover:border-white/20 hover:text-foreground disabled:opacity-40 transition-all"
+                    >
+                      {loading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <FlaskConical className="w-3.5 h-3.5" />
+                      )}
+                      Entrar sem e-mail (somente em desenvolvimento)
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
