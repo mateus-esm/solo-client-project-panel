@@ -202,7 +202,11 @@ export default function Dashboard() {
   const gaugeOffset = GAUGE_C * (1 - gaugePercent / 100);
   const progressWidth = `calc(${(Math.max(1, currentStep) - 1) / (STEPS.length - 1) * 100}% - 3rem)`;
 
-  const hasPhaseDetails = Boolean(observationText || phaseDate || currentStep >= 2);
+  const hasPhaseDetails = Boolean(
+    observationText ||
+    phaseDate ||
+    (currentStep >= 2 && !(currentStep === 4 && !showTracking))
+  );
 
   return (
     <Layout>

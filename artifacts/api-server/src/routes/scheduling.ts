@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { resolveSession } from "../lib/auth";
 import { db } from "@workspace/db";
-import { schedulingRequestsTable, projectsTable } from "@workspace/db/schema";
+import { schedulingRequestsTable, projectsTable, DEFAULT_SECTION_VISIBILITY, type SectionVisibility } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { sendWhatsApp } from "../lib/notifications";
 
@@ -23,9 +23,23 @@ async function requireAuth(req: Request, res: Response): Promise<{ projectId: nu
   return session;
 }
 
+async function checkSchedulingEnabled(projectId: number, res: Response): Promise<boolean> {
+  const [proj] = await db
+    .select({ sectionVisibility: projectsTable.sectionVisibility })
+    .from(projectsTable)
+    .where(eq(projectsTable.id, projectId));
+  const sv = (proj?.sectionVisibility as SectionVisibility) ?? { ...DEFAULT_SECTION_VISIBILITY };
+  if (sv.scheduling === false) {
+    res.status(403).json({ message: "Agendamento desativado para este projeto." });
+    return false;
+  }
+  return true;
+}
+
 router.get("/scheduling", async (req: Request, res: Response) => {
   const session = await requireAuth(req, res);
   if (!session) return;
+  if (!(await checkSchedulingEnabled(session.projectId, res))) return;
 
   const requests = await db
     .select()
@@ -48,6 +62,7 @@ router.get("/scheduling", async (req: Request, res: Response) => {
 router.post("/scheduling", async (req: Request, res: Response) => {
   const session = await requireAuth(req, res);
   if (!session) return;
+  if (!(await checkSchedulingEnabled(session.projectId, res))) return;
 
   const { requestedDate, notes } = req.body as { requestedDate?: string; notes?: string };
   if (!requestedDate) {
@@ -98,6 +113,7 @@ router.post("/scheduling", async (req: Request, res: Response) => {
 router.patch("/scheduling/:id/confirm-client", async (req: Request, res: Response) => {
   const session = await requireAuth(req, res);
   if (!session) return;
+  if (!(await checkSchedulingEnabled(session.projectId, res))) return;
 
   const id = Number(req.params.id);
   if (!id || isNaN(id)) {
