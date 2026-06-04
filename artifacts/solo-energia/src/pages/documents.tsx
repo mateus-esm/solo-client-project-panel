@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { useListDocuments, useUploadDocument } from "@workspace/api-client-react";
 import type { Document } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import {
   Receipt,
   Scale,
   Package,
+  ChevronDown,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -232,35 +233,83 @@ function CategorySection({
   docs: ExtendedDocument[];
   onUploaded: () => void;
 }) {
+  const [open, setOpen] = useState(true);
   const staticDocs = STATIC_PLACEHOLDERS[catKey];
   const hasLiveDocs = docs.length > 0;
 
+  // Count badge: for "entrada" docs, show X of Y uploaded
+  const entradaDocs = docs.filter((d) => d.category === "entrada");
+  const uploadedCount = entradaDocs.filter((d) => d.type === "available_download").length;
+  const totalCount = hasLiveDocs ? docs.length : (staticDocs?.length ?? 0);
+  const showBadge = hasLiveDocs && entradaDocs.length > 0;
+
   return (
-    <section>
-      <div className="relative flex items-center gap-3 mb-6 overflow-hidden">
-        <span className="ghost-number" style={{ top: "-1.8rem", right: "0", fontSize: "8rem" }}>{sectionNumber}</span>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center relative z-10 ${iconBg}`}>
-          <IconComponent className={`w-5 h-5 ${iconColor}`} />
+    <section className="glass-card rounded-3xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-white/[0.025] transition-colors"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xs font-mono text-muted-foreground/40 shrink-0 tabular-nums">{sectionNumber}</span>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+            <IconComponent className={`w-4 h-4 ${iconColor}`} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold leading-tight truncate">{label}</h2>
+            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+          </div>
         </div>
-        <div className="relative z-10">
-          <h2 className="text-2xl font-display">{label}</h2>
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          {showBadge && (
+            <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg tabular-nums ${
+              uploadedCount === entradaDocs.length
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "bg-yellow-500/10 text-yellow-500"
+            }`}>
+              {uploadedCount}/{entradaDocs.length}
+            </span>
+          )}
+          {!showBadge && totalCount > 0 && (
+            <span className="text-xs font-mono text-muted-foreground/60 px-2 py-1 rounded-lg bg-secondary tabular-nums">
+              {totalCount}
+            </span>
+          )}
+          <motion.div animate={{ rotate: open ? 180 : 0 }} transition={redBullSpring}>
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          </motion.div>
         </div>
-      </div>
-      {hasLiveDocs ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {docs.map((doc) => <DocCard key={doc.id} doc={doc} onUploaded={onUploaded} />)}
-        </div>
-      ) : staticDocs ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {staticDocs.map((d, i) => <StaticDocPlaceholder key={i} name={d.name} description={d.description} />)}
-        </div>
-      ) : (
-        <div className="glass-card border-dashed rounded-3xl p-8 text-center flex flex-col items-center">
-          <CheckCircle2 className="w-12 h-12 mb-3" style={{ color: "#4ADE80" }} />
-          <p className="text-muted-foreground">Nenhum documento nesta categoria.</p>
-        </div>
-      )}
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="border-t border-border/30 p-6">
+              {hasLiveDocs ? (
+                <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {docs.map((doc) => <DocCard key={doc.id} doc={doc} onUploaded={onUploaded} />)}
+                </motion.div>
+              ) : staticDocs ? (
+                <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {staticDocs.map((d, i) => <StaticDocPlaceholder key={i} name={d.name} description={d.description} />)}
+                </motion.div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border p-8 text-center flex flex-col items-center">
+                  <CheckCircle2 className="w-10 h-10 mb-3" style={{ color: "#4ADE80" }} />
+                  <p className="text-muted-foreground text-sm">Nenhum documento nesta categoria.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
@@ -311,7 +360,7 @@ export default function Documents() {
             <div className="h-40 bg-card rounded-3xl border border-border" />
           </div>
         ) : (
-          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-16">
+          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
             {visibleCategories.map((cat) => (
               <CategorySection
                 key={cat.key}

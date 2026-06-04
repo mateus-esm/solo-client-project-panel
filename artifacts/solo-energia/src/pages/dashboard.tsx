@@ -105,9 +105,26 @@ function CollapsibleSection({
   );
 }
 
+type SectionVisibility = {
+  payments?: boolean;
+  scheduling?: boolean;
+  tracking?: boolean;
+  chat?: boolean;
+};
+
+type ProjectWithMeta = {
+  sectionVisibility?: SectionVisibility;
+  [key: string]: unknown;
+};
+
 export default function Dashboard() {
   const { data: projects, isLoading } = useListProjects();
   const project = projects?.[0];
+
+  const sectionViz: SectionVisibility =
+    ((project as unknown as ProjectWithMeta)?.sectionVisibility) ?? {};
+  const showScheduling = sectionViz.scheduling !== false;
+  const showTracking = sectionViz.tracking !== false;
 
   const [gaugePercent, setGaugePercent] = useState(0);
   useEffect(() => {
@@ -116,7 +133,7 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, [project?.completionPercent]);
 
-  const isStep5 = (project?.statusStep ?? 0) === 5;
+  const isStep5 = (project?.statusStep ?? 0) === 5 && showScheduling;
   const { data: schedList, isLoading: schedListLoading } = useListSchedulingRequests();
   const activeRequest = (isStep5 && schedList)
     ? schedList.find((r) =>
@@ -391,7 +408,7 @@ export default function Dashboard() {
             <motion.div variants={itemUp}>
               <CollapsibleSection title="Detalhes da Fase" icon={Info}>
                 <div className="space-y-4">
-                  {currentStep === 4 && (
+                  {currentStep === 4 && showTracking && (
                     <div className="ferrari-stripe rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-border/30">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
