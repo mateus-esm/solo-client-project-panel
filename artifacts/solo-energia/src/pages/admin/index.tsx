@@ -54,7 +54,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch("/api/admin/projects", { credentials: "include" });
       const data = await res.json();
-      setProjects(data);
+      setProjects(Array.isArray(data) ? data : []);
     } catch {
       /* ignore */
     } finally {
