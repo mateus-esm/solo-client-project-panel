@@ -22,6 +22,10 @@ import Pipeline from "@/pages/interno/pipeline";
 import ProjetoDetalhe from "@/pages/interno/projeto-detalhe";
 import Servicos from "@/pages/interno/servicos";
 import Homologacao from "@/pages/interno/homologacao";
+import HomologacaoLogin from "@/pages/homologacao/login";
+import HomologacaoProjects from "@/pages/homologacao/index";
+import HomologacaoProjeto from "@/pages/homologacao/projeto";
+import { useHomologacaoAuth } from "@/hooks/use-homologacao-auth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +92,28 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function HomologacaoGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useHomologacaoAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate("/homologacao/login");
+    }
+  }, [isLoading, isAuthenticated, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Switch>
@@ -133,6 +159,15 @@ function Router() {
       </Route>
       <Route path="/interno/homologacao">
         {() => <AdminGuard><Homologacao /></AdminGuard>}
+      </Route>
+
+      {/* Homologação team portal */}
+      <Route path="/homologacao/login" component={HomologacaoLogin} />
+      <Route path="/homologacao">
+        {() => <HomologacaoGuard><HomologacaoProjects /></HomologacaoGuard>}
+      </Route>
+      <Route path="/homologacao/projetos/:id">
+        {() => <HomologacaoGuard><HomologacaoProjeto /></HomologacaoGuard>}
       </Route>
 
       <Route component={NotFound} />

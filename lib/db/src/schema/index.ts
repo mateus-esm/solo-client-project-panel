@@ -21,3 +21,4 @@ export * from "./projects";
 export * from "./pipeline";
 export * from "./services";
 export * from "./checklists";
+export * from "./homologacao";

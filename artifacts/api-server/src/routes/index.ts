@@ -8,6 +8,7 @@ import chatRouter from "./chat";
 import schedulingRouter from "./scheduling";
 import adminRouter from "./admin";
 import internalRouter from "./internal";
+import homologacaoRouter from "./homologacao";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(chatRouter);
 router.use(schedulingRouter);
 router.use(adminRouter);
 router.use("/internal", internalRouter);
+router.use(homologacaoRouter);
 
 export default router;
