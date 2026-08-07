@@ -1,0 +1,31 @@
+GitHub is done. The database step has to run on Replit — I'll explain why below.
+
+Pushed to GitHub ✅
+
+Commit a4df053 is on main. The diff is 2091 insertions, 1 deletion — purely additive, no dependency changes, no lockfile changes. Only four existing files were touched, minimally: two route registrations, the schema index exports, and three new columns on projects.
+
+I had to rebase the whole thing first, since the version I built yesterday sat on a 4-month-old base. What changed in the rebase:
+
+- Replit Auth was deleted entirely. /interno now uses your existing admin session (requireAdmin, cookie solo_admin_session) and the existing AdminGuard. One auth system, not two.
+- The colliding sessions table is gone. I verified this by generating the DDL: sessions still has its original 5 columns (project_id, token_hash, …), so client logins are untouched.
+- Stage changes now reuse your existing stepCompletionPercent curve, so projects moved by hand and projects synced from Jestor produce
+the same client-facing progress.
+
+Verified: lib/db builds, api-server and frontend botacts build, and /api/internal/* returns exactly thesame 401 Admin não autenticado as /api/admin/* without a session.
+
+The database — you need to run this
+
+I can't do it from here: helium is Replit-internal and doesn't resolve outside the environment (I confirmed with DNS and ping). In the
+Replit shell:
+
+git pull
+pnpm install
+pnpm --filter @workspace/db run push
+
+It adds three tables (services, service_files, proje columns on projects (stage, capex, receita_bruta).Everything is additive — no existing table is altered — and no seeding is needed, since access uses the admin password you already have. Then open /interno/pipeline.
+
+Two things you should know
+                                                                                                                                      Existing projects will all land in "Onboarding." The onboarding for every current row, because yourexisting statusProjeto/statusStep uses a different 7-phase vocabulary. I can write a one-time backfill mapping statusProjeto onto the 11 stages — say the word and it's quick.
+                                                                                                                                     The root pnpm run build is broken, and it isn't from-openai-ai-react declares react only as a peerdependency, and .npmrc sets auto-install-peers=false, so it can't typecheck. It's on main from the OpenAI integration work and fails identically without my commit. Worth fixing separateo.
+
+Also: checklist items record when they were completemin", since the admin password has no per-useridentity. The abandoned Replit Auth work — which did have real per-person roles for operations, técnico and projetos — is preserved on the local branch erp-replit-auth-dropped if you deci
