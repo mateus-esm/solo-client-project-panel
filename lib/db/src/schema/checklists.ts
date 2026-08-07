@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -12,6 +12,11 @@ export const projectChecklistItemsTable = pgTable(
     stage: text("stage").notNull(),
     checklistSlug: text("checklist_slug").notNull(),
     label: text("label").notNull(),
+    // Item behavior: "check" = simple checkbox; "form" = structured fields saved to metadata;
+    // "service" = creates a linked service + notifies the team; "client_notify" = notifies client.
+    kind: text("kind").notNull().default("check"),
+    // Structured data for form/service items: field values, linked serviceId, etc.
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     done: boolean("done").notNull().default(false),
     doneBy: text("done_by"),
     doneAt: timestamp("done_at"),

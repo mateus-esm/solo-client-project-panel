@@ -37,10 +37,23 @@ export interface ChecklistTemplateGroup {
 }
 
 export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
-  onboarding: [],
-  projeto_tecnico: [],
-  compras: [],
-  comissionamento_treinamento: [],
+  onboarding: [
+    { slug: "onboarding_documentacao_do_cliente", title: "Documentação do Cliente" },
+    { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
+  ],
+  projeto_tecnico: [
+    { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
+    { slug: "projeto_tecnico_validacao", title: "Validação do Projeto" },
+  ],
+  compras: [
+    { slug: "compras_cotacoes", title: "Cotações" },
+    { slug: "compras_compra", title: "Compra" },
+    { slug: "compras_nfe", title: "NF-e" },
+    { slug: "compras_logistica", title: "Logística e Entrega" },
+  ],
+  comissionamento_treinamento: [
+    { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
+  ],
   pendencias: [],
   homologacao: [
     { slug: "homologacao_envio_a_concessionaria", title: "Envio à Concessionária" },
@@ -123,12 +136,69 @@ export interface InternalProject {
   createdAt: string;
 }
 
+export type ChecklistItemKind = "check" | "form" | "service" | "client_notify";
+
+export interface ChecklistFieldDef {
+  key: string;
+  label: string;
+  type: "text" | "date" | "select" | "currency" | "phone";
+  options?: readonly string[];
+}
+
+// Field definitions per checklist group slug (mirrors lib/db/src/schema/pipeline.ts).
+// Used to render the structured form when a "form" item is filled in.
+export const CHECKLIST_FIELD_DEFS: Record<string, ChecklistFieldDef[]> = {
+  projeto_tecnico_elaboracao: [
+    { key: "responsavelTecnico", label: "Responsável técnico", type: "text" },
+    { key: "dataPrevistaConclusao", label: "Data prevista de conclusão", type: "date" },
+  ],
+  homologacao_envio_a_concessionaria: [
+    { key: "numeroProtocolo", label: "Número do protocolo", type: "text" },
+    { key: "dataEnvio", label: "Data de envio", type: "date" },
+    { key: "concessionaria", label: "Concessionária", type: "text" },
+  ],
+  homologacao_aprovacao_e_registro: [
+    { key: "dataAprovacao", label: "Data da aprovação", type: "date" },
+    { key: "numeroRegistro", label: "Número de registro", type: "text" },
+  ],
+  compras_cotacoes: [
+    { key: "fornecedor", label: "Fornecedor", type: "text" },
+    { key: "valorCotacao", label: "Valor da cotação", type: "currency" },
+    { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
+  ],
+  compras_compra: [
+    { key: "fornecedor", label: "Fornecedor escolhido", type: "text" },
+    { key: "valorCompra", label: "Valor da compra", type: "currency" },
+    { key: "dataCompra", label: "Data da compra", type: "date" },
+    { key: "formaPagamento", label: "Forma de pagamento", type: "text" },
+  ],
+  compras_nfe: [
+    { key: "numeroNfe", label: "Número da NF-e", type: "text" },
+    { key: "dataEmissao", label: "Data de emissão", type: "date" },
+  ],
+  compras_logistica: [
+    { key: "trackingCarrier", label: "Transportadora", type: "text" },
+    { key: "trackingCode", label: "Código de rastreio", type: "text" },
+    { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
+  ],
+  planejamento_de_execucao_logistica_de_materiais: [
+    { key: "localArmazenamento", label: "Local de armazenamento", type: "text" },
+    { key: "dataDisponibilidade", label: "Materiais disponíveis em", type: "date" },
+  ],
+  pausado_gestao_da_pausa: [
+    { key: "motivoPausa", label: "Motivo da pausa", type: "text" },
+    { key: "previsaoRetomada", label: "Previsão de retomada", type: "date" },
+  ],
+};
+
 export interface ChecklistItem {
   id: number;
   projectId: number;
   stage: StageId;
   checklistSlug: string;
   label: string;
+  kind: ChecklistItemKind;
+  metadata: Record<string, unknown> | null;
   done: boolean;
   doneBy: string | null;
   doneAt: string | null;

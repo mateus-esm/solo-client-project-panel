@@ -55,10 +55,23 @@ export interface ChecklistTemplateGroup {
 // Checklist groups per stage, migrated 1:1 from the Jestor todoList fields.
 // Items inside each group are created per-project by the team (no per-project seeding).
 export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]> = {
-  onboarding: [],
-  projeto_tecnico: [],
-  compras: [],
-  comissionamento_treinamento: [],
+  onboarding: [
+    { slug: "onboarding_documentacao_do_cliente", title: "Documentação do Cliente" },
+    { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
+  ],
+  projeto_tecnico: [
+    { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
+    { slug: "projeto_tecnico_validacao", title: "Validação do Projeto" },
+  ],
+  compras: [
+    { slug: "compras_cotacoes", title: "Cotações" },
+    { slug: "compras_compra", title: "Compra" },
+    { slug: "compras_nfe", title: "NF-e" },
+    { slug: "compras_logistica", title: "Logística e Entrega" },
+  ],
+  comissionamento_treinamento: [
+    { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
+  ],
   pendencias: [],
   homologacao: [
     { slug: "homologacao_envio_a_concessionaria", title: "Envio à Concessionária" },
@@ -95,6 +108,192 @@ export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]>
     { slug: "concluido_fechamento_do_projeto", title: "Fechamento do Projeto" },
   ],
   pausado: [{ slug: "pausado_gestao_da_pausa", title: "Gestão da Pausa" }],
+};
+
+// ─── Typed checklist items ────────────────────────────────────────────────────
+// Each default item has a kind that drives behavior in the pipeline UI/API:
+//   check         — simple checkbox
+//   form          — structured fields saved to item.metadata (and synced to the
+//                   project where mapped, e.g. tracking code)
+//   service       — creates a service linked to the project + notifies the team
+//   client_notify — records a scheduled date and notifies the client (portal + WhatsApp)
+
+export type ChecklistItemKind = "check" | "form" | "service" | "client_notify";
+
+export interface ChecklistFieldDef {
+  key: string;
+  label: string;
+  type: "text" | "date" | "select" | "currency" | "phone";
+  options?: readonly string[];
+}
+
+export interface ChecklistItemTemplate {
+  label: string;
+  kind: ChecklistItemKind;
+  fields?: ChecklistFieldDef[];
+}
+
+// Default items seeded per checklist group (keyed by group slug).
+export const CHECKLIST_ITEM_TEMPLATE: Record<string, ChecklistItemTemplate[]> = {
+  onboarding_documentacao_do_cliente: [
+    { label: "Receber documentos do cliente (RG/CPF, conta de luz)", kind: "check" },
+    { label: "Validar dados cadastrais", kind: "check" },
+  ],
+  onboarding_boas_vindas: [
+    { label: "Enviar convite do portal ao cliente", kind: "check" },
+    { label: "Mensagem de boas-vindas", kind: "check" },
+  ],
+  projeto_tecnico_elaboracao: [
+    { label: "Elaborar projeto elétrico", kind: "check" },
+    {
+      label: "Dados do projeto",
+      kind: "form",
+      fields: [
+        { key: "responsavelTecnico", label: "Responsável técnico", type: "text" },
+        { key: "dataPrevistaConclusao", label: "Data prevista de conclusão", type: "date" },
+      ],
+    },
+  ],
+  projeto_tecnico_validacao: [
+    { label: "Revisão interna do projeto", kind: "check" },
+    { label: "Aprovação final do projeto", kind: "check" },
+  ],
+  homologacao_envio_a_concessionaria: [
+    { label: "Preparar documentação para a concessionária", kind: "check" },
+    {
+      label: "Protocolo de envio",
+      kind: "form",
+      fields: [
+        { key: "numeroProtocolo", label: "Número do protocolo", type: "text" },
+        { key: "dataEnvio", label: "Data de envio", type: "date" },
+        { key: "concessionaria", label: "Concessionária", type: "text" },
+      ],
+    },
+  ],
+  homologacao_acompanhamento_e_retornos: [
+    { label: "Acompanhar retornos da concessionária", kind: "check" },
+  ],
+  homologacao_aprovacao_e_registro: [
+    {
+      label: "Registro da aprovação",
+      kind: "form",
+      fields: [
+        { key: "dataAprovacao", label: "Data da aprovação", type: "date" },
+        { key: "numeroRegistro", label: "Número de registro", type: "text" },
+      ],
+    },
+  ],
+  homologacao_validacao_de_homologacao: [
+    { label: "Validação final da homologação", kind: "check" },
+  ],
+  compras_cotacoes: [
+    {
+      label: "Cotação de equipamentos",
+      kind: "form",
+      fields: [
+        { key: "fornecedor", label: "Fornecedor", type: "text" },
+        { key: "valorCotacao", label: "Valor da cotação", type: "currency" },
+        { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
+      ],
+    },
+  ],
+  compras_compra: [
+    {
+      label: "Registro da compra",
+      kind: "form",
+      fields: [
+        { key: "fornecedor", label: "Fornecedor escolhido", type: "text" },
+        { key: "valorCompra", label: "Valor da compra", type: "currency" },
+        { key: "dataCompra", label: "Data da compra", type: "date" },
+        { key: "formaPagamento", label: "Forma de pagamento", type: "text" },
+      ],
+    },
+  ],
+  compras_nfe: [
+    {
+      label: "Nota fiscal (NF-e)",
+      kind: "form",
+      fields: [
+        { key: "numeroNfe", label: "Número da NF-e", type: "text" },
+        { key: "dataEmissao", label: "Data de emissão", type: "date" },
+      ],
+    },
+  ],
+  compras_logistica: [
+    {
+      label: "Transporte e entrega",
+      kind: "form",
+      fields: [
+        { key: "trackingCarrier", label: "Transportadora", type: "text" },
+        { key: "trackingCode", label: "Código de rastreio", type: "text" },
+        { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
+      ],
+    },
+  ],
+  planejamento_de_execucao_logistica_de_materiais: [
+    {
+      label: "Logística de materiais para obra",
+      kind: "form",
+      fields: [
+        { key: "localArmazenamento", label: "Local de armazenamento", type: "text" },
+        { key: "dataDisponibilidade", label: "Materiais disponíveis em", type: "date" },
+      ],
+    },
+  ],
+  planejamento_de_execucao_designacao_de_equipe: [
+    { label: "Designar equipe e criar serviço", kind: "service" },
+  ],
+  planejamento_de_execucao_agendamento_com_cliente: [
+    { label: "Agendar instalação com o cliente", kind: "client_notify" },
+  ],
+  planejamento_de_execucao_mapeamento_de_riscos: [
+    { label: "Mapear riscos da instalação", kind: "check" },
+  ],
+  planejamento_de_execucao_validacao_de_planejament: [
+    { label: "Validação final do planejamento", kind: "check" },
+  ],
+  execucao_preparacao_para_obra: [{ label: "Preparação para obra", kind: "check" }],
+  execucao_instalacao_dos_equipamentos: [
+    { label: "Instalação dos painéis e inversor", kind: "check" },
+  ],
+  execucao_conexao_eletrica_e_comissionamento: [
+    { label: "Conexão elétrica e comissionamento", kind: "check" },
+  ],
+  execucao_registros_e_documentacao: [
+    { label: "Fotos e registros da instalação", kind: "check" },
+  ],
+  execucao_vistoria_de_obra: [{ label: "Vistoria de obra", kind: "check" }],
+  execucao_validacao_de_execucao: [{ label: "Validação final da execução", kind: "check" }],
+  ativacao_autorizacao_para_ativacao: [
+    { label: "Autorização da concessionária para ativação", kind: "check" },
+  ],
+  ativacao_ativacao_fisica_e_testes: [{ label: "Ativação física e testes", kind: "check" }],
+  ativacao_configuracao_do_monitoramento: [
+    { label: "Configurar monitoramento remoto", kind: "check" },
+  ],
+  ativacao_entrega_tecnica: [{ label: "Entrega técnica ao cliente", kind: "check" }],
+  ativacao_validacao_de_ativacao: [{ label: "Validação final da ativação", kind: "check" }],
+  comissionamento_treinamento_do_cliente: [
+    { label: "Treinamento de monitoramento com o cliente", kind: "client_notify" },
+  ],
+  concluido_confirmacao_tecnica_de_entrega: [
+    { label: "Confirmação técnica de entrega", kind: "check" },
+  ],
+  concluido_documentacao_do_projeto: [{ label: "Arquivar documentação do projeto", kind: "check" }],
+  ativacao_passagem_de_bastao_para_suporte: [
+    { label: "Passagem de bastão para o suporte", kind: "check" },
+  ],
+  concluido_fechamento_do_projeto: [{ label: "Fechamento do projeto", kind: "check" }],
+  pausado_gestao_da_pausa: [
+    {
+      label: "Motivo e previsão de retomada",
+      kind: "form",
+      fields: [
+        { key: "motivoPausa", label: "Motivo da pausa", type: "text" },
+        { key: "previsaoRetomada", label: "Previsão de retomada", type: "date" },
+      ],
+    },
+  ],
 };
 
 export const SERVICE_TIPOS = [

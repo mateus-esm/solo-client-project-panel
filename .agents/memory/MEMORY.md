@@ -1,0 +1,2 @@
+- [Checklist template mirror](checklist-template-mirror.md) — pipeline checklist templates/field defs exist in both the db schema package and the frontend; changes must be mirrored in both.
+- [DB migrations workflow](db-migrations.md) — drizzle-kit push hangs on an interactive prompt; apply DDL via psql "$DATABASE_URL" AND add a matching lib/db/migrations/*.sql file.
