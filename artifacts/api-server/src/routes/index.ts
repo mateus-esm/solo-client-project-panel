@@ -7,6 +7,7 @@ import storageRouter from "./storage";
 import chatRouter from "./chat";
 import schedulingRouter from "./scheduling";
 import adminRouter from "./admin";
+import internalRouter from "./internal";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(storageRouter);
 router.use(chatRouter);
 router.use(schedulingRouter);
 router.use(adminRouter);
+router.use("/internal", internalRouter);
 
 export default router;

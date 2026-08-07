@@ -18,6 +18,10 @@ import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/index";
 import AdminNewProject from "@/pages/admin/new-project";
 import AdminProjectEditor from "@/pages/admin/project-editor";
+import Pipeline from "@/pages/interno/pipeline";
+import ProjetoDetalhe from "@/pages/interno/projeto-detalhe";
+import Servicos from "@/pages/interno/servicos";
+import Homologacao from "@/pages/interno/homologacao";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -112,6 +116,23 @@ function Router() {
       </Route>
       <Route path="/admin/projects/:id">
         {() => <AdminGuard><AdminProjectEditor /></AdminGuard>}
+      </Route>
+
+      {/* ERP interno — operações, homologação e pipeline */}
+      <Route path="/interno">
+        {() => <AdminGuard><Pipeline /></AdminGuard>}
+      </Route>
+      <Route path="/interno/pipeline">
+        {() => <AdminGuard><Pipeline /></AdminGuard>}
+      </Route>
+      <Route path="/interno/projetos/:id">
+        {() => <AdminGuard><ProjetoDetalhe /></AdminGuard>}
+      </Route>
+      <Route path="/interno/servicos">
+        {() => <AdminGuard><Servicos /></AdminGuard>}
+      </Route>
+      <Route path="/interno/homologacao">
+        {() => <AdminGuard><Homologacao /></AdminGuard>}
       </Route>
 
       <Route component={NotFound} />
