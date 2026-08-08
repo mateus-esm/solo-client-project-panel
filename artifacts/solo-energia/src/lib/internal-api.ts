@@ -97,7 +97,6 @@ export const SERVICE_TIPOS = [
   "Manutenção",
   "Visita Técnica",
   "Projeto Elétrico",
-  "Homologação",
   "Outro",
 ] as const;
 

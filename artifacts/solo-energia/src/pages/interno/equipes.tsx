@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Plus, Trash2, Upload, IdCard, Building2, UserPlus } from "lucide-react";
+import { Users, Plus, Trash2, Upload, IdCard, Building2, UserPlus, FileCheck2 } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { api, type InstallerAccount, type TeamMember } from "@/lib/internal-api";
+import { api, type InstallerAccount, type TeamMember, type Technician } from "@/lib/internal-api";
 
 const QK = ["internal-installers"];
 
@@ -198,6 +198,103 @@ function TeamCard({ account }: { account: InstallerAccount }) {
   );
 }
 
+const QK_TECH = ["internal-technicians"];
+
+function NewTechnicianDialog() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+
+  const create = useMutation({
+    mutationFn: () => api.post<Technician>("/internal/technicians", form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_TECH });
+      setOpen(false);
+      setForm({ name: "", email: "", password: "" });
+      toast({ title: "Técnico cadastrado" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary"><Plus className="w-4 h-4 mr-2" /> Novo técnico</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Cadastrar técnico de homologação</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
+          <div><Label>E-mail de acesso *</Label><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></div>
+          <div><Label>Senha *</Label><Input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="mín. 8 caracteres" /></div>
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={() => create.mutate()}
+            disabled={create.isPending || !form.name || !form.email || form.password.length < 8}
+          >
+            {create.isPending ? "Salvando..." : "Cadastrar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TechniciansSection() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: techs, isLoading } = useQuery<Technician[]>({
+    queryKey: QK_TECH,
+    queryFn: () => api.get<Technician[]>("/internal/technicians"),
+  });
+
+  const del = useMutation({
+    mutationFn: (id: number) => api.del(`/internal/technicians/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK_TECH }); toast({ title: "Técnico removido" }); },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="mt-10">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-display text-foreground flex items-center gap-2">
+            <FileCheck2 className="w-5 h-5 text-primary" /> Técnicos de Homologação
+          </h2>
+          <p className="text-sm text-muted-foreground">Cada técnico acessa o portal de homologação com o próprio login</p>
+        </div>
+        <NewTechnicianDialog />
+      </div>
+      {isLoading ? (
+        <div className="h-24 bg-card rounded-2xl border border-white/5 animate-pulse" />
+      ) : (techs ?? []).length === 0 ? (
+        <div className="border border-dashed border-white/10 rounded-3xl p-8 text-center">
+          <p className="text-muted-foreground">Nenhum técnico cadastrado.</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-3">
+          {techs!.map((t) => (
+            <div key={t.id} className="bg-card border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+              <Avatar className="w-10 h-10">
+                <AvatarFallback className="bg-muted text-xs">{t.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-foreground truncate">{t.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{t.email}</p>
+              </div>
+              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(t.id)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EquipesPage() {
   const { data: accounts, isLoading } = useQuery<InstallerAccount[]>({
     queryKey: QK,
@@ -227,6 +324,8 @@ export default function EquipesPage() {
           {accounts!.map((a) => <TeamCard key={a.id} account={a} />)}
         </div>
       )}
+
+      <TechniciansSection />
     </InternalLayout>
   );
 }

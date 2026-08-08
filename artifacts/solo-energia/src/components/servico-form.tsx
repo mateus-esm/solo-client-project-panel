@@ -372,6 +372,29 @@ export function ServicoFormDialog({
     queryFn: () => api.get<InternalProject[]>("/internal/projects"),
   });
 
+  const { data: installers } = useQuery<InstallerAccount[]>({
+    queryKey: ["internal-installers"],
+    queryFn: () => api.get<InstallerAccount[]>("/internal/installers"),
+  });
+
+  // Nome composto: "Tipo de serviço | Nome do projeto - Potência".
+  // Sem projeto resolvido, mantém o nome salvo (edição) e bloqueia salvar em serviço novo.
+  const selectedProject =
+    form.projectId !== NONE ? (projects ?? []).find((p) => String(p.id) === form.projectId) : undefined;
+  const composedName = selectedProject
+    ? `${form.tipoServico} | ${selectedProject.clientName} - ${selectedProject.systemPower} kWp`
+    : service
+      ? form.name
+      : "";
+
+  // Valores legados que não existem mais nas listas atuais continuam visíveis/selecionáveis.
+  const tipoOptions: string[] =
+    form.tipoServico && !SERVICE_TIPOS.includes(form.tipoServico as (typeof SERVICE_TIPOS)[number])
+      ? [form.tipoServico, ...SERVICE_TIPOS]
+      : [...SERVICE_TIPOS];
+  const teamNames = (installers ?? []).map((acc) => acc.teamName);
+  const legacyTeam = form.equipeExecucao && !teamNames.includes(form.equipeExecucao) ? form.equipeExecucao : null;
+
   useEffect(() => {
     if (!open) return;
     if (service) {
@@ -403,7 +426,7 @@ export function ServicoFormDialog({
   }, [open, service]);
 
   const payload = () => ({
-    name: form.name,
+    name: composedName,
     tipoServico: form.tipoServico,
     projectId: form.projectId === NONE ? null : Number(form.projectId),
     valorServico: form.valorServico ? Number(form.valorServico) : null,
@@ -453,8 +476,14 @@ export function ServicoFormDialog({
         <div className="space-y-4">
           <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <Label>Serviço</Label>
-              <Input value={form.name} onChange={set("name")} placeholder="Ex.: Instalação 8,5 kWp" />
+              <Label>Serviço (nome gerado automaticamente)</Label>
+              <Input
+                value={composedName}
+                readOnly
+                disabled
+                className="opacity-80"
+                placeholder="Selecione um projeto"
+              />
             </div>
             <div>
               <Label>Tipo de serviço</Label>
@@ -466,7 +495,7 @@ export function ServicoFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SERVICE_TIPOS.map((t) => (
+                  {tipoOptions.map((t) => (
                     <SelectItem key={t} value={t}>
                       {t}
                     </SelectItem>
@@ -520,7 +549,25 @@ export function ServicoFormDialog({
           <div className="grid md:grid-cols-2 gap-3">
             <div>
               <Label>Equipe de execução</Label>
-              <Input value={form.equipeExecucao} onChange={set("equipeExecucao")} />
+              <Select
+                value={form.equipeExecucao || NONE}
+                onValueChange={(v) => setForm((f) => ({ ...f, equipeExecucao: v === NONE ? "" : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sem equipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Sem equipe</SelectItem>
+                  {legacyTeam && (
+                    <SelectItem value={legacyTeam}>{legacyTeam} (equipe removida)</SelectItem>
+                  )}
+                  {(installers ?? []).map((acc) => (
+                    <SelectItem key={acc.id} value={acc.teamName}>
+                      {acc.teamName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Responsável (e-mail)</Label>
@@ -636,7 +683,7 @@ export function ServicoFormDialog({
 
           <Button
             className="w-full"
-            disabled={!form.name || saveMutation.isPending}
+            disabled={!composedName || saveMutation.isPending}
             onClick={() => saveMutation.mutate()}
           >
             {saveMutation.isPending ? "Salvando..." : "Salvar serviço"}
