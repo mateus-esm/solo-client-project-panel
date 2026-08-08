@@ -51,3 +51,7 @@ Thumbs.db
 # Exports do Jestor — contêm dados de clientes, nunca versionar
 *.xlsx
 jestor*.json
+
+# Dumps do banco — podem conter OTPs, sessoes e dados de clientes
+*.sql
+db-dump*
