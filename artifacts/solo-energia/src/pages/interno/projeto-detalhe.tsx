@@ -5,6 +5,7 @@ import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2 } from "
 import { InternalLayout } from "@/components/internal-layout";
 import { ProcessoFicha } from "@/components/processo-ficha";
 import { ChecklistGroups } from "@/components/checklist-groups";
+import { ComprasSection } from "@/components/compras-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -196,6 +197,11 @@ export default function ProjetoDetalhePage() {
             <Wallet className="w-4 h-4 text-primary mb-2" />
             <p className="text-xs text-muted-foreground">Capex</p>
             <p className="text-foreground font-medium">{formatBRL(project.capex)}</p>
+            {project.custoMateriais != null && (
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Materiais: {formatBRL(project.custoMateriais)}
+              </p>
+            )}
           </div>
           <div className="bg-background/50 rounded-2xl p-4">
             <TrendingUp className="w-4 h-4 text-primary mb-2" />
@@ -229,6 +235,8 @@ export default function ProjetoDetalhePage() {
           invalidateKeys={[queryKey]}
         />
       </div>
+
+      <ComprasSection projectId={project.id} invalidateKeys={[queryKey, ["internal-projects"]]} />
 
       <HomologacaoAssignment project={project} invalidateKey={queryKey} />
 

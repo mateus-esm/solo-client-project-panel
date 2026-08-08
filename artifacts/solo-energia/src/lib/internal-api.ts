@@ -147,6 +147,7 @@ export interface InternalProject {
   systemPower: number;
   stage: StageId;
   capex: number | null;
+  custoMateriais: number | null;
   receitaBruta: number | null;
   statusStep: number;
   statusProjeto: string | null;
@@ -190,6 +191,59 @@ export interface InstallerAccount {
   formaPagamento: string | null;
   createdAt: string;
   members: TeamMember[];
+}
+
+// ─── Fornecedores e compras ───────────────────────────────────────────────────
+
+export const SUPPLIER_TIPOS = ["equipamentos", "materiais"] as const;
+export type SupplierTipo = (typeof SUPPLIER_TIPOS)[number];
+
+export const SUPPLIER_TIPO_LABELS: Record<SupplierTipo, string> = {
+  equipamentos: "Equipamentos (capex)",
+  materiais: "Outros materiais",
+};
+
+export interface Supplier {
+  id: number;
+  name: string;
+  tipo: SupplierTipo;
+  contatoNome: string | null;
+  telefone: string | null;
+  email: string | null;
+  observacoes: string | null;
+  createdAt: string;
+}
+
+export const PURCHASE_STATUS = ["cotacao", "comprada", "logistica_programada", "recebida"] as const;
+export type PurchaseStatus = (typeof PURCHASE_STATUS)[number];
+
+export const PURCHASE_STATUS_LABELS: Record<PurchaseStatus, string> = {
+  cotacao: "Cotação",
+  comprada: "Comprada",
+  logistica_programada: "Logística programada",
+  recebida: "Recebida",
+};
+
+export interface Purchase {
+  id: number;
+  projectId: number;
+  supplierId: number;
+  supplierName: string;
+  categoria: SupplierTipo;
+  descricao: string;
+  status: PurchaseStatus;
+  valorCotacao: number | null;
+  valor: number | null;
+  dataCompra: string | null;
+  numeroNfe: string | null;
+  formaPagamento: string | null;
+  transportadora: string | null;
+  codigoRastreio: string | null;
+  previsaoEntrega: string | null;
+  dataRecebimento: string | null;
+  recebidoPor: string | null;
+  observacoes: string | null;
+  createdAt: string;
 }
 
 export interface Technician {

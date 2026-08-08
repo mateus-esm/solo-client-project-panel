@@ -23,6 +23,7 @@ import ProjetoDetalhe from "@/pages/interno/projeto-detalhe";
 import Servicos from "@/pages/interno/servicos";
 import Homologacao from "@/pages/interno/homologacao";
 import Equipes from "@/pages/interno/equipes";
+import Fornecedores from "@/pages/interno/fornecedores";
 import HomologacaoLogin from "@/pages/homologacao/login";
 import HomologacaoDashboard from "@/pages/homologacao/dashboard";
 import HomologacaoProjects from "@/pages/homologacao/index";
@@ -166,6 +167,9 @@ function Router() {
       </Route>
       <Route path="/interno/equipes">
         {() => <AdminGuard><Equipes /></AdminGuard>}
+      </Route>
+      <Route path="/interno/fornecedores">
+        {() => <AdminGuard><Fornecedores /></AdminGuard>}
       </Route>
 
       {/* Homologação team portal */}

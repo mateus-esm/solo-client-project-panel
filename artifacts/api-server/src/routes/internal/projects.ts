@@ -13,6 +13,7 @@ import {
   CHECKLIST_TEMPLATE,
   CHECKLIST_ITEM_TEMPLATE,
   homologacaoTechniciansTable,
+  projectPurchasesTable,
   type PipelineStage,
 } from "@workspace/db/schema";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
@@ -151,6 +152,30 @@ router.patch("/projects/:id", async (req, res) => {
     ) {
       res.status(409).json({ message: HOMOLOGACAO_GATE_MESSAGE });
       return;
+    }
+
+    // Pré-execução também exige compras e logística registradas: pelo menos uma
+    // compra efetivada e nenhuma compra efetivada sem logística programada/recebida.
+    if (stageChanged && parsed.data.stage === "planejamento_execucao") {
+      const purchases = await db
+        .select({ status: projectPurchasesTable.status })
+        .from(projectPurchasesTable)
+        .where(eq(projectPurchasesTable.projectId, id));
+      const efetivadas = purchases.filter((p) => p.status !== "cotacao");
+      if (efetivadas.length === 0) {
+        res.status(409).json({
+          message:
+            "Registre as compras do projeto (equipamentos/materiais) antes de liberar a Pré-execução.",
+        });
+        return;
+      }
+      if (efetivadas.some((p) => p.status === "comprada")) {
+        res.status(409).json({
+          message:
+            "Programe a logística de todas as compras registradas antes de liberar a Pré-execução.",
+        });
+        return;
+      }
     }
     const patch = stageChanged
       ? clientStepPatch(parsed.data.stage as PipelineStage)

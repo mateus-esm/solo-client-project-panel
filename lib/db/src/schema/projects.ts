@@ -50,6 +50,8 @@ export const projectsTable = pgTable("projects", {
   // Internal ERP pipeline stage (11 stages). statusStep stays the client-facing 1-7 view.
   stage: text("stage").notNull().default("onboarding"),
   capex: real("capex"),
+  // Custo agregado de materiais avulsos (alimentado pelas compras registradas)
+  custoMateriais: real("custo_materiais"),
   receitaBruta: real("receita_bruta"),
   trackingCode: text("tracking_code"),
   trackingCarrier: text("tracking_carrier"),
