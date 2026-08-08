@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2 } from "lucide-react";
+import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2, Package } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { ProcessoFicha } from "@/components/processo-ficha";
 import { ChecklistGroups } from "@/components/checklist-groups";
@@ -23,22 +23,17 @@ import {
   api,
   STAGES,
   STAGE_LABELS,
-  SUB_STAGES,
-  SUPRIMENTOS_STAGE,
   CHECKLIST_TEMPLATE,
+  subStagesFor,
+  supplyBadge,
   formatBRL,
   type ProjectDetail,
   type InternalProject,
   type Technician,
   type StageId,
-  type ChecklistStageId,
 } from "@/lib/internal-api";
 
-// Abas de checklist: macro-etapas com grupos + a trilha paralela de Suprimentos.
-const STAGES_WITH_CHECKLIST: ChecklistStageId[] = [
-  ...STAGES.filter((s) => CHECKLIST_TEMPLATE[s].length > 0),
-  SUPRIMENTOS_STAGE,
-];
+const STAGES_WITH_CHECKLIST = STAGES.filter((s) => CHECKLIST_TEMPLATE[s].length > 0);
 
 const NO_TECH = "__none__";
 
@@ -127,7 +122,7 @@ export default function ProjetoDetalhePage() {
     enabled: Number.isFinite(projectId),
   });
 
-  const [checklistStage, setChecklistStage] = useState<ChecklistStageId | null>(null);
+  const [checklistStage, setChecklistStage] = useState<StageId | null>(null);
 
   const stageMutation = useMutation({
     mutationFn: (stage: StageId) => api.patch(`/internal/projects/${projectId}`, { stage }),
@@ -141,7 +136,7 @@ export default function ProjetoDetalhePage() {
   });
 
   const subStageMutation = useMutation({
-    mutationFn: (subStage: string | null) =>
+    mutationFn: (subStage: string) =>
       api.patch(`/internal/projects/${projectId}`, { subStage }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
@@ -163,8 +158,10 @@ export default function ProjetoDetalhePage() {
     );
   }
 
-  const { project, checklist, services } = data;
+  const { project, checklist, services, supply } = data;
   const activeStage = checklistStage ?? project.stage;
+  const subStages = subStagesFor(project.stage);
+  const badge = supplyBadge(supply);
 
   return (
     <InternalLayout>
@@ -179,10 +176,24 @@ export default function ProjetoDetalhePage() {
           <div>
             <h1 className="text-2xl font-display text-foreground mb-1">{project.clientName}</h1>
             <p className="text-sm text-muted-foreground">{project.clientEmail}</p>
+            <span
+              className={
+                "mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs " +
+                (badge.tone === "done"
+                  ? "bg-emerald-500/15 text-emerald-400"
+                  : badge.tone === "progress"
+                    ? "bg-primary/15 text-primary"
+                    : badge.tone === "pending"
+                      ? "bg-amber-500/15 text-amber-400"
+                      : "bg-white/5 text-muted-foreground")
+              }
+            >
+              <Package className="w-3.5 h-3.5" /> Suprimentos: {badge.label}
+            </span>
           </div>
           <div className="w-full md:w-64 space-y-3">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Etapa do pipeline</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Macro-etapa</label>
               <Select
                 value={project.stage}
                 onValueChange={(v) => stageMutation.mutate(v as StageId)}
@@ -199,19 +210,22 @@ export default function ProjetoDetalhePage() {
                 </SelectContent>
               </Select>
             </div>
-            {SUB_STAGES[project.stage].length > 0 && (
+            {subStages.length > 0 && (
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Sub-etapa</label>
                 <Select
-                  value={project.subStage ?? "__inicio__"}
-                  onValueChange={(v) => subStageMutation.mutate(v === "__inicio__" ? null : v)}
+                  value={
+                    subStages.some((g) => g.slug === project.subStage)
+                      ? (project.subStage as string)
+                      : undefined
+                  }
+                  onValueChange={(v) => subStageMutation.mutate(v)}
                 >
                   <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Início" />
+                    <SelectValue placeholder="Selecionar..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__inicio__">Início da etapa</SelectItem>
-                    {SUB_STAGES[project.stage].map((g) => (
+                    {subStages.map((g) => (
                       <SelectItem key={g.slug} value={g.slug}>
                         {g.title}
                       </SelectItem>

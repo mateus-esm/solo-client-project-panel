@@ -1,11 +1,11 @@
 // Typed fetch helper + shared types/constants for the internal ERP pages.
 // Mirrors lib/db/src/schema/pipeline.ts (kept in sync manually — spec decision for hour-1).
 
-// Macro-etapas do fluxo principal (colunas do kanban). Sub-etapas = grupos de
-// checklist da macro-etapa. Compras/Logística viraram trilha paralela (suprimentos).
+// Macro-etapas do pipeline (colunas do kanban). Compras + Logística não são mais
+// etapas: viraram trilha paralela de suprimentos derivada das compras do projeto.
 export const STAGES = [
   "onboarding",
-  "projeto_tecnico_homologacao",
+  "projeto_homologacao",
   "planejamento_execucao",
   "execucao",
   "ativacao",
@@ -17,13 +17,9 @@ export const STAGES = [
 
 export type StageId = (typeof STAGES)[number];
 
-// Checklists também existem para a trilha paralela de suprimentos.
-export const SUPRIMENTOS_STAGE = "suprimentos" as const;
-export type ChecklistStageId = StageId | typeof SUPRIMENTOS_STAGE;
-
-export const STAGE_LABELS: Record<ChecklistStageId, string> = {
+export const STAGE_LABELS: Record<StageId, string> = {
   onboarding: "Onboarding",
-  projeto_tecnico_homologacao: "Projeto Técnico e Homologação",
+  projeto_homologacao: "Projeto Técnico e Homologação",
   planejamento_execucao: "Pré-execução",
   execucao: "Execução",
   ativacao: "Ativação",
@@ -31,15 +27,26 @@ export const STAGE_LABELS: Record<ChecklistStageId, string> = {
   concluido: "Concluído",
   pendencias: "Pendências",
   pausado: "Pausado",
-  suprimentos: "Suprimentos",
 };
+
+// Colunas do kanban: fluxo principal primeiro, Pendências/Pausado à parte no fim.
+export const KANBAN_MAIN_STAGES: StageId[] = [
+  "onboarding",
+  "projeto_homologacao",
+  "planejamento_execucao",
+  "execucao",
+  "ativacao",
+  "comissionamento_treinamento",
+  "concluido",
+];
+export const KANBAN_SIDE_STAGES: StageId[] = ["pendencias", "pausado"];
 
 export interface ChecklistTemplateGroup {
   slug: string;
   title: string;
 }
 
-export const CHECKLIST_TEMPLATE: Record<ChecklistStageId, ChecklistTemplateGroup[]> = {
+export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
   onboarding: [
     { slug: "onboarding_documentacao_do_cliente", title: "Documentação e Informações" },
     { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
@@ -47,19 +54,13 @@ export const CHECKLIST_TEMPLATE: Record<ChecklistStageId, ChecklistTemplateGroup
     { slug: "onboarding_revisao_tecnica", title: "Revisão Técnica" },
     { slug: "onboarding_lista_materiais", title: "Lista de Materiais" },
   ],
-  projeto_tecnico_homologacao: [
+  projeto_homologacao: [
     { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
     { slug: "projeto_tecnico_validacao", title: "Validação do Projeto" },
     { slug: "homologacao_envio_a_concessionaria", title: "Envio à Concessionária" },
     { slug: "homologacao_acompanhamento_e_retornos", title: "Acompanhamento e Retornos" },
     { slug: "homologacao_aprovacao_e_registro", title: "Aprovação e Registro" },
     { slug: "homologacao_validacao_de_homologacao", title: "Validação de Homologação" },
-  ],
-  suprimentos: [
-    { slug: "compras_cotacoes", title: "Cotações" },
-    { slug: "compras_compra", title: "Compra" },
-    { slug: "compras_nfe", title: "NF-e" },
-    { slug: "compras_logistica", title: "Logística e Entrega" },
   ],
   comissionamento_treinamento: [
     { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
@@ -97,17 +98,19 @@ export const CHECKLIST_TEMPLATE: Record<ChecklistStageId, ChecklistTemplateGroup
   pausado: [{ slug: "pausado_gestao_da_pausa", title: "Gestão da Pausa" }],
 };
 
-// Sub-etapas de cada macro-etapa (lista suspensa no card) = grupos de checklist.
-export const SUB_STAGES: Record<StageId, ChecklistTemplateGroup[]> = Object.fromEntries(
-  STAGES.map((s) => [s, CHECKLIST_TEMPLATE[s]]),
-) as Record<StageId, ChecklistTemplateGroup[]>;
+// ─── Sub-etapas ───────────────────────────────────────────────────────────────
+// Sub-etapas são os grupos de checklist da macro-etapa (project.subStage guarda o
+// slug do grupo atual). Trocar a sub-etapa não muda a coluna do kanban.
 
-export function subStageTitle(stage: StageId, subStage: string | null): string | null {
-  if (!subStage) return null;
-  return SUB_STAGES[stage].find((g) => g.slug === subStage)?.title ?? null;
-}
+export const subStagesFor = (stage: StageId): ChecklistTemplateGroup[] =>
+  CHECKLIST_TEMPLATE[stage] ?? [];
 
-// Resumo da trilha paralela de suprimentos (compras), anexado pela API na listagem.
+export const subStageTitle = (stage: StageId, slug: string | null): string | null =>
+  subStagesFor(stage).find((g) => g.slug === slug)?.title ?? null;
+
+// ─── Trilha de suprimentos ────────────────────────────────────────────────────
+// Selo derivado das compras do projeto, visível em qualquer macro-etapa.
+
 export interface SupplySummary {
   total: number;
   cotacao: number;
@@ -116,13 +119,16 @@ export interface SupplySummary {
   recebida: number;
 }
 
-export function supplyBadge(s: SupplySummary | undefined): string | null {
-  if (!s || s.total === 0) return null;
-  const efetivadas = s.comprada + s.logisticaProgramada + s.recebida;
-  if (efetivadas === 0) return `${s.total} em cotação`;
-  if (s.recebida === efetivadas && s.cotacao === 0 && s.comprada === 0 && s.logisticaProgramada === 0)
-    return `${s.recebida}/${s.total} recebidas`;
-  return `${s.recebida}/${s.total} recebidas · ${s.cotacao} cotação`;
+export function supplyBadge(s: SupplySummary | undefined | null): {
+  label: string;
+  tone: "muted" | "pending" | "progress" | "done";
+} {
+  if (!s || s.total === 0) return { label: "Sem compras", tone: "muted" };
+  if (s.recebida === s.total) return { label: `${s.recebida}/${s.total} recebidas`, tone: "done" };
+  if (s.cotacao === s.total) return { label: "Em cotação", tone: "pending" };
+  if (s.recebida > 0) return { label: `${s.recebida}/${s.total} recebidas`, tone: "progress" };
+  if (s.logisticaProgramada > 0) return { label: "Logística programada", tone: "progress" };
+  return { label: "Compras em andamento", tone: "progress" };
 }
 
 export const SERVICE_TIPOS = [
@@ -346,26 +352,7 @@ export const CHECKLIST_FIELD_DEFS: Record<string, ChecklistFieldDef[]> = {
     { key: "dataAprovacao", label: "Data da aprovação", type: "date" },
     { key: "numeroRegistro", label: "Número de registro", type: "text" },
   ],
-  compras_cotacoes: [
-    { key: "fornecedor", label: "Fornecedor", type: "text" },
-    { key: "valorCotacao", label: "Valor da cotação", type: "currency" },
-    { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
-  ],
-  compras_compra: [
-    { key: "fornecedor", label: "Fornecedor escolhido", type: "text" },
-    { key: "valorCompra", label: "Valor da compra", type: "currency" },
-    { key: "dataCompra", label: "Data da compra", type: "date" },
-    { key: "formaPagamento", label: "Forma de pagamento", type: "text" },
-  ],
-  compras_nfe: [
-    { key: "numeroNfe", label: "Número da NF-e", type: "text" },
-    { key: "dataEmissao", label: "Data de emissão", type: "date" },
-  ],
-  compras_logistica: [
-    { key: "trackingCarrier", label: "Transportadora", type: "text" },
-    { key: "trackingCode", label: "Código de rastreio", type: "text" },
-    { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
-  ],
+  // compras_* groups were retired with the supply track (procurement module).
   planejamento_de_execucao_logistica_de_materiais: [
     { key: "localArmazenamento", label: "Local de armazenamento", type: "text" },
     { key: "dataDisponibilidade", label: "Materiais disponíveis em", type: "date" },
@@ -379,7 +366,7 @@ export const CHECKLIST_FIELD_DEFS: Record<string, ChecklistFieldDef[]> = {
 export interface ChecklistItem {
   id: number;
   projectId: number;
-  stage: ChecklistStageId;
+  stage: StageId;
   checklistSlug: string;
   label: string;
   kind: ChecklistItemKind;
@@ -442,6 +429,7 @@ export interface ProjectDetail {
   project: InternalProject;
   checklist: ChecklistItem[];
   services: ServiceItem[];
+  supply: SupplySummary;
 }
 
 // --- Fetch helper ---

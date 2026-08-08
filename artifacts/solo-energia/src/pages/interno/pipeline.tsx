@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Zap, MapPin, ShoppingCart } from "lucide-react";
+import { Plus, Zap, MapPin, Package } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,9 @@ import {
   api,
   STAGES,
   STAGE_LABELS,
-  SUB_STAGES,
+  KANBAN_MAIN_STAGES,
+  KANBAN_SIDE_STAGES,
+  subStagesFor,
   supplyBadge,
   formatBRL,
   type InternalProject,
@@ -168,7 +170,7 @@ export default function PipelinePage() {
   });
 
   const subStageMutation = useMutation({
-    mutationFn: ({ id, subStage }: { id: number; subStage: string | null }) =>
+    mutationFn: ({ id, subStage }: { id: number; subStage: string }) =>
       api.patch<InternalProject>(`/internal/projects/${id}`, { subStage }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["internal-projects"] }),
     onError: (err: Error) =>
@@ -195,11 +197,19 @@ export default function PipelinePage() {
         </div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 px-4 md:-mx-8 md:px-8 items-stretch">
-          {STAGES.map((stage) => {
+          {[...KANBAN_MAIN_STAGES, ...KANBAN_SIDE_STAGES].map((stage) => {
             const items = (projects ?? []).filter((p) => p.stage === stage);
-            const subs = SUB_STAGES[stage];
+            const subStages = subStagesFor(stage);
+            const isSide = KANBAN_SIDE_STAGES.includes(stage);
             return (
-              <div key={stage} className="w-72 shrink-0">
+              <div
+                key={stage}
+                className={
+                  isSide
+                    ? "w-72 shrink-0 rounded-3xl border border-white/10 bg-white/[0.02] p-3 first-of-type:ml-4"
+                    : "w-72 shrink-0"
+                }
+              >
                 <div className="flex items-center justify-between mb-3 px-1">
                   <h2 className="text-sm font-medium text-foreground">{STAGE_LABELS[stage]}</h2>
                   <span className="text-xs text-muted-foreground bg-white/5 rounded-full px-2 py-0.5">
@@ -222,36 +232,53 @@ export default function PipelinePage() {
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground">Capex: {formatBRL(p.capex)}</p>
-                          {badge && (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-primary bg-primary/10 rounded-full px-2 py-0.5">
-                              <ShoppingCart className="w-3 h-3" /> Suprimentos: {badge}
-                            </span>
-                          )}
-                          <div className="space-y-2" onClick={(e) => e.preventDefault()}>
-                            <StageSelect
-                              value={p.stage}
-                              onChange={(newStage) => stageMutation.mutate({ id: p.id, stage: newStage })}
-                            />
-                            {subs.length > 0 && (
+                          <span
+                            className={
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] " +
+                              (badge.tone === "done"
+                                ? "bg-emerald-500/15 text-emerald-400"
+                                : badge.tone === "progress"
+                                  ? "bg-primary/15 text-primary"
+                                  : badge.tone === "pending"
+                                    ? "bg-amber-500/15 text-amber-400"
+                                    : "bg-white/5 text-muted-foreground")
+                            }
+                          >
+                            <Package className="w-3 h-3" /> {badge.label}
+                          </span>
+                          {subStages.length > 0 && (
+                            <div onClick={(e) => e.preventDefault()}>
                               <Select
-                                value={p.subStage ?? "__inicio__"}
-                                onValueChange={(v) =>
-                                  subStageMutation.mutate({ id: p.id, subStage: v === "__inicio__" ? null : v })
+                                value={
+                                  subStages.some((g) => g.slug === p.subStage)
+                                    ? (p.subStage as string)
+                                    : undefined
+                                }
+                                onValueChange={(subStage) =>
+                                  subStageMutation.mutate({ id: p.id, subStage })
                                 }
                               >
-                                <SelectTrigger className="h-8 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                                  <SelectValue placeholder="Sub-etapa" />
+                                <SelectTrigger
+                                  className="h-8 text-xs"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <SelectValue placeholder="Sub-etapa..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__inicio__">Sub-etapa: início</SelectItem>
-                                  {subs.map((g) => (
+                                  {subStages.map((g) => (
                                     <SelectItem key={g.slug} value={g.slug}>
                                       {g.title}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
-                            )}
+                            </div>
+                          )}
+                          <div onClick={(e) => e.preventDefault()}>
+                            <StageSelect
+                              value={p.stage}
+                              onChange={(newStage) => stageMutation.mutate({ id: p.id, stage: newStage })}
+                            />
                           </div>
                         </div>
                       </Link>

@@ -26,7 +26,7 @@ import {
   SERVICE_TIPOS,
   type ChecklistItem,
   type ChecklistFieldDef,
-  type ChecklistStageId,
+  type StageId,
 } from "@/lib/internal-api";
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
@@ -496,7 +496,7 @@ function AddItemInput({
   invalidateKeys,
 }: {
   projectId: number;
-  stage: ChecklistStageId;
+  stage: StageId;
   checklistSlug: string;
   invalidateKeys: unknown[][];
 }) {
@@ -549,18 +549,24 @@ export function ChecklistGroups({
   stage,
   items,
   invalidateKeys,
+  groupSlugPrefix,
 }: {
   projectId: number;
-  stage: ChecklistStageId;
+  stage: StageId;
   items: ChecklistItem[];
   invalidateKeys: unknown[][];
+  /** Optional filter to show only groups whose slug starts with this prefix
+   *  (e.g. "homologacao_" on the internal Homologação page). */
+  groupSlugPrefix?: string;
 }) {
   const queryClient = useQueryClient();
-  const groups = CHECKLIST_TEMPLATE[stage];
+  const groups = groupSlugPrefix
+    ? CHECKLIST_TEMPLATE[stage].filter((g) => g.slug.startsWith(groupSlugPrefix))
+    : CHECKLIST_TEMPLATE[stage];
   const seedAttempted = useRef<Set<string>>(new Set());
 
   const seedMutation = useMutation({
-    mutationFn: (s: ChecklistStageId) => api.post(`/internal/projects/${projectId}/checklist/seed`, { stage: s }),
+    mutationFn: (s: StageId) => api.post(`/internal/projects/${projectId}/checklist/seed`, { stage: s }),
     onSuccess: () =>
       invalidateKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: key })),
   });

@@ -47,8 +47,11 @@ export const projectsTable = pgTable("projects", {
   systemPower: real("system_power").notNull().default(0),
   statusStep: integer("status_step").notNull().default(1),
   statusProjeto: text("status_projeto"),
-  // Internal ERP pipeline stage (11 stages). statusStep stays the client-facing 1-7 view.
+  // Internal ERP pipeline macro stage. statusStep stays the client-facing 1-7 view.
   stage: text("stage").notNull().default("onboarding"),
+  // Current sub-etapa within the macro stage (checklist group slug; null when the
+  // macro has no groups, e.g. pendências).
+  subStage: text("sub_stage"),
   capex: real("capex"),
   // Custo agregado de materiais avulsos (alimentado pelas compras registradas)
   custoMateriais: real("custo_materiais"),

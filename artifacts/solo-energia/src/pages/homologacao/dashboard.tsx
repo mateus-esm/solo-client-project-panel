@@ -16,7 +16,7 @@ import { HomologacaoLayout } from "@/components/homologacao-layout";
 import { homologacaoGet, type DashboardData, KANBAN_LABELS } from "@/lib/homologacao-api";
 
 const STAGE_LABELS: Record<string, string> = {
-  homologacao: "Homologação",
+  projeto_homologacao: "Homologação",
   pendencias: "Pendências",
   pausado: "Pausado",
 };

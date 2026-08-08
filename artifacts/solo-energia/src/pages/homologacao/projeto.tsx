@@ -20,10 +20,11 @@ import { ProcessoFicha } from "@/components/processo-ficha";
 import { useToast } from "@/hooks/use-toast";
 import { STAGES, STAGE_LABELS, CHECKLIST_TEMPLATE, formatBRL, type ChecklistItem, type InternalProject } from "@/lib/internal-api";
 
-// Map checklistSlug → human title for homologação groups
+// Map checklistSlug → human title for homologação groups (now sub-etapas of the
+// merged "projeto_homologacao" macro stage).
 const HOMO_GROUP_TITLE: Record<string, string> = Object.fromEntries(
-  CHECKLIST_TEMPLATE.projeto_tecnico_homologacao
-    .filter((g) => g.slug.startsWith("homologacao"))
+  CHECKLIST_TEMPLATE.projeto_homologacao
+    .filter((g) => g.slug.startsWith("homologacao_"))
     .map((g) => [g.slug, g.title])
 );
 
@@ -97,7 +98,7 @@ async function patchChecklistItem(itemId: number, done: boolean, doneBy?: string
 
 /** Stages a technician may move a project to — mirrors server-side ALLOWED_TECHNICIAN_STAGES */
 const HOMOLOGACAO_STAGES = STAGES.filter((s) =>
-  ["projeto_tecnico_homologacao", "pendencias", "pausado"].includes(s)
+  ["projeto_homologacao", "pendencias", "pausado", "planejamento_execucao"].includes(s)
 );
 
 function StageSelect({
@@ -470,10 +471,8 @@ export default function HomologacaoProjetoPage() {
   }
 
   const { project, checklist, documents, services } = data;
-  // Da macro-etapa fundida, o técnico só vê os grupos de homologação.
-  const homoChecklist = checklist.filter(
-    (i) => i.stage === "projeto_tecnico_homologacao" && i.checklistSlug.startsWith("homologacao"),
-  );
+  // Homologação items now live under the merged macro stage — filter by group slug.
+  const homoChecklist = checklist.filter((i) => i.checklistSlug.startsWith("homologacao_"));
   const deadline =
     project.estimatedActivation ??
     (project as any).dataConclusaoPrevista ??

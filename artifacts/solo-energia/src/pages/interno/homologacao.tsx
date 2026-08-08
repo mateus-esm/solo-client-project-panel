@@ -25,8 +25,9 @@ function ProjectChecklist({ projectId }: { projectId: number }) {
   return (
     <ChecklistGroups
       projectId={projectId}
-      stage="projeto_tecnico_homologacao"
-      items={(items ?? []).filter((i) => i.stage === "projeto_tecnico_homologacao")}
+      stage="projeto_homologacao"
+      groupSlugPrefix="homologacao_"
+      items={(items ?? []).filter((i) => i.checklistSlug.startsWith("homologacao_"))}
       invalidateKeys={[queryKey]}
     />
   );
@@ -35,7 +36,13 @@ function ProjectChecklist({ projectId }: { projectId: number }) {
 export default function HomologacaoPage() {
   const { data: projects, isLoading } = useQuery<InternalProject[]>({
     queryKey: ["internal-projects", "homologacao"],
-    queryFn: () => api.get<InternalProject[]>("/internal/projects?stage=projeto_tecnico_homologacao"),
+    queryFn: async () => {
+      // Homologação is now a set of sub-etapas inside the merged macro stage.
+      const projects = await api.get<InternalProject[]>(
+        "/internal/projects?stage=projeto_homologacao"
+      );
+      return projects.filter((p) => (p.subStage ?? "").startsWith("homologacao_"));
+    },
   });
 
   return (

@@ -1,12 +1,11 @@
 // Pipeline stage constants shared by API and (mirrored in) the frontend.
 // Stage values are locked in docs/superpowers/specs/2026-08-07-solo-erp-consolidation-design.md
 
-// Macro-etapas do fluxo principal (colunas do kanban). Sub-etapas dentro de cada
-// macro-etapa são os grupos de checklist (ver SUB_STAGES). Compras + Logística não
-// são mais etapas: são a trilha paralela de suprimentos (project_purchases).
+// Macro-etapas do pipeline (colunas do kanban). Compras + Logística deixaram de
+// ser etapas: viraram trilha paralela de suprimentos derivada de project_purchases.
 export const PIPELINE_STAGES = [
   "onboarding",
-  "projeto_tecnico_homologacao",
+  "projeto_homologacao",
   "planejamento_execucao",
   "execucao",
   "ativacao",
@@ -20,7 +19,7 @@ export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
 export const STAGE_LABELS: Record<PipelineStage, string> = {
   onboarding: "Onboarding",
-  projeto_tecnico_homologacao: "Projeto Técnico e Homologação",
+  projeto_homologacao: "Projeto Técnico e Homologação",
   planejamento_execucao: "Pré-execução",
   execucao: "Execução",
   ativacao: "Ativação",
@@ -32,9 +31,11 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
 
 // Maps internal macro stage -> client portal stepper (1-7). null = keep the current
 // step (pendências/pausado must not move the client-facing stepper).
+// "projeto_homologacao" spans client steps 2-3: use clientStepFor(stage, subStage)
+// so the homologação sub-etapas map to step 3 (same meaning as before the merge).
 export const STAGE_TO_CLIENT_STEP: Record<PipelineStage, number | null> = {
   onboarding: 1,
-  projeto_tecnico_homologacao: 2,
+  projeto_homologacao: 2,
   planejamento_execucao: 4,
   execucao: 5,
   ativacao: 6,
@@ -44,14 +45,18 @@ export const STAGE_TO_CLIENT_STEP: Record<PipelineStage, number | null> = {
   pausado: null,
 };
 
-/**
- * Client stepper for a macro stage + sub-stage. Inside "Projeto Técnico e
- * Homologação" the stepper is 2 while in projeto técnico sub-stages and 3 once
- * the project reaches a homologação sub-stage.
- */
-export function stageToClientStep(stage: PipelineStage, subStage?: string | null): number | null {
-  if (stage === "projeto_tecnico_homologacao" && subStage?.startsWith("homologacao")) return 3;
+/** Client stepper (1-7) for a macro stage + sub-etapa. Homologação subs = step 3. */
+export function clientStepFor(stage: PipelineStage, subStage?: string | null): number | null {
+  if (stage === "projeto_homologacao" && subStage?.startsWith("homologacao_")) return 3;
   return STAGE_TO_CLIENT_STEP[stage];
+}
+
+/** Client-facing label for notifications — keeps the old Projeto Técnico / Homologação wording. */
+export function clientStageLabel(stage: PipelineStage, subStage?: string | null): string {
+  if (stage === "projeto_homologacao") {
+    return subStage?.startsWith("homologacao_") ? "Homologação" : "Projeto Técnico";
+  }
+  return STAGE_LABELS[stage];
 }
 
 export interface ChecklistTemplateGroup {
@@ -59,17 +64,11 @@ export interface ChecklistTemplateGroup {
   title: string;
 }
 
-// Checklist "stage" keys: the macro pipeline stages plus the parallel supply
-// track ("suprimentos", ex-Compras/Logística), which has checklists but is not a
-// pipeline column.
-export const SUPRIMENTOS_STAGE = "suprimentos" as const;
-export type ChecklistStage = PipelineStage | typeof SUPRIMENTOS_STAGE;
-export const CHECKLIST_STAGES = [...PIPELINE_STAGES, SUPRIMENTOS_STAGE] as const;
-
-// Checklist groups per stage, migrated 1:1 from the Jestor todoList fields.
-// Items inside each group are created per-project by the team (no per-project seeding).
-// The groups of each macro stage double as its sub-stages (projects.subStage).
-export const CHECKLIST_TEMPLATE: Record<ChecklistStage, ChecklistTemplateGroup[]> = {
+// Checklist groups per macro stage, migrated 1:1 from the Jestor todoList fields.
+// These groups double as the sub-etapas of each macro stage (project.subStage holds
+// the current group slug). Compras/logística groups were retired — supplies now live
+// in the procurement module (project_purchases) as a parallel track.
+export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]> = {
   onboarding: [
     { slug: "onboarding_documentacao_do_cliente", title: "Documentação e Informações" },
     { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
@@ -77,19 +76,13 @@ export const CHECKLIST_TEMPLATE: Record<ChecklistStage, ChecklistTemplateGroup[]
     { slug: "onboarding_revisao_tecnica", title: "Revisão Técnica" },
     { slug: "onboarding_lista_materiais", title: "Lista de Materiais" },
   ],
-  projeto_tecnico_homologacao: [
+  projeto_homologacao: [
     { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
     { slug: "projeto_tecnico_validacao", title: "Validação do Projeto" },
     { slug: "homologacao_envio_a_concessionaria", title: "Envio à Concessionária" },
     { slug: "homologacao_acompanhamento_e_retornos", title: "Acompanhamento e Retornos" },
     { slug: "homologacao_aprovacao_e_registro", title: "Aprovação e Registro" },
     { slug: "homologacao_validacao_de_homologacao", title: "Validação de Homologação" },
-  ],
-  suprimentos: [
-    { slug: "compras_cotacoes", title: "Cotações" },
-    { slug: "compras_compra", title: "Compra" },
-    { slug: "compras_nfe", title: "NF-e" },
-    { slug: "compras_logistica", title: "Logística e Entrega" },
   ],
   comissionamento_treinamento: [
     { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
@@ -126,6 +119,22 @@ export const CHECKLIST_TEMPLATE: Record<ChecklistStage, ChecklistTemplateGroup[]
   ],
   pausado: [{ slug: "pausado_gestao_da_pausa", title: "Gestão da Pausa" }],
 };
+
+// ─── Sub-etapas ───────────────────────────────────────────────────────────────
+// Sub-etapas are the checklist groups of the macro stage. project.subStage holds
+// the current group slug (null when the macro has no groups, e.g. pendências).
+
+export function subStagesFor(stage: PipelineStage): ChecklistTemplateGroup[] {
+  return CHECKLIST_TEMPLATE[stage] ?? [];
+}
+
+export function isValidSubStage(stage: PipelineStage, slug: string): boolean {
+  return subStagesFor(stage).some((g) => g.slug === slug);
+}
+
+export function defaultSubStage(stage: PipelineStage): string | null {
+  return subStagesFor(stage)[0]?.slug ?? null;
+}
 
 // ─── Typed checklist items ────────────────────────────────────────────────────
 // Each default item has a kind that drives behavior in the pipeline UI/API:
@@ -222,50 +231,9 @@ export const CHECKLIST_ITEM_TEMPLATE: Record<string, ChecklistItemTemplate[]> = 
   homologacao_validacao_de_homologacao: [
     { label: "Validação final da homologação", kind: "check" },
   ],
-  compras_cotacoes: [
-    {
-      label: "Cotação de equipamentos",
-      kind: "form",
-      fields: [
-        { key: "fornecedor", label: "Fornecedor", type: "text" },
-        { key: "valorCotacao", label: "Valor da cotação", type: "currency" },
-        { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
-      ],
-    },
-  ],
-  compras_compra: [
-    {
-      label: "Registro da compra",
-      kind: "form",
-      fields: [
-        { key: "fornecedor", label: "Fornecedor escolhido", type: "text" },
-        { key: "valorCompra", label: "Valor da compra", type: "currency" },
-        { key: "dataCompra", label: "Data da compra", type: "date" },
-        { key: "formaPagamento", label: "Forma de pagamento", type: "text" },
-      ],
-    },
-  ],
-  compras_nfe: [
-    {
-      label: "Nota fiscal (NF-e)",
-      kind: "form",
-      fields: [
-        { key: "numeroNfe", label: "Número da NF-e", type: "text" },
-        { key: "dataEmissao", label: "Data de emissão", type: "date" },
-      ],
-    },
-  ],
-  compras_logistica: [
-    {
-      label: "Transporte e entrega",
-      kind: "form",
-      fields: [
-        { key: "trackingCarrier", label: "Transportadora", type: "text" },
-        { key: "trackingCode", label: "Código de rastreio", type: "text" },
-        { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
-      ],
-    },
-  ],
+  // compras_* group templates were retired with the supply track — purchases now
+  // live in project_purchases (procurement module). Existing checklist rows with
+  // those slugs are kept in the DB for history but no longer seeded/rendered.
   planejamento_de_execucao_recebimento_de_material: [
     {
       label: "Confirmar recebimento de material",
@@ -341,16 +309,6 @@ export const CHECKLIST_ITEM_TEMPLATE: Record<string, ChecklistItemTemplate[]> = 
     },
   ],
 };
-
-// Sub-etapas de cada macro-etapa = grupos de checklist da própria macro-etapa.
-// projects.subStage guarda o slug do grupo atual (ou null = início da macro-etapa).
-export const SUB_STAGES: Record<PipelineStage, ChecklistTemplateGroup[]> = Object.fromEntries(
-  PIPELINE_STAGES.map((s) => [s, CHECKLIST_TEMPLATE[s]]),
-) as Record<PipelineStage, ChecklistTemplateGroup[]>;
-
-export function isValidSubStage(stage: PipelineStage, subStage: string): boolean {
-  return SUB_STAGES[stage].some((g) => g.slug === subStage);
-}
 
 export const SERVICE_TIPOS = [
   "Instalação",
