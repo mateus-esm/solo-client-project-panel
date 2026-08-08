@@ -18,6 +18,7 @@ import {
 import { eq, and, asc, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { stepCompletionPercent } from "../../lib/jestor";
+import { getOrCreateProcesso, patchProcesso, processoPatchSchema } from "../homologacao";
 import { sendWhatsApp } from "../../lib/notifications";
 
 const router: IRouter = Router();
@@ -157,6 +158,43 @@ router.patch("/projects/:id", async (req, res) => {
     res.json(updated);
   } catch (err) {
     req.log.error({ err }, "Failed to update project");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// --- Ficha do processo Enel (homologação) ---
+
+router.get("/projects/:id/processo", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [project] = await db.select({ id: projectsTable.id }).from(projectsTable).where(eq(projectsTable.id, id));
+    if (!project) {
+      res.status(404).json({ message: "Projeto não encontrado" });
+      return;
+    }
+    res.json(await getOrCreateProcesso(id));
+  } catch (err) {
+    req.log.error({ err }, "Failed to get processo (internal)");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.patch("/projects/:id/processo", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const parsed = processoPatchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    const [project] = await db.select({ id: projectsTable.id }).from(projectsTable).where(eq(projectsTable.id, id));
+    if (!project) {
+      res.status(404).json({ message: "Projeto não encontrado" });
+      return;
+    }
+    res.json(await patchProcesso(id, parsed.data));
+  } catch (err) {
+    req.log.error({ err }, "Failed to patch processo (internal)");
     res.status(500).json({ message: "Internal server error" });
   }
 });

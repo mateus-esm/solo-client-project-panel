@@ -4,11 +4,17 @@ import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage"
 import { resolveSession } from "../lib/auth";
 import { resolveAdminSession } from "../lib/adminAuth";
 import { resolveInstallerSession, INSTALLER_COOKIE } from "../lib/installerAuth";
+import {
+  resolveHomologacaoSession,
+  HOMOLOGACAO_COOKIE,
+} from "../lib/homologacaoAuth";
 import { db } from "@workspace/db";
 import {
   documentsTable,
   servicesTable,
   installerTeamMembersTable,
+  homologacaoProcessosTable,
+  projectsTable,
 } from "@workspace/db/schema";
 import { eq, or, and } from "drizzle-orm";
 
@@ -116,6 +122,46 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
         const account = await resolveInstallerSession(installerToken);
         if (account && (await installerOwnsFile(account.accountId, account.teamName, fileUrl))) {
           authorized = true;
+        }
+      }
+    }
+
+    // 4. Homologação technician session: ART NF files and documents of projects
+    //    assigned to them.
+    if (!authorized) {
+      const homologacaoToken = req.cookies?.[HOMOLOGACAO_COOKIE];
+      if (homologacaoToken) {
+        const tech = await resolveHomologacaoSession(homologacaoToken);
+        if (tech) {
+          const [nf] = await db
+            .select({ id: homologacaoProcessosTable.id })
+            .from(homologacaoProcessosTable)
+            .innerJoin(
+              projectsTable,
+              eq(homologacaoProcessosTable.projectId, projectsTable.id)
+            )
+            .where(
+              and(
+                eq(homologacaoProcessosTable.artNfObjectPath, objectPath),
+                eq(projectsTable.homologacaoTechnicianId, tech.technicianId)
+              )
+            )
+            .limit(1);
+          if (nf) authorized = true;
+          if (!authorized) {
+            const [doc] = await db
+              .select({ id: documentsTable.id })
+              .from(documentsTable)
+              .innerJoin(projectsTable, eq(documentsTable.projectId, projectsTable.id))
+              .where(
+                and(
+                  eq(documentsTable.objectPath, objectPath),
+                  eq(projectsTable.homologacaoTechnicianId, tech.technicianId)
+                )
+              )
+              .limit(1);
+            if (doc) authorized = true;
+          }
         }
       }
     }

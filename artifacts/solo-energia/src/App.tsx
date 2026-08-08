@@ -24,8 +24,11 @@ import Servicos from "@/pages/interno/servicos";
 import Homologacao from "@/pages/interno/homologacao";
 import Equipes from "@/pages/interno/equipes";
 import HomologacaoLogin from "@/pages/homologacao/login";
+import HomologacaoDashboard from "@/pages/homologacao/dashboard";
 import HomologacaoProjects from "@/pages/homologacao/index";
 import HomologacaoProjeto from "@/pages/homologacao/projeto";
+import HomologacaoKanban from "@/pages/homologacao/kanban";
+import HomologacaoFinanceiro from "@/pages/homologacao/financeiro";
 import { useHomologacaoAuth } from "@/hooks/use-homologacao-auth";
 
 const queryClient = new QueryClient({
@@ -168,7 +171,16 @@ function Router() {
       {/* Homologação team portal */}
       <Route path="/homologacao/login" component={HomologacaoLogin} />
       <Route path="/homologacao">
+        {() => <HomologacaoGuard><HomologacaoDashboard /></HomologacaoGuard>}
+      </Route>
+      <Route path="/homologacao/projetos">
         {() => <HomologacaoGuard><HomologacaoProjects /></HomologacaoGuard>}
+      </Route>
+      <Route path="/homologacao/kanban">
+        {() => <HomologacaoGuard><HomologacaoKanban /></HomologacaoGuard>}
+      </Route>
+      <Route path="/homologacao/financeiro">
+        {() => <HomologacaoGuard><HomologacaoFinanceiro /></HomologacaoGuard>}
       </Route>
       <Route path="/homologacao/projetos/:id">
         {() => <HomologacaoGuard><HomologacaoProjeto /></HomologacaoGuard>}

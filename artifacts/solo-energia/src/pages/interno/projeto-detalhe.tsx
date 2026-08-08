@@ -3,6 +3,7 @@ import { Link, useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2 } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
+import { ProcessoFicha } from "@/components/processo-ficha";
 import { ChecklistGroups } from "@/components/checklist-groups";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -230,6 +231,13 @@ export default function ProjetoDetalhePage() {
       </div>
 
       <HomologacaoAssignment project={project} invalidateKey={queryKey} />
+
+      <div className="mb-6">
+        <ProcessoFicha
+          projectId={project.id}
+          basePath={`/internal/projects/${project.id}/processo`}
+        />
+      </div>
 
       <div className="bg-card border border-white/5 rounded-3xl p-6">
         <div className="flex items-center justify-between mb-4">

@@ -1,10 +1,13 @@
 import { Link, useLocation } from "wouter";
-import { LogOut, LayoutList } from "lucide-react";
+import { LogOut, LayoutList, LayoutDashboard, Columns3, Wallet } from "lucide-react";
 import logoUrl from "@assets/001_1775433962945.png";
 import { useHomologacaoAuth, useHomologacaoLogout } from "@/hooks/use-homologacao-auth";
 
 const NAV = [
-  { href: "/homologacao", label: "Projetos", icon: LayoutList },
+  { href: "/homologacao", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/homologacao/projetos", label: "Projetos", icon: LayoutList, exact: false },
+  { href: "/homologacao/kanban", label: "Kanban", icon: Columns3, exact: true },
+  { href: "/homologacao/financeiro", label: "Financeiro", icon: Wallet, exact: true },
 ];
 
 export function HomologacaoLayout({ children }: { children: React.ReactNode }) {
@@ -22,8 +25,10 @@ export function HomologacaoLayout({ children }: { children: React.ReactNode }) {
           <p className="text-xs text-muted-foreground truncate">{technician?.name ?? "Técnico"}</p>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV.map(({ href, label, icon: Icon }) => {
-            const active = location === href || location.startsWith(href + "/");
+          {NAV.map(({ href, label, icon: Icon, exact }) => {
+            const active = exact
+              ? location === href
+              : location === href || location.startsWith(href + "/");
             return (
               <Link key={href} href={href}>
                 <a
@@ -65,8 +70,29 @@ export function HomologacaoLayout({ children }: { children: React.ReactNode }) {
         </button>
       </div>
 
+      {/* Bottom nav — mobile */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-white/5 z-20 flex">
+        {NAV.map(({ href, label, icon: Icon, exact }) => {
+          const active = exact
+            ? location === href
+            : location === href || location.startsWith(href + "/");
+          return (
+            <Link key={href} href={href}>
+              <a
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] ${
+                  active ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </a>
+            </Link>
+          );
+        })}
+      </nav>
+
       {/* Main content */}
-      <main className="flex-1 md:ml-60 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto md:mx-0">
+      <main className="flex-1 md:ml-60 px-4 md:px-8 py-6 pb-20 md:pb-6 max-w-5xl w-full mx-auto md:mx-0">
         {children}
       </main>
     </div>

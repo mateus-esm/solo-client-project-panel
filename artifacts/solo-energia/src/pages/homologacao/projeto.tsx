@@ -16,6 +16,7 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { HomologacaoLayout } from "@/components/homologacao-layout";
+import { ProcessoFicha } from "@/components/processo-ficha";
 import { useToast } from "@/hooks/use-toast";
 import { STAGES, STAGE_LABELS, CHECKLIST_TEMPLATE, formatBRL, type ChecklistItem, type InternalProject } from "@/lib/internal-api";
 
@@ -475,7 +476,7 @@ export default function HomologacaoProjetoPage() {
 
   return (
     <HomologacaoLayout>
-      <Link href="/homologacao">
+      <Link href="/homologacao/projetos">
         <a className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="w-4 h-4" /> Voltar à lista
         </a>
@@ -550,6 +551,15 @@ export default function HomologacaoProjetoPage() {
           </div>
         </div>
       )}
+
+      {/* Ficha do processo Enel */}
+      <div className="mb-5">
+        <ProcessoFicha
+          projectId={project.id}
+          basePath={`/homologacao/projects/${project.id}/processo`}
+          uploadPath={`/homologacao/projects/${project.id}/processo/art-nf`}
+        />
+      </div>
 
       {/* Notes */}
       <div className="mb-5">
