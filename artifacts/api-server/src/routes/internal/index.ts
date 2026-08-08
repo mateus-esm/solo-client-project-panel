@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import projectsRouter from "./projects";
 import servicesRouter from "./services";
 import techniciansRouter from "./technicians";
+import installersRouter from "./installers";
 import { requireAdmin } from "../../lib/adminAuth";
 
 const router: IRouter = Router();
@@ -11,5 +12,6 @@ router.use(requireAdmin);
 router.use(projectsRouter);
 router.use(servicesRouter);
 router.use(techniciansRouter);
+router.use(installersRouter);
 
 export default router;

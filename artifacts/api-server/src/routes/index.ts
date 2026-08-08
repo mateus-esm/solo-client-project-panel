@@ -9,6 +9,7 @@ import schedulingRouter from "./scheduling";
 import adminRouter from "./admin";
 import internalRouter from "./internal";
 import homologacaoRouter from "./homologacao";
+import installerRouter from "./installer";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(schedulingRouter);
 router.use(adminRouter);
 router.use("/internal", internalRouter);
 router.use(homologacaoRouter);
+router.use(installerRouter);
 
 export default router;

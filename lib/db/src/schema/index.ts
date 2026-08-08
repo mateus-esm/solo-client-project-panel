@@ -22,3 +22,4 @@ export * from "./pipeline";
 export * from "./services";
 export * from "./checklists";
 export * from "./homologacao";
+export * from "./installers";

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/installer/"
+title = "Portal da Equipe de Execução"
+description = "A focused web app for installation teams (equipe de execução) at Solo Energia. Installers log in with email and password, see only the services assigned to their team, and can update service status (Agendado → Em execução → Concluído) and add completion notes directly from the field."
+version = "1.0.0"
+id = "artifacts/installer-portal"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/installer/" ]
+localPort = 26135
+
+[services.development]
+run = "pnpm --filter @workspace/installer-portal run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/installer-portal", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/installer-portal/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26135"
+BASE_PATH = "/installer/"
