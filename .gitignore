@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Exports do Jestor — contêm dados de clientes, nunca versionar
+*.xlsx
+jestor*.json

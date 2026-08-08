@@ -107,13 +107,65 @@ Tudo aí é legítimo. Nada aí impede a operação de trabalhar amanhã.
 | Drift entre template de checklist no banco e no frontend | Média | Semana 2 |
 | Envio acidental de e-mail para endereço inventado | Baixa (com `.invalid`) | Domínio não roteável por RFC |
 
-## O que eu preciso de você agora
+## Bloco 3 — importador pronto (atualizado 2026-08-08)
 
-**O xlsx dos 133 projetos não está no repositório.** Procurei em `planning/`, `attached_assets/` e na
-raiz. Sem o arquivo eu não escrevo o importador — não dá para mapear colunas que eu não vi. Me manda o
-arquivo e o Bloco 3 anda.
+Recebi a planilha e o importador está escrito e validado em dry-run. Duas correções ao estudo do
+Verboo saíram da leitura do dado real:
 
-Enquanto isso, os Blocos 1 e 2 não dependem de nada e podem começar agora.
+**1. Os checklists NÃO estão todos zerados.** O estudo afirma *"Todos os tokens lêem `:0`"*. O dado
+real é **3.430 tokens `:1` (feito) contra 1.377 `:0`** — 71% do trabalho já está marcado como
+concluído no Jestor. A decisão que eu tinha tomado com base nessa premissa (*importar tudo como
+`done=false`*) estava errada e **foi revertida**: o importador traz o estado real de cada item.
+Descartar isso faria a equipe remarcar 3.430 itens à mão. Dos 37 projetos ativos, **32 têm
+checklist preenchido** — um deles com 182/182 itens feitos.
+
+**2. Não existe nenhum e-mail de cliente na planilha.** O estudo fala em "só 2 no dataset". Na
+verdade são 31 células com `@`, e **todas** são o `Responsável Técnico` interno
+(`fgmssolar@gmail.com`). Zero e-mails de cliente. Isso confirma o endereço gerado em `.invalid`
+como obrigatório, não como preferência — e reforça que o portal do cliente não entra hoje.
+
+Detalhe de normalização que vale registrar: o Excel escapa os vazios como `'-` (apóstrofo + hífen),
+não `-`. O normalizador remove o apóstrofo antes de comparar.
+
+**Resultado do dry-run (`--dry-run`, nada gravado):**
+
+| | Ativos (padrão) | Todos (`--all`) |
+|---|---|---|
+| Projetos | 37 | 133 |
+| Itens de checklist | 3.289 (1.988 feitos) | 4.807 (3.430 feitos) |
+| Falhas | 0 | 0 |
+| Avisos | 1 | 1 |
+
+Distribuição dos 37 ativos: `onboarding` 8, `projeto_homologacao` 6, `planejamento_execucao` 2,
+`ativacao` 3, `pendencias` 17, `pausado` 1. Bate exatamente com o Jestor.
+
+Verifiquei também que os **39 mapeamentos de coluna apontam para slugs que existem de fato** no
+`CHECKLIST_TEMPLATE` — um slug órfão faria o item ser gravado e nunca aparecer na tela.
+
+**Como rodar (no Replit, onde o `DATABASE_URL` existe):**
+
+```bash
+python scripts/xlsx-to-json.py <planilha.xlsx> /tmp/jestor.json
+pnpm --filter @workspace/scripts run import:jestor -- /tmp/jestor.json --dry-run   # confere
+pnpm --filter @workspace/scripts run import:jestor -- /tmp/jestor.json             # importa
+```
+
+O `--dry-run` não abre conexão com o banco. A importação real roda em transação e é idempotente
+(dedupe por `client_name`), então rodar de novo não duplica. Para os 96 concluídos, no dia 2:
+acrescente `--all`.
+
+Decisões que o dado mudou, consolidadas:
+
+- **Checklists:** importar o estado real (`:1`→feito, `:0`→pendente). `doneBy` = `"importado do
+  Jestor"`, `doneAt` = `null` — o Jestor não exporta quem nem quando, e data inventada é pior que
+  data ausente.
+- **"Revisão" → `pendencias`** (mantido). Como `pendencias` não tem sub-etapas, a `Etapa` original
+  do Jestor vai para `notes` como `[Jestor] Etapa: ...`, para a equipe não perder onde o projeto
+  parou. Os itens de checklist continuam nas etapas originais e seguem visíveis pelas abas.
+- **Colunas "Compras e Logística"** (etapa aposentada) → `planejamento_execucao / Logística de
+  Materiais`, onde a informação continua fazendo sentido.
+
+Falta apenas rodar no Replit. Blocos 1 e 2 continuam sem dependência.
 
 ---
 
