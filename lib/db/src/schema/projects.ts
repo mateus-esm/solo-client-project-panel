@@ -55,8 +55,6 @@ export const projectsTable = pgTable("projects", {
   capex: real("capex"),
   // Custo agregado de materiais avulsos (alimentado pelas compras registradas)
   custoMateriais: real("custo_materiais"),
-  // Sub-etapa atual dentro da macro-etapa (slug de grupo de checklist; null = início)
-  subStage: text("sub_stage"),
   // Custo do serviço de instalação (equipe de execução)
   custoServico: real("custo_servico"),
   receitaBruta: real("receita_bruta"),
