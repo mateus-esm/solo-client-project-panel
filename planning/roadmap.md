@@ -169,6 +169,143 @@ Falta apenas rodar no Replit. Blocos 1 e 2 continuam sem dependência.
 
 ---
 
+# Estudo: a plataforma dá conta de gerir os projetos? — Claude (Fable 5), 2026-08-08
+
+Comparação campo a campo entre o que o Jestor realmente guarda (73 colunas, 133 projetos) e o que a
+plataforma modela (21 tabelas). **Nada foi migrado** — isto é só análise. Percentuais são de
+preenchimento real; quando divergem, o número dos **37 ativos** manda, porque é neles que a equipe
+trabalha.
+
+## Veredito
+
+**A plataforma é operacionalmente mais rica que o Jestor.** Ela já tem parcelas, documentos
+categorizados com upload, portal do cliente, processo de homologação (UC, protocolo, ART/NF),
+suprimentos com fornecedor e rastreio, serviços com contrato e escalação de equipe, portal do
+instalador. O Jestor não tem nada disso.
+
+As lacunas não são de funcionalidade — são de **classificação, responsabilidade e identidade do
+cliente**. São 6, e as 3 primeiras doem no uso diário.
+
+## Lacuna 1 — Não existe entidade Cliente (e é isto que trava o join com os leads)
+
+Hoje `client_name`, `client_email` e `client_phone` são colunas soltas na tabela `projects`. Não há
+tabela de clientes. Nos dados: **99 clientes distintos para 133 projetos — 13 clientes têm 2
+projetos** (Agilson, Claudia, Ubiratan, Flávio, Tito, Acelio, Magno, Samia e outros).
+
+Isso já é um bug em produção, não uma questão de arquitetura. Em
+`artifacts/api-server/src/lib/auth.ts:132-136`, o login do cliente resolve o projeto assim:
+
+```ts
+.where(eq(projectsTable.clientEmail, email.toLowerCase()))
+.limit(1);
+```
+
+**O cliente com 2 projetos entra e vê só o de menor id.** O outro é invisível, sem aviso e sem
+seletor de projeto. Com os dados atuais isso atinge 13 clientes / 26 projetos.
+
+E é exatamente o que vai atrapalhar o que você quer fazer em seguida: sem entidade cliente, o
+e-mail e o telefone vindos da base de leads teriam que ser gravados **por projeto** — a mesma pessoa
+casada duas vezes, e atualizar um telefone vira atualizar N linhas.
+
+**Correção:** tabela `clients` (nome, email, telefone, documento) + `projects.client_id`. A sessão
+passa a ser do cliente, com seletor quando houver mais de um projeto. É a maior das 6, e é
+pré-requisito do import de leads.
+
+## Lacuna 2 — Não existe `tipo` de projeto
+
+**91% dos ativos têm `Tipo` preenchido** (Usina 41, O&M 14, Equipamento 2, Carregamento Veicular 1).
+A tabela `projects` **não tem esse campo**.
+
+Não é etiqueta: **O&M é outro negócio**. Um contrato de manutenção não passa por Projeto Técnico nem
+por Homologação, mas hoje ele é obrigado a percorrer o mesmo funil. São 14 O&M no histórico e 3
+ativos. O resultado prático é a equipe marcando etapa falsa ou abandonando o sistema para O&M.
+
+**Correção:** coluna `tipo` + badge no kanban, e os gates de homologação não se aplicam a O&M.
+Versão mínima resolve hoje; funil próprio para O&M é conversa de semana 2.
+
+## Lacuna 3 — Não existe responsável pelo projeto
+
+**91% dos ativos têm `Responsável Técnico`** e são só 3 pessoas (`fgmssolar@gmail.com` 30,
+`Mateus Sombra` 27, outro 1). A plataforma só tem `homologacao_technician_id`, que vale para
+homologação — não há dono do projeto.
+
+Com 37 projetos ativos e equipe crescendo, ninguém consegue responder *"quais são os meus
+projetos?"*. Sem isso não há cobrança nem accountability.
+
+**Correção:** `projects.responsavel` + filtro "meus projetos" no kanban. Pequeno.
+
+## Lacuna 4 — Datas de marco e tempo de ciclo
+
+O Jestor guarda `Data de homologação`, `Data de instalação`, `Data de ativação` e `Data de conclusão
+do projeto`. A plataforma tem fechamento, pagamento, compras e entrega — **as 4 acima não existem**.
+
+Sem elas não dá para responder a pergunta operacional mais importante de uma integradora:
+**quanto tempo leva do fechamento à ativação, e onde o projeto trava?**
+
+**Correção recomendada — e aqui eu não copiaria o Jestor:** em vez de 4 campos digitados à mão, uma
+tabela `project_stage_history` (project_id, stage, sub_stage, entrou_em, por_quem). O PATCH de etapa
+já existe e é o único caminho de mudança; gravar uma linha ali dá tempo de ciclo por etapa, gargalo e
+auditoria **de graça**, sem ninguém preencher data. Campo digitado não é preenchido — a prova está
+no próprio Jestor: `Data de ativação` tem 10% e `Data de Início Prevista` 6%.
+
+## Lacuna 5 — Potência zerada, mas recuperável
+
+`Potência (kWp)` está preenchida em **0% dos ativos**. Só que a potência está escrita dentro do campo
+`Usina`: **96 das 97 usinas** seguem o padrão `"José Brasil - 7.4 kWp"`. Dá para extrair por regex —
+**29 dos 37 ativos** teriam a potência recuperada.
+
+Sem isso o portal do cliente mostra "0 kWp" e não há relatório de capacidade instalada.
+
+**Correção:** extrair no import + tornar o campo obrigatório na tela de novo projeto. Trivial.
+
+## Lacuna 6 — Sem `updated_at` / `updated_by` em `projects`
+
+O Jestor tem os dois a 98%. A plataforma só tem `created_at`. Com 5 portais escrevendo na mesma
+linha, não dá para saber o que mudou nem quem mudou. Duas colunas.
+
+## O que o Jestor tem e NÃO vale trazer
+
+Medido, não achismo: `Propriedade` (2% nos ativos), `Condições Comerciais` (5% — e a tabela
+`payments` modela parcelamento muito melhor que texto livre), `Observações Gerais` (0%),
+`Pipeline de Projetos` (0%), `Serviços` (1 valor em 133 — o módulo de serviços já é superior).
+
+`Usina` como entidade própria eu **adiaria**: hoje é 1 projeto ≈ 1 usina. Ela vira importante quando
+O&M e monitoramento crescerem, aí o ativo durável é a usina, não o projeto.
+
+## Preparando o join com a base de leads
+
+Quando você mandar os leads, o problema vai ser **casar por nome**, porque a planilha de projetos não
+tem nenhum e-mail de cliente (os 31 `@` são todos do responsável técnico interno). E o nome é sujo:
+existem três campos parecidos (`Nome`, `Cliente`, `Negociação`) e valores que não são de pessoa —
+`"Polícia Federal - Manutenção Juazeiro"`, `"André Linhares - O&M"`, `"Paulo de Oliveira - EV / O&M"`.
+
+Ordem que eu recomendo:
+
+1. Criar a tabela `clients` **antes** do import de leads (Lacuna 1). Casar lead → cliente uma vez, não
+   uma vez por projeto.
+2. Casar por nome normalizado (sem acento, minúsculo, sem sufixo de tipo) e **exigir revisão manual
+   dos ambíguos** em vez de casar automático. Com 99 clientes, revisar à mão o que ficar duvidoso
+   custa minutos e evita mandar e-mail do cliente errado.
+3. Só depois ligar o portal do cliente para os migrados — aí sim com e-mail real, e o endereço
+   `.invalid` deixa de ser necessário.
+
+## Sequência que eu recomendo
+
+**Antes de migrar qualquer coisa** (as 3 primeiras mudam o schema, e mexer no schema depois de
+importar 133 projetos é retrabalho):
+
+1. Tabela `clients` + `projects.client_id` + correção do login com múltiplos projetos — Lacuna 1.
+2. `projects.tipo` — Lacuna 2.
+3. `projects.responsavel` + `updated_at`/`updated_by` — Lacunas 3 e 6.
+4. `project_stage_history` — Lacuna 4.
+5. Extração de kWp do campo `Usina` no importador — Lacuna 5.
+6. Aí sim: importar os 37 ativos, depois os leads, depois os 96 concluídos.
+
+O importador já escrito continua válido: as lacunas 2, 3 e 5 são colunas novas que ele passa a
+preencher, e a 1 muda o destino do cliente. Ajuste pequeno, desde que feito **antes** da carga.
+
+---
+
 ## verboo-deepseek: Análise do estado atual — 2026-08-08
 
 ### Veredito
