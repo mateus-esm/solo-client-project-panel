@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Users, Plus, Search, ChevronRight, Zap, MapPin, LogOut, Loader2, Trash2, Send, X } from "lucide-react";
+import { Users, Plus, Search, ChevronRight, Zap, MapPin, LogOut, Loader2, Trash2, Send, X, KanbanSquare, Wrench, FileCheck2 } from "lucide-react";
 import { useAdminLogout } from "@/hooks/use-admin-auth";
 import logoLight from "@assets/001_1775433962945.png";
 
@@ -116,13 +116,44 @@ export default function AdminDashboard() {
             <img src={logoLight} alt="Solo Energia" className="h-6 opacity-90" />
             <span className="text-xs font-mono text-muted-foreground border border-border px-2 py-0.5 rounded-md">ADMIN</span>
           </div>
-          <button
-            onClick={() => logoutMutation.mutate()}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </button>
+          <nav className="flex items-center gap-1 sm:gap-2">
+            <Link
+              href="/interno/pipeline"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+            >
+              <KanbanSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Pipeline</span>
+            </Link>
+            <Link
+              href="/interno/servicos"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+            >
+              <Wrench className="w-4 h-4" />
+              <span className="hidden sm:inline">Serviços</span>
+            </Link>
+            <Link
+              href="/interno/homologacao"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+            >
+              <FileCheck2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Homologação</span>
+            </Link>
+            <Link
+              href="/interno/equipes"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+            >
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Equipes</span>
+            </Link>
+            <div className="w-px h-5 bg-border mx-1" />
+            <button
+              onClick={() => logoutMutation.mutate()}
+              className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </nav>
         </div>
       </header>
 
