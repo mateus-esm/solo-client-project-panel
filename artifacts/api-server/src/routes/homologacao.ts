@@ -27,6 +27,11 @@ import {
   type AuthenticatedRequest,
 } from "../lib/homologacaoAuth";
 import { stepCompletionPercent } from "../lib/jestor";
+import {
+  homologacaoAprovada,
+  STAGES_REQUIRING_HOMOLOGACAO,
+  HOMOLOGACAO_GATE_MESSAGE,
+} from "../lib/homologacao-gate";
 
 const router: IRouter = Router();
 
@@ -564,6 +569,14 @@ router.patch("/homologacao/projects/:id", requireHomologacao, async (req: Authen
 
     if (stageChanged) {
       const newStage = parsed.data.stage as AllowedStage;
+      // Handoff para compras (pós-homologação) exige aprovação registrada no checklist.
+      if (
+        (STAGES_REQUIRING_HOMOLOGACAO as readonly string[]).includes(newStage) &&
+        !(await homologacaoAprovada(id))
+      ) {
+        res.status(409).json({ message: HOMOLOGACAO_GATE_MESSAGE });
+        return;
+      }
       patch.stage = newStage;
       const step = STAGE_TO_CLIENT_STEP[newStage as PipelineStage];
       if (step !== null && step !== undefined) {

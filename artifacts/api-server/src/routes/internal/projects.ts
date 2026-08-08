@@ -15,11 +15,16 @@ import {
   homologacaoTechniciansTable,
   type PipelineStage,
 } from "@workspace/db/schema";
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { stepCompletionPercent } from "../../lib/jestor";
 import { getOrCreateProcesso, patchProcesso, processoPatchSchema } from "../homologacao";
 import { sendWhatsApp } from "../../lib/notifications";
+import {
+  homologacaoAprovada,
+  STAGES_REQUIRING_HOMOLOGACAO,
+  HOMOLOGACAO_GATE_MESSAGE,
+} from "../../lib/homologacao-gate";
 
 const router: IRouter = Router();
 
@@ -136,6 +141,17 @@ router.patch("/projects/:id", async (req, res) => {
 
     const stageChanged =
       parsed.data.stage !== undefined && parsed.data.stage !== current.stage;
+
+    // Etapas pós-homologação (compras/logística/pré-execução) só são liberadas
+    // após a homologação aprovada — política centralizada em homologacao-gate.
+    if (
+      stageChanged &&
+      (STAGES_REQUIRING_HOMOLOGACAO as readonly string[]).includes(parsed.data.stage as string) &&
+      !(await homologacaoAprovada(id))
+    ) {
+      res.status(409).json({ message: HOMOLOGACAO_GATE_MESSAGE });
+      return;
+    }
     const patch = stageChanged
       ? clientStepPatch(parsed.data.stage as PipelineStage)
       : {};

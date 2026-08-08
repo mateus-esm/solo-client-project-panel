@@ -565,15 +565,18 @@ export function ChecklistGroups({
       invalidateKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: key })),
   });
 
-  // Auto-seed default typed items the first time a stage tab is opened empty.
+  // Auto-seed default typed items when a stage tab is opened and any template group
+  // has no items yet (the server skips groups that already have items, so this also
+  // reconciles new template groups on existing projects).
+  const hasMissingGroup = groups.some((g) => !items.some((i) => i.checklistSlug === g.slug));
   useEffect(() => {
     const key = `${projectId}:${stage}`;
-    if (groups.length > 0 && items.length === 0 && !seedAttempted.current.has(key)) {
+    if (groups.length > 0 && hasMissingGroup && !seedAttempted.current.has(key)) {
       seedAttempted.current.add(key);
       seedMutation.mutate(stage);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, stage, items.length, groups.length]);
+  }, [projectId, stage, hasMissingGroup, groups.length]);
 
   if (groups.length === 0) {
     return (

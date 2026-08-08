@@ -6,6 +6,7 @@ export const STAGES = [
   "projeto_tecnico",
   "homologacao",
   "compras",
+  "logistica",
   "planejamento_execucao",
   "execucao",
   "ativacao",
@@ -22,7 +23,8 @@ export const STAGE_LABELS: Record<StageId, string> = {
   projeto_tecnico: "Projeto Técnico",
   homologacao: "Homologação",
   compras: "Compras",
-  planejamento_execucao: "Planej. de Execução",
+  logistica: "Logística",
+  planejamento_execucao: "Pré-execução",
   execucao: "Execução",
   ativacao: "Ativação",
   comissionamento_treinamento: "Comissionamento e Treinamento",
@@ -38,8 +40,11 @@ export interface ChecklistTemplateGroup {
 
 export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
   onboarding: [
-    { slug: "onboarding_documentacao_do_cliente", title: "Documentação do Cliente" },
+    { slug: "onboarding_documentacao_do_cliente", title: "Documentação e Informações" },
     { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
+    { slug: "onboarding_financeiro", title: "Atualização Financeira" },
+    { slug: "onboarding_revisao_tecnica", title: "Revisão Técnica" },
+    { slug: "onboarding_lista_materiais", title: "Lista de Materiais" },
   ],
   projeto_tecnico: [
     { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
@@ -49,8 +54,8 @@ export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
     { slug: "compras_cotacoes", title: "Cotações" },
     { slug: "compras_compra", title: "Compra" },
     { slug: "compras_nfe", title: "NF-e" },
-    { slug: "compras_logistica", title: "Logística e Entrega" },
   ],
+  logistica: [{ slug: "compras_logistica", title: "Logística e Entrega" }],
   comissionamento_treinamento: [
     { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
   ],
@@ -62,6 +67,7 @@ export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
     { slug: "homologacao_validacao_de_homologacao", title: "Validação de Homologação" },
   ],
   planejamento_execucao: [
+    { slug: "planejamento_de_execucao_recebimento_de_material", title: "Recebimento de Material" },
     { slug: "planejamento_de_execucao_logistica_de_materiais", title: "Logística de Materiais" },
     { slug: "planejamento_de_execucao_designacao_de_equipe", title: "Designação de Equipe" },
     { slug: "planejamento_de_execucao_agendamento_com_cliente", title: "Agendamento com Cliente" },
@@ -91,6 +97,27 @@ export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
   ],
   pausado: [{ slug: "pausado_gestao_da_pausa", title: "Gestão da Pausa" }],
 };
+
+// Visual grouping of pipeline stages on the kanban board. Stages inside a titled
+// group run in parallel (sub-columns side by side).
+export interface StageGroup {
+  id: string;
+  title: string | null;
+  stages: StageId[];
+}
+
+export const STAGE_GROUPS: StageGroup[] = [
+  { id: "onboarding", title: null, stages: ["onboarding"] },
+  { id: "projeto_homologacao", title: "Projeto Técnico + Homologação", stages: ["projeto_tecnico", "homologacao"] },
+  { id: "compras_logistica", title: "Compras + Logística", stages: ["compras", "logistica"] },
+  { id: "pre_execucao", title: null, stages: ["planejamento_execucao"] },
+  { id: "execucao", title: null, stages: ["execucao"] },
+  { id: "ativacao", title: null, stages: ["ativacao"] },
+  { id: "comissionamento_treinamento", title: null, stages: ["comissionamento_treinamento"] },
+  { id: "concluido", title: null, stages: ["concluido"] },
+  { id: "pendencias", title: null, stages: ["pendencias"] },
+  { id: "pausado", title: null, stages: ["pausado"] },
+];
 
 export const SERVICE_TIPOS = [
   "Instalação",
@@ -184,6 +211,14 @@ export interface ChecklistFieldDef {
 // Field definitions per checklist group slug (mirrors lib/db/src/schema/pipeline.ts).
 // Used to render the structured form when a "form" item is filled in.
 export const CHECKLIST_FIELD_DEFS: Record<string, ChecklistFieldDef[]> = {
+  onboarding_lista_materiais: [
+    { key: "listaMateriais", label: "Lista de materiais", type: "text" },
+    { key: "observacoes", label: "Observações", type: "text" },
+  ],
+  planejamento_de_execucao_recebimento_de_material: [
+    { key: "dataRecebimento", label: "Data de recebimento", type: "date" },
+    { key: "recebidoPor", label: "Recebido por", type: "text" },
+  ],
   projeto_tecnico_elaboracao: [
     { key: "responsavelTecnico", label: "Responsável técnico", type: "text" },
     { key: "dataPrevistaConclusao", label: "Data prevista de conclusão", type: "date" },

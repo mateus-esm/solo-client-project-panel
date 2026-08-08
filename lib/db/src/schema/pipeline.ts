@@ -6,6 +6,7 @@ export const PIPELINE_STAGES = [
   "projeto_tecnico",
   "homologacao",
   "compras",
+  "logistica",
   "planejamento_execucao",
   "execucao",
   "ativacao",
@@ -22,7 +23,8 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   projeto_tecnico: "Projeto Técnico",
   homologacao: "Homologação",
   compras: "Compras",
-  planejamento_execucao: "Planejamento de Execução",
+  logistica: "Logística",
+  planejamento_execucao: "Pré-execução",
   execucao: "Execução",
   ativacao: "Ativação",
   comissionamento_treinamento: "Comissionamento e Treinamento",
@@ -38,6 +40,7 @@ export const STAGE_TO_CLIENT_STEP: Record<PipelineStage, number | null> = {
   projeto_tecnico: 2,
   homologacao: 3,
   compras: 4,
+  logistica: 4,
   planejamento_execucao: 4,
   execucao: 5,
   ativacao: 6,
@@ -56,8 +59,11 @@ export interface ChecklistTemplateGroup {
 // Items inside each group are created per-project by the team (no per-project seeding).
 export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]> = {
   onboarding: [
-    { slug: "onboarding_documentacao_do_cliente", title: "Documentação do Cliente" },
+    { slug: "onboarding_documentacao_do_cliente", title: "Documentação e Informações" },
     { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
+    { slug: "onboarding_financeiro", title: "Atualização Financeira" },
+    { slug: "onboarding_revisao_tecnica", title: "Revisão Técnica" },
+    { slug: "onboarding_lista_materiais", title: "Lista de Materiais" },
   ],
   projeto_tecnico: [
     { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
@@ -67,8 +73,8 @@ export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]>
     { slug: "compras_cotacoes", title: "Cotações" },
     { slug: "compras_compra", title: "Compra" },
     { slug: "compras_nfe", title: "NF-e" },
-    { slug: "compras_logistica", title: "Logística e Entrega" },
   ],
+  logistica: [{ slug: "compras_logistica", title: "Logística e Entrega" }],
   comissionamento_treinamento: [
     { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
   ],
@@ -80,6 +86,7 @@ export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]>
     { slug: "homologacao_validacao_de_homologacao", title: "Validação de Homologação" },
   ],
   planejamento_execucao: [
+    { slug: "planejamento_de_execucao_recebimento_de_material", title: "Recebimento de Material" },
     { slug: "planejamento_de_execucao_logistica_de_materiais", title: "Logística de Materiais" },
     { slug: "planejamento_de_execucao_designacao_de_equipe", title: "Designação de Equipe" },
     { slug: "planejamento_de_execucao_agendamento_com_cliente", title: "Agendamento com Cliente" },
@@ -136,12 +143,31 @@ export interface ChecklistItemTemplate {
 // Default items seeded per checklist group (keyed by group slug).
 export const CHECKLIST_ITEM_TEMPLATE: Record<string, ChecklistItemTemplate[]> = {
   onboarding_documentacao_do_cliente: [
+    { label: "Preencher todas as informações do cliente", kind: "check" },
     { label: "Receber documentos do cliente (RG/CPF, conta de luz)", kind: "check" },
-    { label: "Validar dados cadastrais", kind: "check" },
+    { label: "Enviar formulário para preenchimento de dados", kind: "check" },
+    { label: "Confirmar que está tudo preenchido", kind: "check" },
   ],
   onboarding_boas_vindas: [
-    { label: "Enviar convite do portal ao cliente", kind: "check" },
-    { label: "Mensagem de boas-vindas", kind: "check" },
+    { label: "Criar grupo com o cliente", kind: "check" },
+    { label: "Enviar mensagem de boas-vindas", kind: "check" },
+    { label: "Liberar acesso ao portal do cliente", kind: "check" },
+  ],
+  onboarding_financeiro: [
+    { label: "Atualizar dados financeiros do projeto", kind: "check" },
+  ],
+  onboarding_revisao_tecnica: [
+    { label: "Revisão técnica do projeto", kind: "check" },
+  ],
+  onboarding_lista_materiais: [
+    {
+      label: "Definir lista de materiais necessária",
+      kind: "form",
+      fields: [
+        { key: "listaMateriais", label: "Lista de materiais", type: "text" },
+        { key: "observacoes", label: "Observações", type: "text" },
+      ],
+    },
   ],
   projeto_tecnico_elaboracao: [
     { label: "Elaborar projeto elétrico", kind: "check" },
@@ -227,6 +253,16 @@ export const CHECKLIST_ITEM_TEMPLATE: Record<string, ChecklistItemTemplate[]> = 
         { key: "trackingCarrier", label: "Transportadora", type: "text" },
         { key: "trackingCode", label: "Código de rastreio", type: "text" },
         { key: "prazoEntrega", label: "Prazo de entrega", type: "date" },
+      ],
+    },
+  ],
+  planejamento_de_execucao_recebimento_de_material: [
+    {
+      label: "Confirmar recebimento de material",
+      kind: "form",
+      fields: [
+        { key: "dataRecebimento", label: "Data de recebimento", type: "date" },
+        { key: "recebidoPor", label: "Recebido por", type: "text" },
       ],
     },
   ],
