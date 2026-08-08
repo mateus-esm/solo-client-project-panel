@@ -72,6 +72,7 @@ function formatProject(p: typeof projectsTable.$inferSelect) {
     estimatedDate: p.estimatedDate,
     valorProjeto: p.valorProjeto,
     formaDePagamento: p.formaDePagamento,
+    paymentPlanType: p.paymentPlanType,
     observacoesGerais: p.observacoesGerais,
     dataInicioPrevista: p.dataInicioPrevista,
     dataConclusaoPrevista: p.dataConclusaoPrevista,

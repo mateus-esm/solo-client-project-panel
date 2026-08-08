@@ -148,7 +148,10 @@ export interface InternalProject {
   stage: StageId;
   capex: number | null;
   custoMateriais: number | null;
+  custoServico: number | null;
   receitaBruta: number | null;
+  formaDePagamento: string | null;
+  paymentPlanType: PaymentPlanType | null;
   statusStep: number;
   statusProjeto: string | null;
   trackingCode: string | null;
@@ -243,6 +246,30 @@ export interface Purchase {
   dataRecebimento: string | null;
   recebidoPor: string | null;
   observacoes: string | null;
+  createdAt: string;
+}
+
+// ─── Financeiro do projeto ────────────────────────────────────────────────────
+
+export const PAYMENT_PLAN_TYPES = ["avista", "cartao", "parcelado_solo", "entrada_entrega"] as const;
+export type PaymentPlanType = (typeof PAYMENT_PLAN_TYPES)[number];
+
+export const PAYMENT_PLAN_LABELS: Record<PaymentPlanType, string> = {
+  avista: "À vista",
+  cartao: "Cartão de crédito",
+  parcelado_solo: "Parcelado com a Solo",
+  entrada_entrega: "Entrada + entrega",
+};
+
+export interface ProjectPayment {
+  id: number;
+  projectId: number;
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
+  paidDate: string | null;
+  status: "pending" | "paid" | "overdue";
+  description: string | null;
   createdAt: string;
 }
 

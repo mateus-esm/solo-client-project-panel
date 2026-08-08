@@ -52,7 +52,11 @@ export const projectsTable = pgTable("projects", {
   capex: real("capex"),
   // Custo agregado de materiais avulsos (alimentado pelas compras registradas)
   custoMateriais: real("custo_materiais"),
+  // Custo do serviço de instalação (equipe de execução)
+  custoServico: real("custo_servico"),
   receitaBruta: real("receita_bruta"),
+  // Plano de pagamento do cliente: avista | cartao | parcelado_solo | entrada_entrega
+  paymentPlanType: text("payment_plan_type"),
   trackingCode: text("tracking_code"),
   trackingCarrier: text("tracking_carrier"),
   city: text("city").notNull().default(""),

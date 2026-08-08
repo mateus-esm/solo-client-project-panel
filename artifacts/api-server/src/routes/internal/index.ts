@@ -4,6 +4,7 @@ import servicesRouter from "./services";
 import techniciansRouter from "./technicians";
 import installersRouter from "./installers";
 import procurementRouter from "./procurement";
+import financeRouter from "./finance";
 import { requireAdmin } from "../../lib/adminAuth";
 
 const router: IRouter = Router();
@@ -15,5 +16,6 @@ router.use(servicesRouter);
 router.use(techniciansRouter);
 router.use(installersRouter);
 router.use(procurementRouter);
+router.use(financeRouter);
 
 export default router;

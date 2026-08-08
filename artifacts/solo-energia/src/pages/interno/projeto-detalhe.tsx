@@ -6,6 +6,7 @@ import { InternalLayout } from "@/components/internal-layout";
 import { ProcessoFicha } from "@/components/processo-ficha";
 import { ChecklistGroups } from "@/components/checklist-groups";
 import { ComprasSection } from "@/components/compras-section";
+import { FinanceiroSection } from "@/components/financeiro-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -235,6 +236,8 @@ export default function ProjetoDetalhePage() {
           invalidateKeys={[queryKey]}
         />
       </div>
+
+      <FinanceiroSection project={project} invalidateKey={queryKey} />
 
       <ComprasSection projectId={project.id} invalidateKeys={[queryKey, ["internal-projects"]]} />
 

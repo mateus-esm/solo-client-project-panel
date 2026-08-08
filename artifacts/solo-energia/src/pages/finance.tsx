@@ -102,6 +102,12 @@ export default function Finance() {
         {/* Page Header */}
         <motion.div variants={itemUp}>
           <h1 className="text-3xl md:text-4xl font-display">Financeiro</h1>
+          {project?.formaDePagamento && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Forma de pagamento:{" "}
+              <span className="text-foreground font-medium">{project.formaDePagamento}</span>
+            </p>
+          )}
         </motion.div>
 
         {/* Summary Cards */}
