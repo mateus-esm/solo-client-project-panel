@@ -256,10 +256,82 @@ router.put("/services/:id/members", async (req, res) => {
           .insert(serviceTeamMembersTable)
           .values(parsed.data.memberIds.map((memberId) => ({ serviceId: id, memberId })));
       }
+      // Admin-set line-ups are approved by definition; clearing all members
+      // resets any pending escalation.
+      await tx
+        .update(servicesTable)
+        .set(
+          parsed.data.memberIds.length
+            ? {
+                escalacaoStatus: "aprovada",
+                escalacaoDecididaPor: "admin",
+                escalacaoDecididaEm: new Date(),
+                updatedAt: new Date(),
+              }
+            : {
+                escalacaoStatus: null,
+                escalacaoEnviadaPor: null,
+                escalacaoEnviadaEm: null,
+                escalacaoDecididaPor: null,
+                escalacaoDecididaEm: null,
+                updatedAt: new Date(),
+              }
+        )
+        .where(eq(servicesTable.id, id));
     });
     res.json({ members: await loadServiceMembers(id) });
   } catch (err) {
     req.log.error({ err }, "Failed to set service members");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─── Escalação proposta pelo instalador: aprovar / recusar ────────────────────
+
+const escalacaoDecisionSchema = z.object({
+  decision: z.enum(["aprovada", "recusada"]),
+});
+
+router.post("/services/:id/escalacao/decision", async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) {
+      res.status(400).json({ message: "ID inválido" });
+      return;
+    }
+    const parsed = escalacaoDecisionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    const [service] = await db.select().from(servicesTable).where(eq(servicesTable.id, id));
+    if (!service) {
+      res.status(404).json({ message: "Serviço não encontrado" });
+      return;
+    }
+    if (service.escalacaoStatus !== "pendente") {
+      res.status(409).json({ message: "Não há escalação pendente para este serviço" });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      // Rejecting removes the proposed line-up so the installer can resubmit.
+      if (parsed.data.decision === "recusada") {
+        await tx.delete(serviceTeamMembersTable).where(eq(serviceTeamMembersTable.serviceId, id));
+      }
+      await tx
+        .update(servicesTable)
+        .set({
+          escalacaoStatus: parsed.data.decision,
+          escalacaoDecididaPor: "admin",
+          escalacaoDecididaEm: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(servicesTable.id, id));
+    });
+    const [updated] = await db.select().from(servicesTable).where(eq(servicesTable.id, id));
+    res.json({ ...updated, members: await loadServiceMembers(id) });
+  } catch (err) {
+    req.log.error({ err }, "Failed to decide escalação");
     res.status(500).json({ message: "Internal server error" });
   }
 });

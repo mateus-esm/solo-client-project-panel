@@ -265,9 +265,64 @@ function MembersPicker({ service, teamName }: { service: ServiceItem; teamName: 
     save.mutate(next);
   };
 
+  const decide = useMutation({
+    mutationFn: (decision: "aprovada" | "recusada") =>
+      api.post(`/internal/services/${service.id}/escalacao/decision`, { decision }),
+    onSuccess: (_data, decision) => {
+      toast({
+        title: decision === "aprovada" ? "Escalação aprovada" : "Escalação recusada",
+      });
+      queryClient.invalidateQueries({ queryKey: ["internal-services"] });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
   return (
     <div className="bg-background/50 rounded-xl p-4">
       <Label className="text-xs">Membros no serviço</Label>
+      {service.escalacaoStatus === "pendente" && (
+        <div className="mt-2 mb-1 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+          <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+            Escalação proposta pelo instalador
+            {service.escalacaoEnviadaPor ? ` (${service.escalacaoEnviadaPor})` : ""}
+            {" — "}os membros selecionados abaixo aguardam sua aprovação.
+          </p>
+          <div className="flex gap-2 mt-2">
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              disabled={decide.isPending}
+              onClick={() => decide.mutate("aprovada")}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Aceitar
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 text-xs"
+              disabled={decide.isPending}
+              onClick={() => decide.mutate("recusada")}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1" /> Recusar
+            </Button>
+          </div>
+        </div>
+      )}
+      {service.escalacaoStatus === "aprovada" && (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+          Escalação aprovada
+          {service.escalacaoDecididaEm
+            ? ` em ${new Date(service.escalacaoDecididaEm).toLocaleDateString("pt-BR")}`
+            : ""}
+          .
+        </p>
+      )}
+      {service.escalacaoStatus === "recusada" && (
+        <p className="text-xs text-destructive mt-2">
+          Escalação recusada — o instalador pode enviar uma nova proposta.
+        </p>
+      )}
       {!account ? (
         <p className="text-xs text-muted-foreground mt-2">
           Selecione uma equipe cadastrada em "Equipe de execução" para escolher os membros.

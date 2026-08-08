@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
 import { useInstallerAuth } from '@/hooks/use-installer-auth';
 import { useInstallerLogout } from '@/hooks/use-installer-logout';
-import { Link } from 'wouter';
-import { LogOut, Wrench, Menu, X, ChevronRight } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
+import { LogOut, Wrench, Menu, X, ChevronRight, Wallet, Users } from 'lucide-react';
 import logoUrl from '@assets/001_1775433962945.png';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -21,9 +21,16 @@ interface InstallerLayoutProps {
   showBack?: boolean;
 }
 
+const NAV_ITEMS = [
+  { href: '/services', label: 'Serviços', icon: Wrench },
+  { href: '/financeiro', label: 'Financeiro', icon: Wallet },
+  { href: '/team', label: 'Minha Equipe', icon: Users },
+] as const;
+
 export function InstallerLayout({ children, title = 'Painel', showBack }: InstallerLayoutProps) {
   const { installer, isLoading } = useInstallerAuth();
   const logout = useInstallerLogout();
+  const [location] = useLocation();
   
   if (isLoading || !installer) {
     return <div className="min-h-screen bg-muted/30" />;
@@ -52,13 +59,24 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
         </div>
 
         <nav className="flex flex-col gap-2">
-          <Link 
-            href="/services" 
-            className="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors"
-          >
-            <Wrench className="w-5 h-5" />
-            Serviços
-          </Link>
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const active = location === href || location.startsWith(`${href}/`);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={
+                  'flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ' +
+                  (active
+                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                    : 'text-sidebar-foreground/70 hover:bg-white/5 hover:text-sidebar-foreground')
+                }
+              >
+                <Icon className="w-5 h-5" />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
 

@@ -9,6 +9,16 @@ export interface ServiceFile {
   createdAt: string;
 }
 
+export interface TeamMember {
+  id: number;
+  accountId: number;
+  name: string;
+  documento: string | null;
+  photoUrl: string | null;
+  docUrl: string | null;
+  createdAt: string;
+}
+
 export interface Service {
   id: number;
   projectId: number | null;
@@ -31,9 +41,15 @@ export interface Service {
   contratoStatus: string;
   contratoAceitoEm: string | null;
   contratoAceitoPor: string | null;
+  escalacaoStatus: 'pendente' | 'aprovada' | 'recusada' | null;
+  escalacaoEnviadaPor: string | null;
+  escalacaoEnviadaEm: string | null;
+  escalacaoDecididaPor: string | null;
+  escalacaoDecididaEm: string | null;
   createdAt: string;
   updatedAt: string;
   files: ServiceFile[];
+  members?: TeamMember[];
 }
 
 export function useInstallerServices() {

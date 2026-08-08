@@ -8,6 +8,8 @@ import NotFound from '@/pages/not-found';
 import Login from '@/pages/login';
 import ServicesDashboard from '@/pages/services';
 import ServiceDetail from '@/pages/service-detail';
+import FinanceiroPage from '@/pages/financeiro';
+import TeamPage from '@/pages/team';
 import { useInstallerAuth } from '@/hooks/use-installer-auth';
 import { Loader2 } from 'lucide-react';
 import {
@@ -74,6 +76,12 @@ function Router() {
         </Route>
         <Route path="/services/:id">
           {() => <ProtectedRoute component={ServiceDetail} />}
+        </Route>
+        <Route path="/financeiro">
+          {() => <ProtectedRoute component={FinanceiroPage} />}
+        </Route>
+        <Route path="/team">
+          {() => <ProtectedRoute component={TeamPage} />}
         </Route>
         <Route component={NotFound} />
       </Switch>

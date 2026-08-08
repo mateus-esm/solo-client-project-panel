@@ -1,12 +1,13 @@
-import { useParams } from 'wouter';
-import { useInstallerService, useUpdateServiceStatus, useUploadServicePhoto, useAcceptContract } from '@/hooks/use-installer-services';
+import { useParams, Link } from 'wouter';
+import { useInstallerService, useUpdateServiceStatus, useUploadServicePhoto, useAcceptContract, type Service } from '@/hooks/use-installer-services';
+import { useTeamMembers, useProposeServiceMembers } from '@/hooks/use-installer-team';
 import { InstallerLayout } from '@/components/installer-layout';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   MapPin, Wrench, CalendarClock, User, CheckCircle2, 
-  Activity, Clock, Camera, FileText, Send, Loader2, ArrowRight
+  Activity, Clock, Camera, FileText, Send, Loader2, ArrowRight, Users, XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,6 +27,126 @@ import {
   DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
+
+// Escalação: pick which team members go to this service and submit for admin approval.
+function ServiceTeamCard({ service }: { service: Service }) {
+  const { data: members, isLoading } = useTeamMembers();
+  const propose = useProposeServiceMembers();
+  const { toast } = useToast();
+  const assigned = (service.members ?? []).map((m) => m.id);
+  const [selected, setSelected] = useState<number[]>(assigned);
+  const initRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (initRef.current !== service.id) {
+      initRef.current = service.id;
+      setSelected((service.members ?? []).map((m) => m.id));
+    }
+  }, [service]);
+
+  const toggle = (id: number) =>
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const status = service.escalacaoStatus;
+  const statusBadge =
+    status === 'pendente' ? (
+      <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/30 border shadow-none">
+        <Clock className="w-3 h-3 mr-1" /> Aguardando aprovação
+      </Badge>
+    ) : status === 'aprovada' ? (
+      <Badge className="bg-energy-green/10 text-energy-green border-energy-green/30 border shadow-none">
+        <CheckCircle2 className="w-3 h-3 mr-1" /> Aprovada
+      </Badge>
+    ) : status === 'recusada' ? (
+      <Badge className="bg-destructive/10 text-destructive border-destructive/30 border shadow-none">
+        <XCircle className="w-3 h-3 mr-1" /> Recusada
+      </Badge>
+    ) : null;
+
+  const dirty =
+    selected.length !== assigned.length || selected.some((id) => !assigned.includes(id));
+
+  return (
+    <Card className="border-border/60 shadow-sm">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Users className="w-5 h-5 text-primary" />
+            Equipe do Serviço
+          </CardTitle>
+          {statusBadge}
+        </div>
+        <CardDescription>
+          Selecione os membros que vão ao serviço e envie para aprovação da Solo Energia.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {status === 'recusada' && (
+          <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-3">
+            A escalação anterior foi recusada. Monte uma nova equipe e envie novamente.
+          </p>
+        )}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-20">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        ) : !members || members.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Você ainda não cadastrou membros.{' '}
+            <Link href="/team" className="text-primary hover:underline">
+              Cadastrar na Minha Equipe
+            </Link>
+            .
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {members.map((m) => {
+              const active = selected.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => toggle(m.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                    active
+                      ? 'bg-primary/15 text-primary border-primary/30'
+                      : 'text-muted-foreground border-border/60 hover:bg-muted/50'
+                  )}
+                >
+                  {m.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {members && members.length > 0 && (
+          <Button
+            disabled={selected.length === 0 || propose.isPending || (!dirty && status === 'pendente')}
+            onClick={() =>
+              propose.mutate(
+                { serviceId: service.id, memberIds: selected },
+                {
+                  onSuccess: () =>
+                    toast({ title: 'Escalação enviada', description: 'Aguardando aprovação da Solo Energia.' }),
+                  onError: (err: Error) =>
+                    toast({ title: 'Erro ao enviar escalação', description: err.message, variant: 'destructive' }),
+                }
+              )
+            }
+          >
+            {propose.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4 mr-2" />
+            )}
+            Enviar para aprovação
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ServiceDetail() {
   const params = useParams();
@@ -279,6 +400,9 @@ export default function ServiceDetail() {
               </CardContent>
             </Card>
           )}
+
+          {/* Team escalation */}
+          <ServiceTeamCard service={service} />
 
           {/* Notes Section */}
           <Card className="border-border/60 shadow-sm">

@@ -279,6 +279,11 @@ export interface ServiceItem {
   contratoStatus: string;
   contratoAceitoEm: string | null;
   contratoAceitoPor: string | null;
+  escalacaoStatus: 'pendente' | 'aprovada' | 'recusada' | null;
+  escalacaoEnviadaPor: string | null;
+  escalacaoEnviadaEm: string | null;
+  escalacaoDecididaPor: string | null;
+  escalacaoDecididaEm: string | null;
   createdAt: string;
   updatedAt: string;
   files: ServiceFileItem[];

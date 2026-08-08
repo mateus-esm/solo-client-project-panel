@@ -32,6 +32,12 @@ export const servicesTable = pgTable("services", {
   contratoStatus: text("contrato_status").notNull().default("pendente"), // pendente | enviado | aceito
   contratoAceitoEm: timestamp("contrato_aceito_em"),
   contratoAceitoPor: text("contrato_aceito_por"),
+  // Escalação de equipe proposta pelo instalador (aprovação do admin)
+  escalacaoStatus: text("escalacao_status"), // null | pendente | aprovada | recusada
+  escalacaoEnviadaPor: text("escalacao_enviada_por"),
+  escalacaoEnviadaEm: timestamp("escalacao_enviada_em"),
+  escalacaoDecididaPor: text("escalacao_decidida_por"),
+  escalacaoDecididaEm: timestamp("escalacao_decidida_em"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
