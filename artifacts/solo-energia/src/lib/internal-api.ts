@@ -273,6 +273,31 @@ export interface ProjectPayment {
   createdAt: string;
 }
 
+export interface FinanceSummaryInstallment {
+  id: number;
+  projectId: number;
+  clientName: string;
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
+  description: string | null;
+  status: "pending" | "paid" | "overdue";
+  overdue: boolean;
+}
+
+export interface FinanceSummary {
+  totals: {
+    receitaBruta: number;
+    custos: number;
+    receitaLiquida: number;
+    recebido: number;
+    aReceber: number;
+    atrasado: number;
+  };
+  projectCount: number;
+  openInstallments: FinanceSummaryInstallment[];
+}
+
 export interface Technician {
   id: number;
   name: string;

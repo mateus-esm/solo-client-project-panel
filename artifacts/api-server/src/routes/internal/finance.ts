@@ -97,6 +97,96 @@ function buildInstallments(plan: z.infer<typeof planSchema>) {
   return rows;
 }
 
+// ─── Painel financeiro geral ──────────────────────────────────────────────────
+// Visão consolidada de todos os projetos: receita bruta, custos, receita
+// líquida e parcelas (recebidas, a vencer e atrasadas). Somente admin
+// (requireAdmin é aplicado no router /internal).
+router.get("/finance/summary", async (req, res) => {
+  try {
+    const projects = await db
+      .select({
+        id: projectsTable.id,
+        clientName: projectsTable.clientName,
+        capex: projectsTable.capex,
+        custoMateriais: projectsTable.custoMateriais,
+        custoServico: projectsTable.custoServico,
+        homologacaoValor: projectsTable.homologacaoValor,
+        receitaBruta: projectsTable.receitaBruta,
+      })
+      .from(projectsTable);
+
+    const payments = await db
+      .select()
+      .from(paymentsTable)
+      .orderBy(asc(paymentsTable.dueDate), asc(paymentsTable.id));
+
+    const today = new Date().toISOString().slice(0, 10);
+    const projectById = new Map(projects.map((p) => [p.id, p]));
+
+    let receitaBruta = 0;
+    let custos = 0;
+    for (const p of projects) {
+      receitaBruta += p.receitaBruta ?? 0;
+      custos +=
+        (p.capex ?? 0) + (p.custoMateriais ?? 0) + (p.custoServico ?? 0) + (p.homologacaoValor ?? 0);
+    }
+
+    let recebido = 0;
+    let aReceber = 0;
+    let atrasado = 0;
+    const openInstallments: Array<{
+      id: number;
+      projectId: number;
+      clientName: string;
+      installmentNumber: number;
+      amount: number;
+      dueDate: string;
+      description: string | null;
+      status: "pending" | "paid" | "overdue";
+      overdue: boolean;
+    }> = [];
+
+    for (const pay of payments) {
+      if (pay.status === "paid") {
+        recebido += pay.amount;
+        continue;
+      }
+      // Considera atrasada tanto o status explícito quanto pendente já vencida
+      const isOverdue = pay.status === "overdue" || (pay.dueDate != null && pay.dueDate < today);
+      if (isOverdue) atrasado += pay.amount;
+      else aReceber += pay.amount;
+      openInstallments.push({
+        id: pay.id,
+        projectId: pay.projectId,
+        clientName: projectById.get(pay.projectId)?.clientName ?? `Projeto #${pay.projectId}`,
+        installmentNumber: pay.installmentNumber,
+        amount: pay.amount,
+        dueDate: pay.dueDate,
+        description: pay.description,
+        status: pay.status as "pending" | "paid" | "overdue",
+        overdue: isOverdue,
+      });
+    }
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+    res.json({
+      totals: {
+        receitaBruta: round(receitaBruta),
+        custos: round(custos),
+        receitaLiquida: round(receitaBruta - custos),
+        recebido: round(recebido),
+        aReceber: round(aReceber),
+        atrasado: round(atrasado),
+      },
+      projectCount: projects.length,
+      openInstallments,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to build finance summary");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 router.get("/projects/:id/payments", async (req, res) => {
   try {
     const projectId = parseInt(String(req.params.id), 10);

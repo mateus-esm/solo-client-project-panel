@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { KanbanSquare, Wrench, FileCheck2, LogOut, LayoutDashboard, Users, Truck } from "lucide-react";
+import { KanbanSquare, Wrench, FileCheck2, LogOut, LayoutDashboard, Users, Truck, Wallet } from "lucide-react";
 import { useAdminLogout } from "@/hooks/use-admin-auth";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,7 @@ const NAV = [
   { href: "/interno/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/interno/servicos", label: "Serviços", icon: Wrench },
   { href: "/interno/homologacao", label: "Homologação", icon: FileCheck2 },
+  { href: "/interno/financeiro", label: "Financeiro", icon: Wallet },
   { href: "/interno/fornecedores", label: "Fornecedores", icon: Truck },
   { href: "/interno/equipes", label: "Equipes", icon: Users },
   { href: "/admin", label: "Painel Admin", icon: LayoutDashboard },
