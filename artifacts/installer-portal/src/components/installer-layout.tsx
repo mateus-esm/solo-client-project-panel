@@ -2,7 +2,8 @@ import { ReactNode } from 'react';
 import { useInstallerAuth } from '@/hooks/use-installer-auth';
 import { useInstallerLogout } from '@/hooks/use-installer-logout';
 import { Link } from 'wouter';
-import { LogOut, Wrench, Menu, X, ChevronRight, HardHat } from 'lucide-react';
+import { LogOut, Wrench, Menu, X, ChevronRight } from 'lucide-react';
+import logoUrl from '@assets/001_1775433962945.png';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -31,18 +32,16 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
   const initials = installer.name.substring(0, 2).toUpperCase();
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-secondary text-secondary-foreground">
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-white/5">
       <div className="p-6">
-        <div className="flex items-center gap-3 font-display font-bold text-2xl mb-8">
-          <div className="bg-primary text-primary-foreground p-2 rounded-md">
-            <HardHat className="w-6 h-6" />
-          </div>
-          Solo Execução
+        <div className="flex flex-col gap-1 mb-8">
+          <img src={logoUrl} alt="Solo Energia" className="h-9 w-auto object-contain self-start" />
+          <span className="text-xs uppercase tracking-widest text-primary font-semibold">Equipe de Execução</span>
         </div>
 
-        <div className="flex items-center gap-4 bg-secondary-foreground/10 p-4 rounded-xl mb-8">
+        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl mb-8">
           <Avatar className="w-12 h-12 border-2 border-primary">
-            <AvatarFallback className="bg-secondary text-secondary-foreground">
+            <AvatarFallback className="brand-gradient-135 text-white font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -66,7 +65,7 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
       <div className="mt-auto p-6">
         <Button 
           variant="outline" 
-          className="w-full justify-start text-secondary-foreground border-secondary-foreground/20 hover:bg-secondary-foreground/10 hover:text-white"
+          className="w-full justify-start text-sidebar-foreground border-white/10 hover:bg-white/5 hover:text-white"
           onClick={() => logout.mutate()}
           disabled={logout.isPending}
         >
@@ -78,7 +77,7 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
   );
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row bg-muted/30">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex w-72 flex-col fixed inset-y-0 z-50">
         <SidebarContent />
@@ -87,7 +86,7 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
       {/* Main Content Area */}
       <div className="flex-1 md:pl-72 flex flex-col min-h-[100dvh]">
         {/* Mobile Header */}
-        <header className="sticky top-0 z-40 bg-white border-b px-4 h-16 flex items-center justify-between md:hidden shadow-sm">
+        <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b border-white/5 px-4 h-16 flex items-center justify-between md:hidden">
           <div className="flex items-center gap-3">
             <Sheet>
               <SheetTrigger asChild>
@@ -95,7 +94,7 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
                   <Menu className="w-6 h-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-80 bg-secondary border-none">
+              <SheetContent side="left" className="p-0 w-80 bg-sidebar border-none">
                 <SheetHeader className="sr-only">
                   <SheetTitle>Menu de Navegação</SheetTitle>
                 </SheetHeader>
@@ -109,10 +108,7 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
                 <span className="font-medium text-sm">Voltar</span>
               </Link>
             ) : (
-              <div className="font-display font-bold text-xl flex items-center gap-2">
-                <HardHat className="w-5 h-5 text-primary" />
-                Solo
-              </div>
+              <img src={logoUrl} alt="Solo Energia" className="h-7 w-auto object-contain" />
             )}
           </div>
           <Avatar className="w-8 h-8 ring-2 ring-primary/20">
@@ -123,7 +119,7 @@ export function InstallerLayout({ children, title = 'Painel', showBack }: Instal
         </header>
 
         {/* Desktop Header */}
-        <header className="hidden md:flex sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b px-8 h-20 items-center justify-between">
+        <header className="hidden md:flex sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-white/5 px-8 h-20 items-center justify-between">
           <div className="flex items-center gap-4">
             {showBack && (
               <Link href="/services" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2 rounded-lg hover:bg-muted">

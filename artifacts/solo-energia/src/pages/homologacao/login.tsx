@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ClipboardCheck, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import logoUrl from "@assets/001_1775433962945.png";
 import { useQueryClient } from "@tanstack/react-query";
 import { HOMOLOGACAO_AUTH_KEY } from "@/hooks/use-homologacao-auth";
 
@@ -42,14 +43,9 @@ export default function HomologacaoLoginPage() {
       <div className="w-full max-w-sm">
         <div className="bg-card border border-white/5 rounded-3xl p-8">
           {/* Logo */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-              <ClipboardCheck className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Solo Energia</p>
-              <p className="text-xs text-muted-foreground">Equipe de Homologação</p>
-            </div>
+          <div className="mb-8">
+            <img src={logoUrl} alt="Solo Energia" className="h-8 w-auto object-contain mb-2" />
+            <p className="text-xs uppercase tracking-widest text-primary font-semibold">Equipe de Homologação</p>
           </div>
 
           <h1 className="text-xl font-display text-foreground mb-1">Acesso</h1>

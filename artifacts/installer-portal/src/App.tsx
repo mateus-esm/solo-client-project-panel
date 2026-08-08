@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect } from 'react';
+import customFontUrl from '@assets/NeueMontreal-Bold_1774472757874.otf';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -18,6 +19,19 @@ import {
 } from 'wouter';
 
 const queryClient = new QueryClient();
+
+// Brand display font (same as the Solo Energia client portal)
+const FontInjector = () => (
+  <style dangerouslySetInnerHTML={{__html: `
+    @font-face {
+      font-family: 'Neue Montreal Bold';
+      src: url('${customFontUrl}') format('opentype');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+  `}} />
+);
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
   const { isAuthenticated, isLoading } = useInstallerAuth();
@@ -75,6 +89,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <FontInjector />
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <Router />

@@ -32,7 +32,7 @@ export default function ServicesDashboard() {
   if (!services || services.length === 0) {
     return (
       <InstallerLayout title="Meus Serviços">
-        <div className="flex flex-col items-center justify-center text-center p-12 bg-white rounded-xl border border-border/50 shadow-sm min-h-[400px]">
+        <div className="flex flex-col items-center justify-center text-center p-12 bg-card rounded-2xl border border-white/5 min-h-[400px]">
           <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mb-6">
             <CheckCircle2 className="w-10 h-10 text-muted-foreground/50" />
           </div>
@@ -49,10 +49,10 @@ export default function ServicesDashboard() {
 
   const getStatusConfig = (status: string) => {
     switch(status) {
-      case 'Agendado': return { color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CalendarClock, label: 'Agendado' };
-      case 'Em Execução': return { color: 'bg-primary/20 text-primary-foreground border-primary/30', icon: Activity, label: 'Em Execução', pulse: true };
-      case 'Concluído': return { color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle2, label: 'Concluído' };
-      default: return { color: 'bg-gray-100 text-gray-800 border-gray-200', icon: Clock, label: status };
+      case 'Agendado': return { color: 'bg-chart-3/10 text-chart-3 border-chart-3/30', icon: CalendarClock, label: 'Agendado' };
+      case 'Em Execução': return { color: 'bg-primary/15 text-primary border-primary/30', icon: Activity, label: 'Em Execução', pulse: true };
+      case 'Concluído': return { color: 'bg-energy-green/10 text-energy-green border-energy-green/30', icon: CheckCircle2, label: 'Concluído' };
+      default: return { color: 'bg-muted text-muted-foreground border-white/10', icon: Clock, label: status };
     }
   };
 
@@ -82,7 +82,7 @@ export default function ServicesDashboard() {
               <Card className="h-full flex flex-col hover:border-primary/50 hover:shadow-md transition-all duration-200 group cursor-pointer overflow-hidden border-border/60">
                 <CardHeader className="bg-muted/30 pb-4 border-b">
                   <div className="flex justify-between items-start mb-2">
-                    <Badge variant="outline" className="font-mono text-xs bg-white text-muted-foreground">
+                    <Badge variant="outline" className="font-mono text-xs bg-card text-muted-foreground">
                       #{service.id}
                     </Badge>
                     <Badge className={cn("font-medium border shadow-none flex items-center gap-1.5", statusConfig.color)}>

@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { HardHat, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import logoUrl from '@assets/001_1775433962945.png';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -77,20 +78,17 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex bg-muted/30">
+    <div className="min-h-screen flex bg-background">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-secondary text-secondary-foreground flex-col justify-between p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-sidebar text-sidebar-foreground flex-col justify-between p-12 relative overflow-hidden border-r border-white/5">
         {/* Decorative background element */}
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
           <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-primary rounded-full blur-3xl" />
         </div>
 
-        <div className="relative z-10 flex items-center gap-3 font-display font-bold text-3xl">
-          <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-            <HardHat className="w-8 h-8" />
-          </div>
-          Solo Energia
+        <div className="relative z-10">
+          <img src={logoUrl} alt="Solo Energia" className="h-12 w-auto object-contain" />
         </div>
 
         <div className="relative z-10 max-w-lg">
@@ -98,7 +96,7 @@ export default function Login() {
             Portal da <br/>
             <span className="text-primary">Equipe de Execução</span>
           </h1>
-          <p className="text-xl text-secondary-foreground/80 mb-8 leading-relaxed">
+          <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
             Acompanhe seus serviços, atualize status das obras e envie relatórios fotográficos diretamente do campo.
           </p>
           
@@ -116,20 +114,17 @@ export default function Login() {
           </ul>
         </div>
 
-        <div className="relative z-10 text-sm text-secondary-foreground/60 font-medium">
+        <div className="relative z-10 text-sm text-muted-foreground font-medium">
           &copy; {new Date().getFullYear()} Solo Energia. Ferramenta exclusiva para equipes parceiras.
         </div>
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12 relative bg-white">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12 relative bg-background">
         
         {/* Mobile Header */}
-        <div className="absolute top-6 left-6 lg:hidden flex items-center gap-2 font-display font-bold text-2xl">
-          <div className="bg-primary text-primary-foreground p-1.5 rounded-md">
-            <HardHat className="w-6 h-6" />
-          </div>
-          Solo Energia
+        <div className="absolute top-6 left-6 lg:hidden">
+          <img src={logoUrl} alt="Solo Energia" className="h-9 w-auto object-contain" />
         </div>
 
         <div className="w-full max-w-md space-y-8">
@@ -151,7 +146,7 @@ export default function Login() {
                     <FormControl>
                       <Input 
                         placeholder="seu@email.com" 
-                        className="h-12 text-base bg-muted/50 focus:bg-white transition-colors"
+                        className="h-12 text-base bg-muted/50 focus:bg-muted transition-colors"
                         data-testid="input-email"
                         {...field} 
                       />
@@ -171,7 +166,7 @@ export default function Login() {
                       <Input 
                         type="password" 
                         placeholder="••••••••" 
-                        className="h-12 text-base bg-muted/50 focus:bg-white transition-colors"
+                        className="h-12 text-base bg-muted/50 focus:bg-muted transition-colors"
                         data-testid="input-password"
                         {...field} 
                       />

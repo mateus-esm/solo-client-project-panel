@@ -61,10 +61,10 @@ export default function ServiceDetail() {
 
   const getStatusConfig = (status: string) => {
     switch(status) {
-      case 'Agendado': return { color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CalendarClock, label: 'Agendado', next: 'Em Execução', nextLabel: 'Iniciar Serviço' };
-      case 'Em Execução': return { color: 'bg-primary/20 text-primary-foreground border-primary/30', icon: Activity, label: 'Em Execução', next: 'Concluído', nextLabel: 'Finalizar Serviço' };
-      case 'Concluído': return { color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle2, label: 'Concluído', next: null, nextLabel: null };
-      default: return { color: 'bg-gray-100 text-gray-800 border-gray-200', icon: Clock, label: status, next: null, nextLabel: null };
+      case 'Agendado': return { color: 'bg-chart-3/10 text-chart-3 border-chart-3/30', icon: CalendarClock, label: 'Agendado', next: 'Em Execução', nextLabel: 'Iniciar Serviço' };
+      case 'Em Execução': return { color: 'bg-primary/15 text-primary border-primary/30', icon: Activity, label: 'Em Execução', next: 'Concluído', nextLabel: 'Finalizar Serviço' };
+      case 'Concluído': return { color: 'bg-energy-green/10 text-energy-green border-energy-green/30', icon: CheckCircle2, label: 'Concluído', next: null, nextLabel: null };
+      default: return { color: 'bg-muted text-muted-foreground border-white/10', icon: Clock, label: status, next: null, nextLabel: null };
     }
   };
 
