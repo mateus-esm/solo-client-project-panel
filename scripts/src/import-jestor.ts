@@ -206,16 +206,29 @@ function mapRow(raw: RawRow, emailsSeen: Set<string>): MappedProject {
   const step = clientStepFor(stage, subStage);
   const formaPagamento = clean(raw["Forma de Pagamento"]);
 
-  // Observações + a etapa original, para não perder a posição do Jestor quando a
-  // macro-etapa é pendencias/pausado (que não têm sub-etapa).
+  // O schema ainda não tem colunas para Tipo e Responsável Técnico. Em vez de perder
+  // esses dados (91% dos ativos têm ambos), preserva num bloco em notes — quando as
+  // colunas existirem, dá para extrair daqui. Mesma ideia para a Etapa quando a
+  // macro-etapa é pendencias/pausado, que não têm sub-etapa.
+  const jestorInfo = [
+    clean(raw["Tipo"]) && `Tipo: ${clean(raw["Tipo"])}`,
+    clean(raw["Responsável Técnico"]) && `Responsável: ${clean(raw["Responsável Técnico"])}`,
+    etapa && !subStage && `Etapa: ${etapa}`,
+  ].filter(Boolean);
   const notesParts = [clean(raw["Observações"])];
-  if (etapa && !subStage) notesParts.push(`[Jestor] Etapa: ${etapa}`);
+  if (jestorInfo.length) notesParts.push(`[Jestor] ${jestorInfo.join(" | ")}`);
   const notes = notesParts.filter(Boolean).join("\n") || null;
+
+  // A coluna "Potência (kWp)" está vazia, mas a potência está escrita dentro do nome
+  // da usina ("José Brasil - 7.4 kWp"). Recupera daí — 96 das 97 usinas seguem o padrão.
+  const usina = clean(raw["Usina"]);
+  const kwpMatch = usina?.match(/([\d]+[.,]?\d*)\s*kwp/i);
+  const potencia = kwpMatch ? Number(kwpMatch[1].replace(",", ".")) : null;
 
   const project: Record<string, unknown> = {
     clientName: name,
     clientEmail: email,
-    systemPower: num(raw["Potência (kWp)"]) ?? 0,
+    systemPower: num(raw["Potência (kWp)"]) ?? potencia ?? 0,
     stage,
     subStage,
     statusProjeto: status,
