@@ -81,8 +81,7 @@ export default function HomologacaoKanbanPage() {
                       key={p.id}
                       className="bg-card border border-white/5 rounded-xl p-3 group"
                     >
-                      <Link href={`/homologacao/projetos/${p.id}`}>
-                        <a className="block">
+                      <Link href={`/homologacao/projetos/${p.id}`} className="block">
                           <p className="text-sm text-foreground font-medium truncate hover:text-primary transition-colors">
                             {p.clientName}
                           </p>
@@ -94,8 +93,7 @@ export default function HomologacaoKanbanPage() {
                               {p.city}/{p.state}
                             </span>
                           </p>
-                        </a>
-                      </Link>
+                                              </Link>
                       <div className="flex items-center justify-between mt-2">
                         <span
                           className={`text-[10px] px-1.5 py-0.5 rounded-full ${

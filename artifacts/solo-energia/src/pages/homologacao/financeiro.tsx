@@ -74,8 +74,7 @@ export default function HomologacaoFinanceiroPage() {
             ) : (
               <div className="space-y-2">
                 {data.projects.map((p) => (
-                  <Link key={p.id} href={`/homologacao/projetos/${p.id}`}>
-                    <a className="flex items-center justify-between gap-3 bg-background/50 rounded-xl px-4 py-3 hover:bg-background/80 transition-colors">
+                  <Link key={p.id} href={`/homologacao/projetos/${p.id}`} className="flex items-center justify-between gap-3 bg-background/50 rounded-xl px-4 py-3 hover:bg-background/80 transition-colors">
                       <div className="min-w-0">
                         <p className="text-sm text-foreground truncate">{p.clientName}</p>
                         <p className="text-xs text-muted-foreground">
@@ -101,8 +100,7 @@ export default function HomologacaoFinanceiroPage() {
                           )}
                         </p>
                       </div>
-                    </a>
-                  </Link>
+                                      </Link>
                 ))}
               </div>
             )}

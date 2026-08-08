@@ -112,8 +112,7 @@ export default function HomologacaoDashboardPage() {
                   {data.upcomingDeadlines.map((d, i) => {
                     const overdue = new Date(`${d.date}T23:59:59`) < new Date();
                     return (
-                      <Link key={i} href={`/homologacao/projetos/${d.projectId}`}>
-                        <a className="flex items-center justify-between gap-3 bg-background/50 rounded-xl px-4 py-3 hover:bg-background/80 transition-colors">
+                      <Link key={i} href={`/homologacao/projetos/${d.projectId}`} className="flex items-center justify-between gap-3 bg-background/50 rounded-xl px-4 py-3 hover:bg-background/80 transition-colors">
                           <div className="min-w-0">
                             <p className="text-sm text-foreground truncate">{d.clientName}</p>
                             <p className="text-xs text-muted-foreground">
@@ -128,8 +127,7 @@ export default function HomologacaoDashboardPage() {
                             {overdue ? "Vencido · " : ""}
                             {formatDate(d.date)}
                           </span>
-                        </a>
-                      </Link>
+                                              </Link>
                     );
                   })}
                 </div>
@@ -145,8 +143,7 @@ export default function HomologacaoDashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {data.recentProjects.map((p) => (
-                    <Link key={p.id} href={`/homologacao/projetos/${p.id}`}>
-                      <a className="flex items-center justify-between gap-3 bg-background/50 rounded-xl px-4 py-3 hover:bg-background/80 transition-colors group">
+                    <Link key={p.id} href={`/homologacao/projetos/${p.id}`} className="flex items-center justify-between gap-3 bg-background/50 rounded-xl px-4 py-3 hover:bg-background/80 transition-colors group">
                         <div className="min-w-0">
                           <p className="text-sm text-foreground truncate">{p.clientName}</p>
                           <p className="text-xs text-muted-foreground flex items-center gap-2">
@@ -164,8 +161,7 @@ export default function HomologacaoDashboardPage() {
                           </span>
                           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
                         </div>
-                      </a>
-                    </Link>
+                                          </Link>
                   ))}
                 </div>
               )}

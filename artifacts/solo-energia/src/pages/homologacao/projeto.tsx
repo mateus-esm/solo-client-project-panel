@@ -476,11 +476,9 @@ export default function HomologacaoProjetoPage() {
 
   return (
     <HomologacaoLayout>
-      <Link href="/homologacao/projetos">
-        <a className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
+      <Link href="/homologacao/projetos" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="w-4 h-4" /> Voltar à lista
-        </a>
-      </Link>
+              </Link>
 
       {/* Header card */}
       <div className="bg-card border border-white/5 rounded-3xl p-6 md:p-8 mb-5">

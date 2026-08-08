@@ -91,8 +91,7 @@ export default function HomologacaoProjectsPage() {
             const deadline = deadlineLabel(p);
             const overdue = deadline ? isOverdue(deadline) : false;
             return (
-              <Link key={p.id} href={`/homologacao/projetos/${p.id}`}>
-                <a className="block bg-card border border-white/5 rounded-2xl px-5 py-4 hover:border-primary/30 transition-colors group">
+              <Link key={p.id} href={`/homologacao/projetos/${p.id}`} className="block bg-card border border-white/5 rounded-2xl px-5 py-4 hover:border-primary/30 transition-colors group">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-foreground font-medium truncate group-hover:text-primary transition-colors">
@@ -127,8 +126,7 @@ export default function HomologacaoProjectsPage() {
                       <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     </div>
                   </div>
-                </a>
-              </Link>
+                              </Link>
             );
           })}
         </div>
