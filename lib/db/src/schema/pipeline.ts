@@ -1,12 +1,12 @@
 // Pipeline stage constants shared by API and (mirrored in) the frontend.
 // Stage values are locked in docs/superpowers/specs/2026-08-07-solo-erp-consolidation-design.md
 
+// Macro-etapas do fluxo principal (colunas do kanban). Sub-etapas dentro de cada
+// macro-etapa são os grupos de checklist (ver SUB_STAGES). Compras + Logística não
+// são mais etapas: são a trilha paralela de suprimentos (project_purchases).
 export const PIPELINE_STAGES = [
   "onboarding",
-  "projeto_tecnico",
-  "homologacao",
-  "compras",
-  "logistica",
+  "projeto_tecnico_homologacao",
   "planejamento_execucao",
   "execucao",
   "ativacao",
@@ -20,10 +20,7 @@ export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
 export const STAGE_LABELS: Record<PipelineStage, string> = {
   onboarding: "Onboarding",
-  projeto_tecnico: "Projeto Técnico",
-  homologacao: "Homologação",
-  compras: "Compras",
-  logistica: "Logística",
+  projeto_tecnico_homologacao: "Projeto Técnico e Homologação",
   planejamento_execucao: "Pré-execução",
   execucao: "Execução",
   ativacao: "Ativação",
@@ -33,14 +30,11 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   pausado: "Pausado",
 };
 
-// Maps internal stage -> client portal stepper (1-7). null = keep the current step
-// (pendências/pausado must not move the client-facing stepper).
+// Maps internal macro stage -> client portal stepper (1-7). null = keep the current
+// step (pendências/pausado must not move the client-facing stepper).
 export const STAGE_TO_CLIENT_STEP: Record<PipelineStage, number | null> = {
   onboarding: 1,
-  projeto_tecnico: 2,
-  homologacao: 3,
-  compras: 4,
-  logistica: 4,
+  projeto_tecnico_homologacao: 2,
   planejamento_execucao: 4,
   execucao: 5,
   ativacao: 6,
@@ -50,14 +44,32 @@ export const STAGE_TO_CLIENT_STEP: Record<PipelineStage, number | null> = {
   pausado: null,
 };
 
+/**
+ * Client stepper for a macro stage + sub-stage. Inside "Projeto Técnico e
+ * Homologação" the stepper is 2 while in projeto técnico sub-stages and 3 once
+ * the project reaches a homologação sub-stage.
+ */
+export function stageToClientStep(stage: PipelineStage, subStage?: string | null): number | null {
+  if (stage === "projeto_tecnico_homologacao" && subStage?.startsWith("homologacao")) return 3;
+  return STAGE_TO_CLIENT_STEP[stage];
+}
+
 export interface ChecklistTemplateGroup {
   slug: string;
   title: string;
 }
 
+// Checklist "stage" keys: the macro pipeline stages plus the parallel supply
+// track ("suprimentos", ex-Compras/Logística), which has checklists but is not a
+// pipeline column.
+export const SUPRIMENTOS_STAGE = "suprimentos" as const;
+export type ChecklistStage = PipelineStage | typeof SUPRIMENTOS_STAGE;
+export const CHECKLIST_STAGES = [...PIPELINE_STAGES, SUPRIMENTOS_STAGE] as const;
+
 // Checklist groups per stage, migrated 1:1 from the Jestor todoList fields.
 // Items inside each group are created per-project by the team (no per-project seeding).
-export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]> = {
+// The groups of each macro stage double as its sub-stages (projects.subStage).
+export const CHECKLIST_TEMPLATE: Record<ChecklistStage, ChecklistTemplateGroup[]> = {
   onboarding: [
     { slug: "onboarding_documentacao_do_cliente", title: "Documentação e Informações" },
     { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
@@ -65,26 +77,24 @@ export const CHECKLIST_TEMPLATE: Record<PipelineStage, ChecklistTemplateGroup[]>
     { slug: "onboarding_revisao_tecnica", title: "Revisão Técnica" },
     { slug: "onboarding_lista_materiais", title: "Lista de Materiais" },
   ],
-  projeto_tecnico: [
+  projeto_tecnico_homologacao: [
     { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
     { slug: "projeto_tecnico_validacao", title: "Validação do Projeto" },
-  ],
-  compras: [
-    { slug: "compras_cotacoes", title: "Cotações" },
-    { slug: "compras_compra", title: "Compra" },
-    { slug: "compras_nfe", title: "NF-e" },
-  ],
-  logistica: [{ slug: "compras_logistica", title: "Logística e Entrega" }],
-  comissionamento_treinamento: [
-    { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
-  ],
-  pendencias: [],
-  homologacao: [
     { slug: "homologacao_envio_a_concessionaria", title: "Envio à Concessionária" },
     { slug: "homologacao_acompanhamento_e_retornos", title: "Acompanhamento e Retornos" },
     { slug: "homologacao_aprovacao_e_registro", title: "Aprovação e Registro" },
     { slug: "homologacao_validacao_de_homologacao", title: "Validação de Homologação" },
   ],
+  suprimentos: [
+    { slug: "compras_cotacoes", title: "Cotações" },
+    { slug: "compras_compra", title: "Compra" },
+    { slug: "compras_nfe", title: "NF-e" },
+    { slug: "compras_logistica", title: "Logística e Entrega" },
+  ],
+  comissionamento_treinamento: [
+    { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
+  ],
+  pendencias: [],
   planejamento_execucao: [
     { slug: "planejamento_de_execucao_recebimento_de_material", title: "Recebimento de Material" },
     { slug: "planejamento_de_execucao_logistica_de_materiais", title: "Logística de Materiais" },
@@ -331,6 +341,16 @@ export const CHECKLIST_ITEM_TEMPLATE: Record<string, ChecklistItemTemplate[]> = 
     },
   ],
 };
+
+// Sub-etapas de cada macro-etapa = grupos de checklist da própria macro-etapa.
+// projects.subStage guarda o slug do grupo atual (ou null = início da macro-etapa).
+export const SUB_STAGES: Record<PipelineStage, ChecklistTemplateGroup[]> = Object.fromEntries(
+  PIPELINE_STAGES.map((s) => [s, CHECKLIST_TEMPLATE[s]]),
+) as Record<PipelineStage, ChecklistTemplateGroup[]>;
+
+export function isValidSubStage(stage: PipelineStage, subStage: string): boolean {
+  return SUB_STAGES[stage].some((g) => g.slug === subStage);
+}
 
 export const SERVICE_TIPOS = [
   "Instalação",

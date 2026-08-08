@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Zap, MapPin } from "lucide-react";
+import { Plus, Zap, MapPin, ShoppingCart } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,8 @@ import {
   api,
   STAGES,
   STAGE_LABELS,
-  STAGE_GROUPS,
+  SUB_STAGES,
+  supplyBadge,
   formatBRL,
   type InternalProject,
   type StageId,
@@ -166,6 +167,14 @@ export default function PipelinePage() {
       toast({ title: "Erro ao mover projeto", description: err.message, variant: "destructive" }),
   });
 
+  const subStageMutation = useMutation({
+    mutationFn: ({ id, subStage }: { id: number; subStage: string | null }) =>
+      api.patch<InternalProject>(`/internal/projects/${id}`, { subStage }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["internal-projects"] }),
+    onError: (err: Error) =>
+      toast({ title: "Erro ao mudar sub-etapa", description: err.message, variant: "destructive" }),
+  });
+
   return (
     <InternalLayout>
       <div className="flex items-center justify-between mb-6">
@@ -186,63 +195,74 @@ export default function PipelinePage() {
         </div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 px-4 md:-mx-8 md:px-8 items-stretch">
-          {STAGE_GROUPS.map((group) => {
-            const columns = group.stages.map((stage) => ({
-              stage,
-              items: (projects ?? []).filter((p) => p.stage === stage),
-            }));
-            const content = (
-              <div className="flex gap-4">
-                {columns.map(({ stage, items }) => (
-                  <div key={stage} className="w-72 shrink-0">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                      <h2 className="text-sm font-medium text-foreground">{STAGE_LABELS[stage]}</h2>
-                      <span className="text-xs text-muted-foreground bg-white/5 rounded-full px-2 py-0.5">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="space-y-3 min-h-24">
-                      {items.map((p) => (
-                        <Link key={p.id} href={`/interno/projetos/${p.id}`}>
-                          <div className="bg-card border border-white/5 rounded-2xl p-4 cursor-pointer hover:border-primary/40 transition-colors space-y-3">
-                            <p className="font-medium text-foreground leading-tight">{p.clientName}</p>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Zap className="w-3 h-3 text-primary" /> {p.systemPower} kWp
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" /> {p.city}/{p.state}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Capex: {formatBRL(p.capex)}</p>
-                            <div onClick={(e) => e.preventDefault()}>
-                              <StageSelect
-                                value={p.stage}
-                                onChange={(newStage) => stageMutation.mutate({ id: p.id, stage: newStage })}
-                              />
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                      {items.length === 0 && (
-                        <div className="border border-dashed border-white/10 rounded-2xl p-4 text-center text-xs text-muted-foreground">
-                          Vazio
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-            if (!group.title) {
-              return <div key={group.id} className="shrink-0">{content}</div>;
-            }
+          {STAGES.map((stage) => {
+            const items = (projects ?? []).filter((p) => p.stage === stage);
+            const subs = SUB_STAGES[stage];
             return (
-              <div key={group.id} className="shrink-0 rounded-3xl border border-primary/20 bg-primary/5 p-3">
-                <p className="text-[11px] uppercase tracking-wide text-primary mb-2 px-1">
-                  {group.title} <span className="text-muted-foreground normal-case tracking-normal">· subetapas em paralelo</span>
-                </p>
-                {content}
+              <div key={stage} className="w-72 shrink-0">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <h2 className="text-sm font-medium text-foreground">{STAGE_LABELS[stage]}</h2>
+                  <span className="text-xs text-muted-foreground bg-white/5 rounded-full px-2 py-0.5">
+                    {items.length}
+                  </span>
+                </div>
+                <div className="space-y-3 min-h-24">
+                  {items.map((p) => {
+                    const badge = supplyBadge(p.supply);
+                    return (
+                      <Link key={p.id} href={`/interno/projetos/${p.id}`}>
+                        <div className="bg-card border border-white/5 rounded-2xl p-4 cursor-pointer hover:border-primary/40 transition-colors space-y-3">
+                          <p className="font-medium text-foreground leading-tight">{p.clientName}</p>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Zap className="w-3 h-3 text-primary" /> {p.systemPower} kWp
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" /> {p.city}/{p.state}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Capex: {formatBRL(p.capex)}</p>
+                          {badge && (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                              <ShoppingCart className="w-3 h-3" /> Suprimentos: {badge}
+                            </span>
+                          )}
+                          <div className="space-y-2" onClick={(e) => e.preventDefault()}>
+                            <StageSelect
+                              value={p.stage}
+                              onChange={(newStage) => stageMutation.mutate({ id: p.id, stage: newStage })}
+                            />
+                            {subs.length > 0 && (
+                              <Select
+                                value={p.subStage ?? "__inicio__"}
+                                onValueChange={(v) =>
+                                  subStageMutation.mutate({ id: p.id, subStage: v === "__inicio__" ? null : v })
+                                }
+                              >
+                                <SelectTrigger className="h-8 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                                  <SelectValue placeholder="Sub-etapa" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__inicio__">Sub-etapa: início</SelectItem>
+                                  {subs.map((g) => (
+                                    <SelectItem key={g.slug} value={g.slug}>
+                                      {g.title}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  {items.length === 0 && (
+                    <div className="border border-dashed border-white/10 rounded-2xl p-4 text-center text-xs text-muted-foreground">
+                      Vazio
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

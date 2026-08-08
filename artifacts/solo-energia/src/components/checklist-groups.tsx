@@ -26,7 +26,7 @@ import {
   SERVICE_TIPOS,
   type ChecklistItem,
   type ChecklistFieldDef,
-  type StageId,
+  type ChecklistStageId,
 } from "@/lib/internal-api";
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
@@ -496,7 +496,7 @@ function AddItemInput({
   invalidateKeys,
 }: {
   projectId: number;
-  stage: StageId;
+  stage: ChecklistStageId;
   checklistSlug: string;
   invalidateKeys: unknown[][];
 }) {
@@ -551,7 +551,7 @@ export function ChecklistGroups({
   invalidateKeys,
 }: {
   projectId: number;
-  stage: StageId;
+  stage: ChecklistStageId;
   items: ChecklistItem[];
   invalidateKeys: unknown[][];
 }) {
@@ -560,7 +560,7 @@ export function ChecklistGroups({
   const seedAttempted = useRef<Set<string>>(new Set());
 
   const seedMutation = useMutation({
-    mutationFn: (s: StageId) => api.post(`/internal/projects/${projectId}/checklist/seed`, { stage: s }),
+    mutationFn: (s: ChecklistStageId) => api.post(`/internal/projects/${projectId}/checklist/seed`, { stage: s }),
     onSuccess: () =>
       invalidateKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: key })),
   });

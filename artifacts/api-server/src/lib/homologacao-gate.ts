@@ -3,13 +3,9 @@ import { projectChecklistItemsTable } from "@workspace/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 
 // Stages that only become available after the homologation is approved.
-// "compras"/"logistica" are the parallel phase right after approval; "planejamento_execucao"
-// (pré-execução) also requires it when reached directly.
-export const STAGES_REQUIRING_HOMOLOGACAO = [
-  "compras",
-  "logistica",
-  "planejamento_execucao",
-] as const;
+// Compras/Logística agora são trilha paralela (não travam no gate); o gate vale
+// para a Pré-execução ("planejamento_execucao"), porta de entrada da obra.
+export const STAGES_REQUIRING_HOMOLOGACAO = ["planejamento_execucao"] as const;
 
 export const HOMOLOGACAO_APPROVAL_SLUGS = [
   "homologacao_aprovacao_e_registro",

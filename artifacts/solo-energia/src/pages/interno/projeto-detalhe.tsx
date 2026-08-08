@@ -23,15 +23,22 @@ import {
   api,
   STAGES,
   STAGE_LABELS,
+  SUB_STAGES,
+  SUPRIMENTOS_STAGE,
   CHECKLIST_TEMPLATE,
   formatBRL,
   type ProjectDetail,
   type InternalProject,
   type Technician,
   type StageId,
+  type ChecklistStageId,
 } from "@/lib/internal-api";
 
-const STAGES_WITH_CHECKLIST = STAGES.filter((s) => CHECKLIST_TEMPLATE[s].length > 0);
+// Abas de checklist: macro-etapas com grupos + a trilha paralela de Suprimentos.
+const STAGES_WITH_CHECKLIST: ChecklistStageId[] = [
+  ...STAGES.filter((s) => CHECKLIST_TEMPLATE[s].length > 0),
+  SUPRIMENTOS_STAGE,
+];
 
 const NO_TECH = "__none__";
 
@@ -120,7 +127,7 @@ export default function ProjetoDetalhePage() {
     enabled: Number.isFinite(projectId),
   });
 
-  const [checklistStage, setChecklistStage] = useState<StageId | null>(null);
+  const [checklistStage, setChecklistStage] = useState<ChecklistStageId | null>(null);
 
   const stageMutation = useMutation({
     mutationFn: (stage: StageId) => api.patch(`/internal/projects/${projectId}`, { stage }),
@@ -131,6 +138,18 @@ export default function ProjetoDetalhePage() {
     },
     onError: (err: Error) =>
       toast({ title: "Erro ao mudar etapa", description: err.message, variant: "destructive" }),
+  });
+
+  const subStageMutation = useMutation({
+    mutationFn: (subStage: string | null) =>
+      api.patch(`/internal/projects/${projectId}`, { subStage }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["internal-projects"] });
+      toast({ title: "Sub-etapa atualizada" });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao mudar sub-etapa", description: err.message, variant: "destructive" }),
   });
 
   if (isLoading || !data) {
@@ -161,23 +180,46 @@ export default function ProjetoDetalhePage() {
             <h1 className="text-2xl font-display text-foreground mb-1">{project.clientName}</h1>
             <p className="text-sm text-muted-foreground">{project.clientEmail}</p>
           </div>
-          <div className="w-full md:w-64">
-            <label className="text-xs text-muted-foreground mb-1 block">Etapa do pipeline</label>
-            <Select
-              value={project.stage}
-              onValueChange={(v) => stageMutation.mutate(v as StageId)}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STAGES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {STAGE_LABELS[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="w-full md:w-64 space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Etapa do pipeline</label>
+              <Select
+                value={project.stage}
+                onValueChange={(v) => stageMutation.mutate(v as StageId)}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAGES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {STAGE_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {SUB_STAGES[project.stage].length > 0 && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Sub-etapa</label>
+                <Select
+                  value={project.subStage ?? "__inicio__"}
+                  onValueChange={(v) => subStageMutation.mutate(v === "__inicio__" ? null : v)}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Início" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__inicio__">Início da etapa</SelectItem>
+                    {SUB_STAGES[project.stage].map((g) => (
+                      <SelectItem key={g.slug} value={g.slug}>
+                        {g.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
 

@@ -22,7 +22,9 @@ import { STAGES, STAGE_LABELS, CHECKLIST_TEMPLATE, formatBRL, type ChecklistItem
 
 // Map checklistSlug → human title for homologação groups
 const HOMO_GROUP_TITLE: Record<string, string> = Object.fromEntries(
-  CHECKLIST_TEMPLATE.homologacao.map((g) => [g.slug, g.title])
+  CHECKLIST_TEMPLATE.projeto_tecnico_homologacao
+    .filter((g) => g.slug.startsWith("homologacao"))
+    .map((g) => [g.slug, g.title])
 );
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -95,7 +97,7 @@ async function patchChecklistItem(itemId: number, done: boolean, doneBy?: string
 
 /** Stages a technician may move a project to — mirrors server-side ALLOWED_TECHNICIAN_STAGES */
 const HOMOLOGACAO_STAGES = STAGES.filter((s) =>
-  ["homologacao", "pendencias", "pausado", "compras"].includes(s)
+  ["projeto_tecnico_homologacao", "pendencias", "pausado"].includes(s)
 );
 
 function StageSelect({
@@ -468,7 +470,10 @@ export default function HomologacaoProjetoPage() {
   }
 
   const { project, checklist, documents, services } = data;
-  const homoChecklist = checklist.filter((i) => i.stage === "homologacao");
+  // Da macro-etapa fundida, o técnico só vê os grupos de homologação.
+  const homoChecklist = checklist.filter(
+    (i) => i.stage === "projeto_tecnico_homologacao" && i.checklistSlug.startsWith("homologacao"),
+  );
   const deadline =
     project.estimatedActivation ??
     (project as any).dataConclusaoPrevista ??

@@ -10,11 +10,12 @@ import {
   servicesTable,
   projectChecklistItemsTable,
   notificationsTable,
-  STAGE_TO_CLIENT_STEP,
   STAGE_LABELS,
+  stageToClientStep,
+  isValidSubStage,
   type PipelineStage,
 } from "@workspace/db/schema";
-import { eq, asc, inArray, and } from "drizzle-orm";
+import { eq, asc, inArray, and, like } from "drizzle-orm";
 import { z } from "zod/v4";
 import { ObjectStorageService } from "../lib/objectStorage";
 import {
@@ -54,10 +55,9 @@ const uploadSingle: RequestHandler = (req, res, next) => {
  * They cannot jump a project to an unrelated pipeline stage.
  */
 const ALLOWED_TECHNICIAN_STAGES = [
-  "homologacao",  // stay / re-open
-  "pendencias",   // blocked — waiting on something
-  "pausado",      // on hold
-  "compras",      // approved — hand off to next stage
+  "projeto_tecnico_homologacao", // stay / re-open (macro-etapa da homologação)
+  "pendencias",                  // blocked — waiting on something
+  "pausado",                     // on hold
 ] as const;
 
 type AllowedStage = (typeof ALLOWED_TECHNICIAN_STAGES)[number];
@@ -132,7 +132,7 @@ async function requireHomologacaoProject(id: number, technicianId: number) {
 
   // Allow access to projects whose current stage is homologacao, or which have
   // been paused/blocked while in the homologação workflow.
-  const accessibleStages: string[] = ["homologacao", "pendencias", "pausado"];
+  const accessibleStages: string[] = ["projeto_tecnico_homologacao", "pendencias", "pausado"];
   if (!accessibleStages.includes(project.stage)) {
     return null; // treat as not found — prevents information leakage
   }
@@ -203,6 +203,7 @@ const SAFE_PROJECT_FIELDS = {
   clientEmail: projectsTable.clientEmail,
   systemPower: projectsTable.systemPower,
   stage: projectsTable.stage,
+  subStage: projectsTable.subStage,
   city: projectsTable.city,
   state: projectsTable.state,
   estimatedActivation: projectsTable.estimatedActivation,
@@ -245,10 +246,10 @@ router.get("/homologacao/dashboard", requireHomologacao, async (req: Authenticat
       .where(eq(projectsTable.homologacaoTechnicianId, techId))
       .orderBy(asc(projectsTable.id));
 
-    const active = assigned.filter((p) => p.stage === "homologacao");
+    const active = assigned.filter((p) => p.stage === "projeto_tecnico_homologacao");
     const comPendencias = assigned.filter((p) => ["pendencias", "pausado"].includes(p.stage));
     const concluidos = assigned.filter(
-      (p) => !["homologacao", "pendencias", "pausado"].includes(p.stage)
+      (p) => !["projeto_tecnico_homologacao", "pendencias", "pausado"].includes(p.stage)
     );
 
     const inScopeIds = [...active, ...comPendencias].map((p) => p.id);
@@ -326,7 +327,7 @@ router.get("/homologacao/financeiro", requireHomologacao, async (req: Authentica
 router.get("/homologacao/kanban", requireHomologacao, async (req: AuthenticatedRequest, res) => {
   try {
     const techId = req.technician!.id;
-    const IN_SCOPE_STAGES = ["homologacao", "pendencias", "pausado"];
+    const IN_SCOPE_STAGES = ["projeto_tecnico_homologacao", "pendencias", "pausado"];
     const projects = await db
       .select(SAFE_PROJECT_FIELDS)
       .from(projectsTable)
@@ -460,7 +461,7 @@ router.post(
 router.get("/homologacao/projects", requireHomologacao, async (req: AuthenticatedRequest, res) => {
   try {
     // Technicians only see projects explicitly assigned to them.
-    const IN_SCOPE_STAGES = ["homologacao", "pendencias", "pausado"] as const;
+    const IN_SCOPE_STAGES = ["projeto_tecnico_homologacao", "pendencias", "pausado"] as const;
     const projects = await db
       .select(SAFE_PROJECT_DETAIL_FIELDS)
       .from(projectsTable)
@@ -493,10 +494,18 @@ router.get("/homologacao/projects/:id", requireHomologacao, async (req, res) => 
     }
 
     const [checklist, documents, services] = await Promise.all([
+      // Técnicos só recebem os itens dos grupos de homologação — nunca os de
+      // suprimentos/onboarding (que carregam valores internos nos metadados).
       db
         .select()
         .from(projectChecklistItemsTable)
-        .where(eq(projectChecklistItemsTable.projectId, id))
+        .where(
+          and(
+            eq(projectChecklistItemsTable.projectId, id),
+            eq(projectChecklistItemsTable.stage, "projeto_tecnico_homologacao"),
+            like(projectChecklistItemsTable.checklistSlug, "homologacao%"),
+          ),
+        )
         .orderBy(
           asc(projectChecklistItemsTable.sortOrder),
           asc(projectChecklistItemsTable.id)
@@ -534,6 +543,8 @@ router.get("/homologacao/projects/:id", requireHomologacao, async (req, res) => 
 
 const updateSchema = z.object({
   stage: allowedStageSchema.optional(),
+  // Sub-etapa dentro da macro-etapa — técnicos só transitam entre subs de homologação
+  subStage: z.string().startsWith("homologacao").optional(),
   notes: z.string().optional(),
   estimatedActivation: z.string().optional(),
 });
@@ -566,10 +577,20 @@ router.patch("/homologacao/projects/:id", requireHomologacao, async (req: Authen
 
     const stageChanged =
       parsed.data.stage !== undefined && parsed.data.stage !== current.stage;
+    const subStageChanged =
+      parsed.data.subStage !== undefined && parsed.data.subStage !== current.subStage;
+
+    const targetStage = (parsed.data.stage ?? current.stage) as PipelineStage;
+    if (
+      parsed.data.subStage !== undefined &&
+      !isValidSubStage(targetStage, parsed.data.subStage)
+    ) {
+      res.status(400).json({ message: "Sub-etapa inválida para esta etapa." });
+      return;
+    }
 
     if (stageChanged) {
       const newStage = parsed.data.stage as AllowedStage;
-      // Handoff para compras (pós-homologação) exige aprovação registrada no checklist.
       if (
         (STAGES_REQUIRING_HOMOLOGACAO as readonly string[]).includes(newStage) &&
         !(await homologacaoAprovada(id))
@@ -578,7 +599,17 @@ router.patch("/homologacao/projects/:id", requireHomologacao, async (req: Authen
         return;
       }
       patch.stage = newStage;
-      const step = STAGE_TO_CLIENT_STEP[newStage as PipelineStage];
+      // Trocar de macro-etapa sem informar sub-etapa reseta a sub-etapa (mesma
+      // regra do PATCH interno) — evita combinações inválidas como pendências + sub.
+      if (parsed.data.subStage === undefined) patch.subStage = null;
+    }
+    if (parsed.data.subStage !== undefined) patch.subStage = parsed.data.subStage;
+
+    if (stageChanged || subStageChanged) {
+      const step = stageToClientStep(
+        targetStage,
+        parsed.data.subStage !== undefined ? parsed.data.subStage : current.subStage,
+      );
       if (step !== null && step !== undefined) {
         patch.statusStep = step;
         patch.completionPercent = stepCompletionPercent(step);
@@ -634,6 +665,15 @@ router.patch("/homologacao/checklist/:itemId", requireHomologacao, async (req: A
       .where(eq(projectChecklistItemsTable.id, itemId));
 
     if (!existingItem) {
+      res.status(404).json({ message: "Item não encontrado" });
+      return;
+    }
+
+    // Technicians may only touch homologação checklist items.
+    if (
+      existingItem.stage !== "projeto_tecnico_homologacao" ||
+      !existingItem.checklistSlug.startsWith("homologacao")
+    ) {
       res.status(404).json({ message: "Item não encontrado" });
       return;
     }

@@ -11,9 +11,7 @@ const formatBRL = (value: number | null | undefined) =>
 
 const STAGE_LABELS: Record<string, string> = {
   onboarding: "Onboarding",
-  projeto_tecnico: "Projeto Técnico",
-  homologacao: "Homologação",
-  compras: "Compras",
+  projeto_tecnico_homologacao: "Projeto Técnico e Homologação",
   planejamento_execucao: "Planej. de Execução",
   execucao: "Execução",
   ativacao: "Ativação",

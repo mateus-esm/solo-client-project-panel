@@ -25,8 +25,8 @@ function ProjectChecklist({ projectId }: { projectId: number }) {
   return (
     <ChecklistGroups
       projectId={projectId}
-      stage="homologacao"
-      items={(items ?? []).filter((i) => i.stage === "homologacao")}
+      stage="projeto_tecnico_homologacao"
+      items={(items ?? []).filter((i) => i.stage === "projeto_tecnico_homologacao")}
       invalidateKeys={[queryKey]}
     />
   );
@@ -35,7 +35,7 @@ function ProjectChecklist({ projectId }: { projectId: number }) {
 export default function HomologacaoPage() {
   const { data: projects, isLoading } = useQuery<InternalProject[]>({
     queryKey: ["internal-projects", "homologacao"],
-    queryFn: () => api.get<InternalProject[]>("/internal/projects?stage=homologacao"),
+    queryFn: () => api.get<InternalProject[]>("/internal/projects?stage=projeto_tecnico_homologacao"),
   });
 
   return (

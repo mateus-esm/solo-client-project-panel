@@ -1,12 +1,11 @@
 // Typed fetch helper + shared types/constants for the internal ERP pages.
 // Mirrors lib/db/src/schema/pipeline.ts (kept in sync manually — spec decision for hour-1).
 
+// Macro-etapas do fluxo principal (colunas do kanban). Sub-etapas = grupos de
+// checklist da macro-etapa. Compras/Logística viraram trilha paralela (suprimentos).
 export const STAGES = [
   "onboarding",
-  "projeto_tecnico",
-  "homologacao",
-  "compras",
-  "logistica",
+  "projeto_tecnico_homologacao",
   "planejamento_execucao",
   "execucao",
   "ativacao",
@@ -18,12 +17,13 @@ export const STAGES = [
 
 export type StageId = (typeof STAGES)[number];
 
-export const STAGE_LABELS: Record<StageId, string> = {
+// Checklists também existem para a trilha paralela de suprimentos.
+export const SUPRIMENTOS_STAGE = "suprimentos" as const;
+export type ChecklistStageId = StageId | typeof SUPRIMENTOS_STAGE;
+
+export const STAGE_LABELS: Record<ChecklistStageId, string> = {
   onboarding: "Onboarding",
-  projeto_tecnico: "Projeto Técnico",
-  homologacao: "Homologação",
-  compras: "Compras",
-  logistica: "Logística",
+  projeto_tecnico_homologacao: "Projeto Técnico e Homologação",
   planejamento_execucao: "Pré-execução",
   execucao: "Execução",
   ativacao: "Ativação",
@@ -31,6 +31,7 @@ export const STAGE_LABELS: Record<StageId, string> = {
   concluido: "Concluído",
   pendencias: "Pendências",
   pausado: "Pausado",
+  suprimentos: "Suprimentos",
 };
 
 export interface ChecklistTemplateGroup {
@@ -38,7 +39,7 @@ export interface ChecklistTemplateGroup {
   title: string;
 }
 
-export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
+export const CHECKLIST_TEMPLATE: Record<ChecklistStageId, ChecklistTemplateGroup[]> = {
   onboarding: [
     { slug: "onboarding_documentacao_do_cliente", title: "Documentação e Informações" },
     { slug: "onboarding_boas_vindas", title: "Boas-vindas e Portal" },
@@ -46,26 +47,24 @@ export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
     { slug: "onboarding_revisao_tecnica", title: "Revisão Técnica" },
     { slug: "onboarding_lista_materiais", title: "Lista de Materiais" },
   ],
-  projeto_tecnico: [
+  projeto_tecnico_homologacao: [
     { slug: "projeto_tecnico_elaboracao", title: "Elaboração do Projeto" },
     { slug: "projeto_tecnico_validacao", title: "Validação do Projeto" },
-  ],
-  compras: [
-    { slug: "compras_cotacoes", title: "Cotações" },
-    { slug: "compras_compra", title: "Compra" },
-    { slug: "compras_nfe", title: "NF-e" },
-  ],
-  logistica: [{ slug: "compras_logistica", title: "Logística e Entrega" }],
-  comissionamento_treinamento: [
-    { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
-  ],
-  pendencias: [],
-  homologacao: [
     { slug: "homologacao_envio_a_concessionaria", title: "Envio à Concessionária" },
     { slug: "homologacao_acompanhamento_e_retornos", title: "Acompanhamento e Retornos" },
     { slug: "homologacao_aprovacao_e_registro", title: "Aprovação e Registro" },
     { slug: "homologacao_validacao_de_homologacao", title: "Validação de Homologação" },
   ],
+  suprimentos: [
+    { slug: "compras_cotacoes", title: "Cotações" },
+    { slug: "compras_compra", title: "Compra" },
+    { slug: "compras_nfe", title: "NF-e" },
+    { slug: "compras_logistica", title: "Logística e Entrega" },
+  ],
+  comissionamento_treinamento: [
+    { slug: "comissionamento_treinamento_do_cliente", title: "Treinamento do Cliente" },
+  ],
+  pendencias: [],
   planejamento_execucao: [
     { slug: "planejamento_de_execucao_recebimento_de_material", title: "Recebimento de Material" },
     { slug: "planejamento_de_execucao_logistica_de_materiais", title: "Logística de Materiais" },
@@ -98,26 +97,33 @@ export const CHECKLIST_TEMPLATE: Record<StageId, ChecklistTemplateGroup[]> = {
   pausado: [{ slug: "pausado_gestao_da_pausa", title: "Gestão da Pausa" }],
 };
 
-// Visual grouping of pipeline stages on the kanban board. Stages inside a titled
-// group run in parallel (sub-columns side by side).
-export interface StageGroup {
-  id: string;
-  title: string | null;
-  stages: StageId[];
+// Sub-etapas de cada macro-etapa (lista suspensa no card) = grupos de checklist.
+export const SUB_STAGES: Record<StageId, ChecklistTemplateGroup[]> = Object.fromEntries(
+  STAGES.map((s) => [s, CHECKLIST_TEMPLATE[s]]),
+) as Record<StageId, ChecklistTemplateGroup[]>;
+
+export function subStageTitle(stage: StageId, subStage: string | null): string | null {
+  if (!subStage) return null;
+  return SUB_STAGES[stage].find((g) => g.slug === subStage)?.title ?? null;
 }
 
-export const STAGE_GROUPS: StageGroup[] = [
-  { id: "onboarding", title: null, stages: ["onboarding"] },
-  { id: "projeto_homologacao", title: "Projeto Técnico + Homologação", stages: ["projeto_tecnico", "homologacao"] },
-  { id: "compras_logistica", title: "Compras + Logística", stages: ["compras", "logistica"] },
-  { id: "pre_execucao", title: null, stages: ["planejamento_execucao"] },
-  { id: "execucao", title: null, stages: ["execucao"] },
-  { id: "ativacao", title: null, stages: ["ativacao"] },
-  { id: "comissionamento_treinamento", title: null, stages: ["comissionamento_treinamento"] },
-  { id: "concluido", title: null, stages: ["concluido"] },
-  { id: "pendencias", title: null, stages: ["pendencias"] },
-  { id: "pausado", title: null, stages: ["pausado"] },
-];
+// Resumo da trilha paralela de suprimentos (compras), anexado pela API na listagem.
+export interface SupplySummary {
+  total: number;
+  cotacao: number;
+  comprada: number;
+  logisticaProgramada: number;
+  recebida: number;
+}
+
+export function supplyBadge(s: SupplySummary | undefined): string | null {
+  if (!s || s.total === 0) return null;
+  const efetivadas = s.comprada + s.logisticaProgramada + s.recebida;
+  if (efetivadas === 0) return `${s.total} em cotação`;
+  if (s.recebida === efetivadas && s.cotacao === 0 && s.comprada === 0 && s.logisticaProgramada === 0)
+    return `${s.recebida}/${s.total} recebidas`;
+  return `${s.recebida}/${s.total} recebidas · ${s.cotacao} cotação`;
+}
 
 export const SERVICE_TIPOS = [
   "Instalação",
@@ -146,6 +152,8 @@ export interface InternalProject {
   clientPhone: string | null;
   systemPower: number;
   stage: StageId;
+  subStage: string | null;
+  supply?: SupplySummary;
   capex: number | null;
   custoMateriais: number | null;
   custoServico: number | null;
@@ -371,7 +379,7 @@ export const CHECKLIST_FIELD_DEFS: Record<string, ChecklistFieldDef[]> = {
 export interface ChecklistItem {
   id: number;
   projectId: number;
-  stage: StageId;
+  stage: ChecklistStageId;
   checklistSlug: string;
   label: string;
   kind: ChecklistItemKind;

@@ -7,9 +7,12 @@ import {
   servicesTable,
   insertProjectSchema,
   insertChecklistItemSchema,
-  STAGE_TO_CLIENT_STEP,
   STAGE_LABELS,
   PIPELINE_STAGES,
+  CHECKLIST_STAGES,
+  stageToClientStep,
+  isValidSubStage,
+  SUB_STAGES,
   CHECKLIST_TEMPLATE,
   CHECKLIST_ITEM_TEMPLATE,
   homologacaoTechniciansTable,
@@ -30,6 +33,8 @@ import {
 const router: IRouter = Router();
 
 const stageSchema = z.enum(PIPELINE_STAGES);
+// Checklists também existem para a trilha paralela de suprimentos.
+const checklistStageSchema = z.enum(CHECKLIST_STAGES);
 
 const createProjectSchema = insertProjectSchema.extend({
   stage: stageSchema.default("onboarding"),
@@ -42,11 +47,11 @@ const updateProjectSchema = insertProjectSchema.partial().extend({
   stage: stageSchema.optional(),
 });
 
-function clientStepPatch(stage: PipelineStage): {
+function clientStepPatch(stage: PipelineStage, subStage?: string | null): {
   statusStep?: number;
   completionPercent?: number;
 } {
-  const step = STAGE_TO_CLIENT_STEP[stage];
+  const step = stageToClientStep(stage, subStage);
   if (step === null) return {}; // pendências/pausado keep the client stepper where it is
   // Reuses the portal's existing step->percent curve so the client view stays consistent
   // with projects synced from Jestor.
@@ -60,7 +65,39 @@ router.get("/projects", async (req, res) => {
     const projects = stageFilter
       ? await db.select().from(projectsTable).where(eq(projectsTable.stage, stageFilter)).orderBy(asc(projectsTable.id))
       : await db.select().from(projectsTable).orderBy(asc(projectsTable.id));
-    res.json(projects);
+
+    // Trilha paralela de suprimentos: resumo das compras por projeto para o
+    // selo no kanban (roda em paralelo a qualquer macro-etapa).
+    const counts = await db
+      .select({
+        projectId: projectPurchasesTable.projectId,
+        status: projectPurchasesTable.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(projectPurchasesTable)
+      .groupBy(projectPurchasesTable.projectId, projectPurchasesTable.status);
+    const supplyByProject = new Map<number, Record<string, number>>();
+    for (const row of counts) {
+      const entry = supplyByProject.get(row.projectId) ?? {};
+      entry[row.status] = row.count;
+      supplyByProject.set(row.projectId, entry);
+    }
+    res.json(
+      projects.map((p) => {
+        const s = supplyByProject.get(p.id) ?? {};
+        const total = Object.values(s).reduce((a, b) => a + b, 0);
+        return {
+          ...p,
+          supply: {
+            total,
+            cotacao: s.cotacao ?? 0,
+            comprada: s.comprada ?? 0,
+            logisticaProgramada: s.logistica_programada ?? 0,
+            recebida: s.recebida ?? 0,
+          },
+        };
+      }),
+    );
   } catch (err) {
     req.log.error({ err }, "Failed to list internal projects");
     res.status(500).json({ message: "Internal server error" });
@@ -74,7 +111,14 @@ router.post("/projects", async (req, res) => {
       res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
       return;
     }
-    const patch = clientStepPatch(parsed.data.stage as PipelineStage);
+    const createStage = parsed.data.stage as PipelineStage;
+    if (parsed.data.subStage != null && !isValidSubStage(createStage, parsed.data.subStage)) {
+      res.status(400).json({
+        message: `Sub-etapa inválida para a etapa ${STAGE_LABELS[createStage]}.`,
+      });
+      return;
+    }
+    const patch = clientStepPatch(createStage, parsed.data.subStage ?? null);
     const [project] = await db
       .insert(projectsTable)
       .values({ ...parsed.data, ...patch })
@@ -143,6 +187,21 @@ router.patch("/projects/:id", async (req, res) => {
     const stageChanged =
       parsed.data.stage !== undefined && parsed.data.stage !== current.stage;
 
+    // Sub-etapa deve pertencer à macro-etapa alvo. Ao trocar de macro-etapa sem
+    // informar sub-etapa, ela é resetada (início da nova macro-etapa).
+    const targetStage = (parsed.data.stage ?? current.stage) as PipelineStage;
+    if (parsed.data.subStage != null && !isValidSubStage(targetStage, parsed.data.subStage)) {
+      res.status(400).json({
+        message: `Sub-etapa inválida para a etapa ${STAGE_LABELS[targetStage]}.`,
+      });
+      return;
+    }
+    if (stageChanged && parsed.data.subStage === undefined) {
+      parsed.data.subStage = null;
+    }
+    const subStageChanged =
+      parsed.data.subStage !== undefined && parsed.data.subStage !== current.subStage;
+
     // Etapas pós-homologação (compras/logística/pré-execução) só são liberadas
     // após a homologação aprovada — política centralizada em homologacao-gate.
     if (
@@ -177,9 +236,10 @@ router.patch("/projects/:id", async (req, res) => {
         return;
       }
     }
-    const patch = stageChanged
-      ? clientStepPatch(parsed.data.stage as PipelineStage)
-      : {};
+    const patch =
+      stageChanged || subStageChanged
+        ? clientStepPatch(targetStage, parsed.data.subStage ?? current.subStage)
+        : {};
 
     const [updated] = await db
       .update(projectsTable)
@@ -187,8 +247,17 @@ router.patch("/projects/:id", async (req, res) => {
       .where(eq(projectsTable.id, id))
       .returning();
 
-    if (stageChanged) {
-      const label = STAGE_LABELS[parsed.data.stage as PipelineStage];
+    // Notifica o cliente quando a macro-etapa muda ou quando a sub-etapa faz o
+    // stepper do portal avançar (ex.: projeto técnico → homologação).
+    const stepAdvanced =
+      patch.statusStep !== undefined && patch.statusStep !== current.statusStep;
+    if (stageChanged || stepAdvanced) {
+      const subLabel = updated.subStage
+        ? SUB_STAGES[targetStage].find((g) => g.slug === updated.subStage)?.title
+        : undefined;
+      const label = subLabel
+        ? `${STAGE_LABELS[targetStage]} — ${subLabel}`
+        : STAGE_LABELS[targetStage];
       await db.insert(notificationsTable).values({
         projectId: id,
         title: "Atualização do projeto",
@@ -283,7 +352,7 @@ router.post("/projects/:id/checklist", async (req, res) => {
 router.post("/projects/:id/checklist/seed", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const stage = stageSchema.parse(req.body?.stage);
+    const stage = checklistStageSchema.parse(req.body?.stage);
     const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
     if (!project) {
       res.status(404).json({ message: "Projeto não encontrado" });
