@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Link, useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench } from "lucide-react";
+import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2 } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { ChecklistGroups } from "@/components/checklist-groups";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -20,10 +23,86 @@ import {
   CHECKLIST_TEMPLATE,
   formatBRL,
   type ProjectDetail,
+  type InternalProject,
+  type Technician,
   type StageId,
 } from "@/lib/internal-api";
 
 const STAGES_WITH_CHECKLIST = STAGES.filter((s) => CHECKLIST_TEMPLATE[s].length > 0);
+
+const NO_TECH = "__none__";
+
+function HomologacaoAssignment({ project, invalidateKey }: { project: InternalProject; invalidateKey: unknown[] }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: techs } = useQuery<Technician[]>({
+    queryKey: ["internal-technicians"],
+    queryFn: () => api.get<Technician[]>("/internal/technicians"),
+  });
+
+  const [valor, setValor] = useState(project.homologacaoValor != null ? String(project.homologacaoValor) : "");
+  const [forma, setForma] = useState(project.homologacaoFormaPagamento ?? "");
+  const [pix, setPix] = useState(project.homologacaoPix ?? "");
+
+  const patch = useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.patch(`/internal/projects/${project.id}`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKey });
+      toast({ title: "Homologação atualizada" });
+    },
+    onError: (err: Error) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="bg-card border border-white/5 rounded-3xl p-6 mb-6">
+      <h2 className="text-sm font-medium text-foreground flex items-center gap-2 mb-4">
+        <FileCheck2 className="w-4 h-4 text-primary" /> Homologação
+      </h2>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <Label className="text-xs text-muted-foreground">Técnico responsável</Label>
+          <Select
+            value={project.homologacaoTechnicianId ? String(project.homologacaoTechnicianId) : NO_TECH}
+            onValueChange={(v) => patch.mutate({ homologacaoTechnicianId: v === NO_TECH ? null : Number(v) })}
+          >
+            <SelectTrigger className="h-10 mt-1"><SelectValue placeholder="Não atribuído" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_TECH}>Não atribuído</SelectItem>
+              {(techs ?? []).map((t) => (
+                <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            O técnico só vê este projeto no portal dele quando estiver atribuído e na etapa de homologação.
+          </p>
+        </div>
+        <div className="flex items-center justify-between bg-background/50 rounded-xl px-4 py-3 self-end">
+          <Label className="mb-0 text-sm">Serviço pago</Label>
+          <Switch
+            checked={project.homologacaoPago}
+            onCheckedChange={(v) => patch.mutate({ homologacaoPago: v })}
+          />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Valor do serviço (R$)</Label>
+          <Input type="number" value={valor} onChange={(e) => setValor(e.target.value)}
+            onBlur={() => patch.mutate({ homologacaoValor: valor ? Number(valor) : null })} className="mt-1" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Forma de pagamento</Label>
+          <Input value={forma} onChange={(e) => setForma(e.target.value)}
+            onBlur={() => patch.mutate({ homologacaoFormaPagamento: forma || null })} className="mt-1" />
+        </div>
+        <div className="md:col-span-2">
+          <Label className="text-xs text-muted-foreground">Conta / chave PIX</Label>
+          <Input value={pix} onChange={(e) => setPix(e.target.value)}
+            onBlur={() => patch.mutate({ homologacaoPix: pix || null })} className="mt-1" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProjetoDetalhePage() {
   const [, params] = useRoute("/interno/projetos/:id");
@@ -149,6 +228,8 @@ export default function ProjetoDetalhePage() {
           invalidateKeys={[queryKey]}
         />
       </div>
+
+      <HomologacaoAssignment project={project} invalidateKey={queryKey} />
 
       <div className="bg-card border border-white/5 rounded-3xl p-6">
         <div className="flex items-center justify-between mb-4">

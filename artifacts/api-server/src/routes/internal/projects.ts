@@ -12,6 +12,7 @@ import {
   PIPELINE_STAGES,
   CHECKLIST_TEMPLATE,
   CHECKLIST_ITEM_TEMPLATE,
+  homologacaoTechniciansTable,
   type PipelineStage,
 } from "@workspace/db/schema";
 import { eq, and, asc, sql } from "drizzle-orm";
@@ -116,6 +117,20 @@ router.patch("/projects/:id", async (req, res) => {
     if (!current) {
       res.status(404).json({ message: "Projeto não encontrado" });
       return;
+    }
+
+    // Assigned homologation technician must exist — otherwise the project
+    // becomes unreachable in the technician portal.
+    if (parsed.data.homologacaoTechnicianId != null) {
+      const [tech] = await db
+        .select({ id: homologacaoTechniciansTable.id })
+        .from(homologacaoTechniciansTable)
+        .where(eq(homologacaoTechniciansTable.id, parsed.data.homologacaoTechnicianId))
+        .limit(1);
+      if (!tech) {
+        res.status(400).json({ message: "Técnico de homologação não encontrado" });
+        return;
+      }
     }
 
     const stageChanged =

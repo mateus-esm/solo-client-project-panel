@@ -14,7 +14,6 @@ export interface Service {
   projectId: number | null;
   name: string;
   tipoServico: string | null;
-  valorServico: number | null;
   status: string;
   statusPagamento: string;
   pagamentoRealizado: boolean;
@@ -25,6 +24,13 @@ export interface Service {
   endereco: string | null;
   responsavelEmail: string | null;
   observacoes: string | null;
+  valorFechado: number | null;
+  formaPagamento: string | null;
+  comprovanteUrl: string | null;
+  contratoUrl: string | null;
+  contratoStatus: string;
+  contratoAceitoEm: string | null;
+  contratoAceitoPor: string | null;
   createdAt: string;
   updatedAt: string;
   files: ServiceFile[];
@@ -76,6 +82,28 @@ export function useUpdateServiceStatus() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['installer', 'services'] });
       queryClient.invalidateQueries({ queryKey: ['installer', 'services', variables.id] });
+    },
+  });
+}
+
+export function useAcceptContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/installer/services/${id}/contract/accept`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? 'Falha ao aceitar contrato');
+      }
+      return res.json();
+    },
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['installer', 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['installer', 'services', id] });
     },
   });
 }

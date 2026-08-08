@@ -69,6 +69,12 @@ export const projectsTable = pgTable("projects", {
   dataDeCompras: text("data_de_compras"),
   dataDeEntregaDoEquipamento: text("data_de_entrega_do_equipamento"),
   schedulingLink: text("scheduling_link"),
+  // Homologação: technician assignment + payment info for the homologation service
+  homologacaoTechnicianId: integer("homologacao_technician_id"),
+  homologacaoValor: real("homologacao_valor"),
+  homologacaoPago: boolean("homologacao_pago").notNull().default(false),
+  homologacaoFormaPagamento: text("homologacao_forma_pagamento"),
+  homologacaoPix: text("homologacao_pix"),
   sectionVisibility: jsonb("section_visibility").$type<SectionVisibility>().default(DEFAULT_SECTION_VISIBILITY),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

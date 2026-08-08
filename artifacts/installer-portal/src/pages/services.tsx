@@ -128,7 +128,7 @@ export default function ServicesDashboard() {
                   <div className="flex flex-col">
                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Valor</span>
                     <span className="font-bold text-foreground">
-                      {formatCurrency(service.valorServico)}
+                      {formatCurrency(service.valorFechado)}
                     </span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">

@@ -133,6 +133,43 @@ export interface InternalProject {
   notes: string | null;
   estimatedDate: string | null;
   valorProjeto: number | null;
+  homologacaoTechnicianId: number | null;
+  homologacaoValor: number | null;
+  homologacaoPago: boolean;
+  homologacaoFormaPagamento: string | null;
+  homologacaoPix: string | null;
+  createdAt: string;
+}
+
+export interface TeamMember {
+  id: number;
+  accountId: number;
+  name: string;
+  documento: string | null;
+  photoUrl: string | null;
+  docUrl: string | null;
+  createdAt: string;
+}
+
+export interface InstallerAccount {
+  id: number;
+  name: string;
+  email: string;
+  teamName: string;
+  razaoSocial: string | null;
+  cnpj: string | null;
+  responsavelNome: string | null;
+  responsavelTelefone: string | null;
+  pixKey: string | null;
+  formaPagamento: string | null;
+  createdAt: string;
+  members: TeamMember[];
+}
+
+export interface Technician {
+  id: number;
+  name: string;
+  email: string;
   createdAt: string;
 }
 
@@ -231,9 +268,21 @@ export interface ServiceItem {
   endereco: string | null;
   responsavelEmail: string | null;
   observacoes: string | null;
+  valorProposto: number | null;
+  valorFechado: number | null;
+  custoLogistica: number | null;
+  outrosCustos: number | null;
+  formaPagamento: string | null;
+  pixConta: string | null;
+  comprovanteUrl: string | null;
+  contratoUrl: string | null;
+  contratoStatus: string;
+  contratoAceitoEm: string | null;
+  contratoAceitoPor: string | null;
   createdAt: string;
   updatedAt: string;
   files: ServiceFileItem[];
+  members?: TeamMember[];
 }
 
 export interface ProjectDetail {
@@ -276,6 +325,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body: unknown) => request<T>("POST", path, body),
+  put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
   del: <T = void>(path: string) => request<T>("DELETE", path),
 };

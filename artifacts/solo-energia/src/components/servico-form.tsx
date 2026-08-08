@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Upload, FileSignature, CheckCircle2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ import {
   SERVICE_STATUS_PAGAMENTO,
   type InternalProject,
   type ServiceItem,
+  type InstallerAccount,
 } from "@/lib/internal-api";
 
 const NONE = "__none__";
@@ -54,6 +55,12 @@ interface FormState {
   endereco: string;
   responsavelEmail: string;
   observacoes: string;
+  valorProposto: string;
+  valorFechado: string;
+  custoLogistica: string;
+  outrosCustos: string;
+  formaPagamento: string;
+  pixConta: string;
 }
 
 const EMPTY: FormState = {
@@ -71,6 +78,12 @@ const EMPTY: FormState = {
   endereco: "",
   responsavelEmail: "",
   observacoes: "",
+  valorProposto: "",
+  valorFechado: "",
+  custoLogistica: "",
+  outrosCustos: "",
+  formaPagamento: "",
+  pixConta: "",
 };
 
 function FileSection({
@@ -156,6 +169,136 @@ function FileSection({
   );
 }
 
+// Uploads a contract or comprovante file to the service via object storage.
+function UploadSection({
+  service,
+  target,
+  title,
+  icon: Icon,
+}: {
+  service: ServiceItem;
+  target: "contract" | "comprovante";
+  title: string;
+  icon: typeof Upload;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const url = target === "contract" ? service.contratoUrl : service.comprovanteUrl;
+
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/internal/services/${service.id}/${target}/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "Falha no upload");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["internal-services"] });
+      toast({ title: "Arquivo enviado" });
+    },
+    onError: (err: Error) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="bg-background/50 rounded-xl p-4">
+      <Label className="text-xs flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" /> {title}</Label>
+      <div className="mt-2 flex items-center gap-2">
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer" className="text-primary hover:underline text-sm truncate flex-1">
+            Ver arquivo
+          </a>
+        ) : (
+          <span className="text-xs text-muted-foreground flex-1">Nenhum arquivo.</span>
+        )}
+        {target === "contract" && service.contratoStatus === "aceito" && (
+          <span className="text-xs text-energy-green flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Aceito
+          </span>
+        )}
+        {target === "contract" && service.contratoStatus === "enviado" && (
+          <span className="text-xs text-chart-3">Aguardando aceite</span>
+        )}
+        <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
+          onChange={(e) => e.target.files?.[0] && upload.mutate(e.target.files[0])} />
+        <Button size="sm" variant="secondary" className="h-8" disabled={upload.isPending} onClick={() => inputRef.current?.click()}>
+          <Upload className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      {target === "contract" && service.contratoAceitoPor && (
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Aceito por {service.contratoAceitoPor}
+          {service.contratoAceitoEm ? ` em ${new Date(service.contratoAceitoEm).toLocaleString("pt-BR")}` : ""}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Assigns which team members go to a service, filtered by the selected team.
+function MembersPicker({ service, teamName }: { service: ServiceItem; teamName: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: accounts } = useQuery<InstallerAccount[]>({
+    queryKey: ["internal-installers"],
+    queryFn: () => api.get<InstallerAccount[]>("/internal/installers"),
+  });
+  const account = (accounts ?? []).find((a) => a.teamName === teamName);
+  const assignedIds = new Set((service.members ?? []).map((m) => m.id));
+
+  const save = useMutation({
+    mutationFn: (memberIds: number[]) =>
+      api.put(`/internal/services/${service.id}/members`, { memberIds }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["internal-services"] }),
+    onError: (err: Error) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const toggle = (id: number) => {
+    const next = assignedIds.has(id)
+      ? [...assignedIds].filter((x) => x !== id)
+      : [...assignedIds, id];
+    save.mutate(next);
+  };
+
+  return (
+    <div className="bg-background/50 rounded-xl p-4">
+      <Label className="text-xs">Membros no serviço</Label>
+      {!account ? (
+        <p className="text-xs text-muted-foreground mt-2">
+          Selecione uma equipe cadastrada em "Equipe de execução" para escolher os membros.
+        </p>
+      ) : account.members.length === 0 ? (
+        <p className="text-xs text-muted-foreground mt-2">Esta equipe não tem membros cadastrados.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {account.members.map((m) => {
+            const active = assignedIds.has(m.id);
+            return (
+              <button
+                key={m.id}
+                onClick={() => toggle(m.id)}
+                className={
+                  "px-3 py-1.5 rounded-full text-xs border transition-colors " +
+                  (active
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "text-muted-foreground border-white/10 hover:bg-white/5")
+                }
+              >
+                {m.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ServicoFormDialog({
   open,
   onOpenChange,
@@ -192,6 +335,12 @@ export function ServicoFormDialog({
         endereco: service.endereco ?? "",
         responsavelEmail: service.responsavelEmail ?? "",
         observacoes: service.observacoes ?? "",
+        valorProposto: service.valorProposto != null ? String(service.valorProposto) : "",
+        valorFechado: service.valorFechado != null ? String(service.valorFechado) : "",
+        custoLogistica: service.custoLogistica != null ? String(service.custoLogistica) : "",
+        outrosCustos: service.outrosCustos != null ? String(service.outrosCustos) : "",
+        formaPagamento: service.formaPagamento ?? "",
+        pixConta: service.pixConta ?? "",
       });
     } else {
       setForm(EMPTY);
@@ -213,6 +362,12 @@ export function ServicoFormDialog({
     endereco: form.endereco || null,
     responsavelEmail: form.responsavelEmail || null,
     observacoes: form.observacoes || null,
+    valorProposto: form.valorProposto ? Number(form.valorProposto) : null,
+    valorFechado: form.valorFechado ? Number(form.valorFechado) : null,
+    custoLogistica: form.custoLogistica ? Number(form.custoLogistica) : null,
+    outrosCustos: form.outrosCustos ? Number(form.outrosCustos) : null,
+    formaPagamento: form.formaPagamento || null,
+    pixConta: form.pixConta || null,
   });
 
   const saveMutation = useMutation({
@@ -367,23 +522,60 @@ export function ServicoFormDialog({
             />
           </div>
 
+          <div className="border border-white/5 rounded-xl p-4 space-y-3">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Financeiro</Label>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <Label>Valor proposto (R$)</Label>
+                <Input type="number" value={form.valorProposto} onChange={set("valorProposto")} />
+              </div>
+              <div>
+                <Label>Valor fechado (R$)</Label>
+                <Input type="number" value={form.valorFechado} onChange={set("valorFechado")} />
+              </div>
+              <div>
+                <Label>Custo de logística (R$)</Label>
+                <Input type="number" value={form.custoLogistica} onChange={set("custoLogistica")} />
+              </div>
+              <div>
+                <Label>Outros custos (R$)</Label>
+                <Input type="number" value={form.outrosCustos} onChange={set("outrosCustos")} />
+              </div>
+              <div>
+                <Label>Forma de pagamento</Label>
+                <Input value={form.formaPagamento} onChange={set("formaPagamento")} placeholder="PIX, transferência..." />
+              </div>
+              <div>
+                <Label>Conta / chave PIX</Label>
+                <Input value={form.pixConta} onChange={set("pixConta")} />
+              </div>
+            </div>
+          </div>
+
           <div>
             <Label>Observações</Label>
             <Textarea value={form.observacoes} onChange={set("observacoes")} rows={3} />
           </div>
 
           {service ? (
-            <div className="grid md:grid-cols-2 gap-3">
-              <FileSection service={service} kind="contrato_escopo" title="Contrato e Escopo" />
-              <FileSection
-                service={service}
-                kind="imagens_documentacao"
-                title="Imagens e Documentação"
-              />
+            <div className="space-y-3">
+              <div className="grid md:grid-cols-2 gap-3">
+                <UploadSection service={service} target="contract" title="Contrato de prestação (assinatura)" icon={FileSignature} />
+                <UploadSection service={service} target="comprovante" title="Comprovante de pagamento" icon={Receipt} />
+              </div>
+              <MembersPicker service={service} teamName={form.equipeExecucao} />
+              <div className="grid md:grid-cols-2 gap-3">
+                <FileSection service={service} kind="contrato_escopo" title="Contrato e Escopo (links)" />
+                <FileSection
+                  service={service}
+                  kind="imagens_documentacao"
+                  title="Imagens e Documentação"
+                />
+              </div>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Salve o serviço para anexar contrato, imagens e documentação.
+              Salve o serviço para anexar contrato, comprovante, membros e documentação.
             </p>
           )}
 

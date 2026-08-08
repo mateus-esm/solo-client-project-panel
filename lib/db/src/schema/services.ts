@@ -19,6 +19,19 @@ export const servicesTable = pgTable("services", {
   endereco: text("endereco"),
   responsavelEmail: text("responsavel_email"),
   observacoes: text("observacoes"),
+  // Financeiro do serviço
+  valorProposto: real("valor_proposto"),
+  valorFechado: real("valor_fechado"),
+  custoLogistica: real("custo_logistica"),
+  outrosCustos: real("outros_custos"),
+  formaPagamento: text("forma_pagamento"),
+  pixConta: text("pix_conta"),
+  comprovanteUrl: text("comprovante_url"),
+  // Contrato de prestação de serviço
+  contratoUrl: text("contrato_url"),
+  contratoStatus: text("contrato_status").notNull().default("pendente"), // pendente | enviado | aceito
+  contratoAceitoEm: timestamp("contrato_aceito_em"),
+  contratoAceitoPor: text("contrato_aceito_por"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -29,6 +42,7 @@ export const insertServiceSchema = createInsertSchema(servicesTable)
     dataExecucao: z.coerce.date().nullish(),
     dataInicio: z.coerce.date().nullish(),
     dataTermino: z.coerce.date().nullish(),
+    contratoAceitoEm: z.coerce.date().nullish(),
   });
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof servicesTable.$inferSelect;

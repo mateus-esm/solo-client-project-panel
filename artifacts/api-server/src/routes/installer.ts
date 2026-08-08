@@ -20,6 +20,21 @@ import {
 
 const router: IRouter = Router();
 
+// Installers must never see internal financials (proposed value, logistics and
+// other internal costs, or the value charged to the client). They only see the
+// agreed value (valorFechado) and payment/contract status.
+type ServiceRow = typeof servicesTable.$inferSelect;
+function toInstallerService(row: ServiceRow) {
+  const {
+    valorServico: _vs,
+    valorProposto: _vp,
+    custoLogistica: _cl,
+    outrosCustos: _oc,
+    ...safe
+  } = row;
+  return safe;
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 router.post("/installer/auth/login", async (req, res) => {
@@ -101,7 +116,9 @@ router.get("/installer/services", requireInstaller, async (req: InstallerRequest
       filesByService.set(f.serviceId, list);
     }
 
-    res.json(services.map((s) => ({ ...s, files: filesByService.get(s.id) ?? [] })));
+    res.json(
+      services.map((s) => ({ ...toInstallerService(s), files: filesByService.get(s.id) ?? [] }))
+    );
   } catch (err) {
     req.log.error({ err }, "Failed to list installer services");
     res.status(500).json({ message: "Internal server error" });
@@ -132,7 +149,7 @@ router.get("/installer/services/:id", requireInstaller, async (req: InstallerReq
       .select()
       .from(serviceFilesTable)
       .where(eq(serviceFilesTable.serviceId, id));
-    res.json({ ...service, files });
+    res.json({ ...toInstallerService(service), files });
   } catch (err) {
     req.log.error({ err }, "Failed to get installer service");
     res.status(500).json({ message: "Internal server error" });
@@ -193,9 +210,56 @@ router.patch("/installer/services/:id", requireInstaller, async (req: InstallerR
       .from(serviceFilesTable)
       .where(eq(serviceFilesTable.serviceId, id));
 
-    res.json({ ...updated, files });
+    res.json({ ...toInstallerService(updated), files });
   } catch (err) {
     req.log.error({ err }, "Failed to update installer service");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─── Accept the service contract ──────────────────────────────────────────────
+
+router.post("/installer/services/:id/contract/accept", requireInstaller, async (req: InstallerRequest, res) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) {
+      res.status(400).json({ message: "ID inválido" });
+      return;
+    }
+    const [existing] = await db
+      .select()
+      .from(servicesTable)
+      .where(
+        and(
+          eq(servicesTable.id, id),
+          eq(servicesTable.equipeExecucao, req.installer!.teamName)
+        )
+      );
+    if (!existing) {
+      res.status(404).json({ message: "Serviço não encontrado" });
+      return;
+    }
+    if (!existing.contratoUrl) {
+      res.status(400).json({ message: "Nenhum contrato disponível para aceite" });
+      return;
+    }
+    if (existing.contratoStatus === "aceito") {
+      res.status(409).json({ message: "Contrato já foi aceito" });
+      return;
+    }
+    const [updated] = await db
+      .update(servicesTable)
+      .set({
+        contratoStatus: "aceito",
+        contratoAceitoEm: new Date(),
+        contratoAceitoPor: req.installer!.name,
+        updatedAt: new Date(),
+      })
+      .where(eq(servicesTable.id, id))
+      .returning();
+    res.json(toInstallerService(updated));
+  } catch (err) {
+    req.log.error({ err }, "Failed to accept contract");
     res.status(500).json({ message: "Internal server error" });
   }
 });

@@ -1,5 +1,5 @@
 import { useParams } from 'wouter';
-import { useInstallerService, useUpdateServiceStatus, useUploadServicePhoto } from '@/hooks/use-installer-services';
+import { useInstallerService, useUpdateServiceStatus, useUploadServicePhoto, useAcceptContract } from '@/hooks/use-installer-services';
 import { InstallerLayout } from '@/components/installer-layout';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
@@ -33,6 +33,7 @@ export default function ServiceDetail() {
   const { data: service, isLoading } = useInstallerService(id);
   const updateStatus = useUpdateServiceStatus();
   const uploadPhoto = useUploadServicePhoto();
+  const acceptContract = useAcceptContract();
   const { toast } = useToast();
 
   const [notes, setNotes] = useState('');
@@ -220,6 +221,64 @@ export default function ServiceDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Contract + Financial Section */}
+          {(service.contratoUrl || service.valorFechado != null) && (
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Contrato e Pagamento
+                </CardTitle>
+                <CardDescription>
+                  Valor acordado e contrato de prestação de serviço.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {service.valorFechado != null && (
+                  <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Valor acordado</span>
+                    <span className="font-semibold text-foreground">
+                      {service.valorFechado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
+                  </div>
+                )}
+                {service.formaPagamento && (
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-sm text-muted-foreground">Forma de pagamento</span>
+                    <span className="text-sm text-foreground">{service.formaPagamento}</span>
+                  </div>
+                )}
+                {service.contratoUrl && (
+                  <div className="space-y-3">
+                    <a href={service.contratoUrl} target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-primary hover:underline text-sm">
+                      <FileText className="w-4 h-4" /> Ver contrato
+                    </a>
+                    {service.contratoStatus === 'aceito' ? (
+                      <div className="flex items-center gap-2 text-energy-green text-sm bg-energy-green/10 rounded-xl px-4 py-3">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Contrato aceito
+                        {service.contratoAceitoEm ? ` em ${format(parseISO(service.contratoAceitoEm), "dd/MM/yyyy", { locale: ptBR })}` : ''}
+                      </div>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        disabled={acceptContract.isPending}
+                        onClick={() => acceptContract.mutate(service.id, {
+                          onSuccess: () => toast({ title: 'Contrato aceito', description: 'Obrigado! O aceite foi registrado.' }),
+                          onError: (e: Error) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
+                        })}
+                      >
+                        {acceptContract.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                        Aceitar contrato
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notes Section */}
           <Card className="border-border/60 shadow-sm">

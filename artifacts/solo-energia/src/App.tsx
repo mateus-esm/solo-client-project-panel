@@ -22,6 +22,7 @@ import Pipeline from "@/pages/interno/pipeline";
 import ProjetoDetalhe from "@/pages/interno/projeto-detalhe";
 import Servicos from "@/pages/interno/servicos";
 import Homologacao from "@/pages/interno/homologacao";
+import Equipes from "@/pages/interno/equipes";
 import HomologacaoLogin from "@/pages/homologacao/login";
 import HomologacaoProjects from "@/pages/homologacao/index";
 import HomologacaoProjeto from "@/pages/homologacao/projeto";
@@ -159,6 +160,9 @@ function Router() {
       </Route>
       <Route path="/interno/homologacao">
         {() => <AdminGuard><Homologacao /></AdminGuard>}
+      </Route>
+      <Route path="/interno/equipes">
+        {() => <AdminGuard><Equipes /></AdminGuard>}
       </Route>
 
       {/* Homologação team portal */}

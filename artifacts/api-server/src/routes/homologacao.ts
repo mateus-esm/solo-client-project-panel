@@ -11,7 +11,7 @@ import {
   STAGE_LABELS,
   type PipelineStage,
 } from "@workspace/db/schema";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, asc, inArray, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import {
   hashPassword,
@@ -94,13 +94,18 @@ router.get("/homologacao/auth/check", requireHomologacao, (req: AuthenticatedReq
  * (stage = homologacao, pendencias, or pausado — i.e. currently held or
  * blocked in homologação). Returns null otherwise.
  */
-async function requireHomologacaoProject(id: number) {
+async function requireHomologacaoProject(id: number, technicianId: number) {
   const [project] = await db
     .select()
     .from(projectsTable)
     .where(eq(projectsTable.id, id));
 
   if (!project) return null;
+
+  // Only the assigned technician may access the project.
+  if (project.homologacaoTechnicianId !== technicianId) {
+    return null; // treat as not found — prevents information leakage
+  }
 
   // Allow access to projects whose current stage is homologacao, or which have
   // been paused/blocked while in the homologação workflow.
@@ -114,15 +119,19 @@ async function requireHomologacaoProject(id: number) {
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
-router.get("/homologacao/projects", requireHomologacao, async (req, res) => {
+router.get("/homologacao/projects", requireHomologacao, async (req: AuthenticatedRequest, res) => {
   try {
-    // Return all projects in scope: active homologação plus paused/blocked ones
-    // so technicians can track and update anything they're responsible for.
+    // Technicians only see projects explicitly assigned to them.
     const IN_SCOPE_STAGES = ["homologacao", "pendencias", "pausado"] as const;
     const projects = await db
       .select()
       .from(projectsTable)
-      .where(inArray(projectsTable.stage, [...IN_SCOPE_STAGES]))
+      .where(
+        and(
+          inArray(projectsTable.stage, [...IN_SCOPE_STAGES]),
+          eq(projectsTable.homologacaoTechnicianId, req.technician!.id)
+        )
+      )
       .orderBy(asc(projectsTable.id));
     res.json(projects);
   } catch (err) {
@@ -139,7 +148,7 @@ router.get("/homologacao/projects/:id", requireHomologacao, async (req, res) => 
       return;
     }
 
-    const project = await requireHomologacaoProject(id);
+    const project = await requireHomologacaoProject(id, (req as AuthenticatedRequest).technician!.id);
     if (!project) {
       res.status(404).json({ message: "Projeto não encontrado" });
       return;
@@ -159,8 +168,20 @@ router.get("/homologacao/projects/:id", requireHomologacao, async (req, res) => 
         .from(documentsTable)
         .where(eq(documentsTable.projectId, id))
         .orderBy(asc(documentsTable.id)),
+      // Technicians must not see any service financials (values, costs, PIX
+      // accounts) — only what the service is and its execution/payment status.
       db
-        .select()
+        .select({
+          id: servicesTable.id,
+          name: servicesTable.name,
+          tipoServico: servicesTable.tipoServico,
+          status: servicesTable.status,
+          statusPagamento: servicesTable.statusPagamento,
+          pagamentoRealizado: servicesTable.pagamentoRealizado,
+          dataExecucao: servicesTable.dataExecucao,
+          dataInicio: servicesTable.dataInicio,
+          dataTermino: servicesTable.dataTermino,
+        })
         .from(servicesTable)
         .where(eq(servicesTable.projectId, id))
         .orderBy(asc(servicesTable.id)),
@@ -194,7 +215,7 @@ router.patch("/homologacao/projects/:id", requireHomologacao, async (req: Authen
     }
 
     // Verify project is in homologacao scope before applying any update.
-    const current = await requireHomologacaoProject(id);
+    const current = await requireHomologacaoProject(id, req.technician!.id);
     if (!current) {
       res.status(404).json({ message: "Projeto não encontrado" });
       return;
@@ -272,7 +293,7 @@ router.patch("/homologacao/checklist/:itemId", requireHomologacao, async (req: A
     }
 
     // Verify the owning project is in homologação scope.
-    const owningProject = await requireHomologacaoProject(existingItem.projectId);
+    const owningProject = await requireHomologacaoProject(existingItem.projectId, req.technician!.id);
     if (!owningProject) {
       res.status(404).json({ message: "Item não encontrado" });
       return;

@@ -42,7 +42,6 @@ interface Service {
   id: number;
   name: string;
   tipoServico: string | null;
-  valorServico: number | null;
   status: string;
   statusPagamento: string;
   pagamentoRealizado: boolean;
@@ -369,10 +368,8 @@ function PaymentPanel({ services }: { services: Service[] }) {
   const relevant = services.filter(
     (s) => !s.tipoServico || s.tipoServico === "Homologação" || s.tipoServico === "Projeto"
   );
-  const total = relevant.reduce((sum, s) => sum + (s.valorServico ?? 0), 0);
-  const paid = relevant
-    .filter((s) => s.pagamentoRealizado)
-    .reduce((sum, s) => sum + (s.valorServico ?? 0), 0);
+  const total = relevant.length;
+  const paid = relevant.filter((s) => s.pagamentoRealizado).length;
   const pending = total - paid;
 
   return (
@@ -387,17 +384,17 @@ function PaymentPanel({ services }: { services: Service[] }) {
         <>
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="bg-background/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Total</p>
-              <p className="text-sm font-medium text-foreground">{formatBRL(total)}</p>
+              <p className="text-xs text-muted-foreground mb-1">Serviços</p>
+              <p className="text-sm font-medium text-foreground">{total}</p>
             </div>
             <div className="bg-background/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Pago</p>
-              <p className="text-sm font-medium text-green-400">{formatBRL(paid)}</p>
+              <p className="text-xs text-muted-foreground mb-1">Pagos</p>
+              <p className="text-sm font-medium text-green-400">{paid}</p>
             </div>
             <div className="bg-background/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Pendente</p>
+              <p className="text-xs text-muted-foreground mb-1">Pendentes</p>
               <p className={`text-sm font-medium ${pending > 0 ? "text-yellow-400" : "text-foreground"}`}>
-                {formatBRL(pending)}
+                {pending}
               </p>
             </div>
           </div>
@@ -413,7 +410,6 @@ function PaymentPanel({ services }: { services: Service[] }) {
                   <p className="text-xs text-muted-foreground">{s.tipoServico ?? "—"}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm text-foreground">{formatBRL(s.valorServico)}</p>
                   <p
                     className={`text-xs ${
                       s.pagamentoRealizado ? "text-green-400" : "text-yellow-400"
@@ -527,6 +523,33 @@ export default function HomologacaoProjetoPage() {
           </div>
         </div>
       </div>
+
+      {/* Pagamento do serviço de homologação */}
+      {(project.homologacaoValor != null || project.homologacaoFormaPagamento || project.homologacaoPix) && (
+        <div className="bg-card border border-white/5 rounded-3xl p-6 mb-5">
+          <h2 className="text-sm font-medium text-foreground mb-3">Pagamento do serviço</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-background/50 rounded-2xl p-4">
+              <p className="text-xs text-muted-foreground">Valor</p>
+              <p className="text-foreground font-medium">{formatBRL(project.homologacaoValor)}</p>
+            </div>
+            <div className="bg-background/50 rounded-2xl p-4">
+              <p className="text-xs text-muted-foreground">Status</p>
+              <p className={project.homologacaoPago ? "text-energy-green font-medium" : "text-chart-3 font-medium"}>
+                {project.homologacaoPago ? "Pago" : "Pendente"}
+              </p>
+            </div>
+            <div className="bg-background/50 rounded-2xl p-4">
+              <p className="text-xs text-muted-foreground">Forma</p>
+              <p className="text-foreground font-medium">{project.homologacaoFormaPagamento ?? "—"}</p>
+            </div>
+            <div className="bg-background/50 rounded-2xl p-4">
+              <p className="text-xs text-muted-foreground">Conta / PIX</p>
+              <p className="text-foreground font-medium truncate">{project.homologacaoPix ?? "—"}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notes */}
       <div className="mb-5">
