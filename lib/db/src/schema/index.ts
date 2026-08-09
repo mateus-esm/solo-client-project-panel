@@ -25,3 +25,6 @@ export * from "./homologacao";
 export * from "./installers";
 export * from "./procurement";
 export * from "./clients";
+export * from "./migrations-table";
+export * from "./conversations";
+export * from "./messages";
