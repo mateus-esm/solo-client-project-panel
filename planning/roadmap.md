@@ -60,14 +60,45 @@ cima e passa a ser o que vale. A posição real do projeto já está no `stage`/
 
 ---
 
+## Como o cliente é identificado (decisão)
+
+CPF/CNPJ fica para depois — vem do formulário que o cliente preenche ou do contrato assinado.
+Para agora, a chave é **telefone**, com nome como alternativa.
+
+Ordem de confiança, e o motivo de cada uma:
+
+1. **Telefone (WhatsApp)** — chave principal. É por onde a operação já fala com o cliente, é único
+   na prática e muda pouco. Guardado normalizado (só dígitos, com DDI/DDD) para `(85) 9 8888-7777`,
+   `85988887777` e `+5585988887777` serem o mesmo cliente.
+2. **E-mail** — chave secundária. Fraca hoje: os 37 ativos têm e-mail fictício `@sem-email.invalid`.
+3. **Nome normalizado** — só para casar planilha, sempre com revisão manual. Nome repete
+   (2 "Flávio", 2 "Ednaldo") e varia entre as bases ("Ana" no Jestor, nome completo na proposta).
+4. **CPF/CNPJ** — entra depois, e quando entrar vira a chave definitiva.
+
+**Regra de não-duplicar:** telefone normalizado é único quando existe. Negócio novo com telefone já
+cadastrado **não cria cliente** — vincula mais um projeto/serviço ao cliente existente. Sem telefone,
+casa por nome e marca para revisão em vez de duplicar silenciosamente.
+
+> **Fato que muda a Sprint 1:** telefone de cliente **não existe em nenhuma das três planilhas**.
+> A proposta traz `Telefone do Consultor` e `Email do Consultor` — são do consultor, não do cliente.
+> CPF/CNPJ aparece em 2 de 248. Ou seja: a tabela `clients` nasce agora com **nome e endereço**, e a
+> chave telefone só passa a existir de fato quando a **base de leads** chegar. Por isso o campo é
+> nulo-permitido desde o começo, e a Sprint 2 é o que dá identidade real ao cliente.
+
 ## Sprint 1 — v1 utilizável com dado real (hoje → amanhã)
 
-Objetivo: abrir o SoloPro amanhã e ver **cliente, projeto e usina** de verdade.
+Objetivo: abrir o SoloPro amanhã e ver **cliente, projeto e usina** ligados, com o que existe hoje.
 
-**1.1 `clients`** — `cpf_cnpj` (único, aceita nulo), nome, email, telefone, endereço, origem.
-Mais `projects.client_id`. Um cliente pode ter N projetos/serviços; ao chegar negócio novo, casa por
-CPF/CNPJ e **não duplica**. Corrige também o bug do login: hoje `auth.ts` usa `.limit(1)` e o cliente
-com 2 projetos só enxerga um.
+**1.1 `clients`** — nome, `phone_normalized` (único quando presente, aceita nulo), telefone como
+digitado, e-mail, CPF/CNPJ (nulo por enquanto), endereço, origem (`jestor` | `proposta` | `lead` |
+`manual`), observações. Mais `projects.client_id`.
+
+Um cliente tem N projetos e serviços. Backfill: 1 cliente por projeto dos 37 ativos, casando os
+homônimos por nome normalizado — dos 133 do Jestor, 13 clientes têm 2 projetos, então esses viram
+**um** cliente com dois projetos, não dois clientes.
+
+Corrige de quebra o bug do login: hoje `auth.ts` usa `.limit(1)` e o cliente com 2 projetos só
+enxerga um deles.
 
 **1.2 `plants` (usinas)** — 1 por projeto entregue: potência instalada, concessionária, geração
 estimada, área, data de ativação, link de monitoramento, drive, e a ficha de equipamentos
@@ -88,25 +119,32 @@ de materiais do serviço vem na Sprint 3.
 **Regra de duplicidade nas propostas:** 27 clientes têm mais de uma proposta. Vale a que tem
 **Oportunidade** preenchida — isso resolve 24 dos 27. Os 3 restantes ficam para revisão manual.
 
-**O que a planilha de propostas NÃO resolve:** `Email do Consultor` e `Telefone do Consultor` são do
-**consultor**, não do cliente. E `CPF/CNPJ` só tem 2 de 248. Ou seja: **contato do cliente continua
-faltando** — a base de leads é a fonte, e entra na Sprint 2. 13 dos 37 ativos não têm proposta
-nenhuma (a maioria O&M e projetos antigos); esses ficam para preenchimento manual.
+**O que a planilha de propostas NÃO resolve:** contato do cliente. `Email do Consultor` e
+`Telefone do Consultor` são do consultor. 13 dos 37 ativos não têm proposta nenhuma (a maioria O&M e
+projetos antigos) — ficam para preenchimento manual.
 
-**Pronto quando:** abrir um card e ver cliente, endereço, concessionária e ficha da usina.
+**Pronto quando:** abrir um card e ver cliente, endereço, concessionária e ficha da usina, com o
+cliente aparecendo uma vez só mesmo tendo dois projetos.
 
-## Sprint 2 — checklist como tarefa + contatos reais
+## Sprint 2 — identidade real do cliente + checklist como tarefa
 
+A sprint que dá telefone ao cliente e transforma o checklist em motor do processo.
+
+- **Import da base de leads** → telefone e e-mail reais. Casa por nome normalizado contra os
+  `clients` criados na Sprint 1, preenche `phone_normalized`, e a partir daí o telefone passa a ser a
+  chave de verdade. Ambíguos vão para uma fila de revisão manual — com ~99 clientes, revisar à mão o
+  que ficar duvidoso custa minutos e evita mandar mensagem para o cliente errado.
+- Com telefone e e-mail reais, o portal do cliente passa a funcionar e o `@sem-email.invalid` morre.
 - Checklist padronizado por sub-etapa, itens como ação (tabela acima), Jestor vira histórico recolhido.
 - Card só avança quando os itens da sub-etapa estão cumpridos.
-- Import da base de leads → e-mail e telefone reais nos `clients`, casando por nome com revisão
-  manual dos ambíguos. Aí o portal do cliente passa a funcionar de verdade e o `@sem-email.invalid` morre.
 
-## Sprint 3 — operação e custo
+## Sprint 3 — operação, custo e documentos
 
 - Lista de materiais do serviço consumindo do estoque → custo real por projeto.
-- Formulário público com token: cliente preenche e devolve documentos (conta de luz, RG/CPF, docs de
-  homologação), e o documento recebido **cumpre o item do checklist** que o esperava.
+- **Formulário público com token**: cliente preenche e devolve documentos (conta de luz, RG/CPF, docs
+  de homologação). Duas consequências: o documento recebido **cumpre o item do checklist** que o
+  esperava, e é aqui que **CPF/CNPJ finalmente entra** — passando a ser a chave definitiva, acima do
+  telefone, e destravando o casamento com o SoloApp (`Client.cpfCnpj` é único lá).
 - Tipo no pipeline (projeto / O&M / monitoramento / carregador EV): mesmo funil, filtro por tipo,
   gate de homologação não se aplica a O&M.
 
