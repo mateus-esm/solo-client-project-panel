@@ -128,19 +128,71 @@ cliente aparecendo uma vez só mesmo tendo dois projetos.
 
 ## Sprint 2 — identidade real do cliente + checklist como tarefa
 
-A sprint que dá telefone ao cliente e transforma o checklist em motor do processo.
+A base de leads chegou e resolve a identidade. **1.145 leads, telefone em 1.123 (98%), e-mail em
+708 (62%), 1.031 telefones distintos.**
 
-- **Import da base de leads** → telefone e e-mail reais. Casa por nome normalizado contra os
-  `clients` criados na Sprint 1, preenche `phone_normalized`, e a partir daí o telefone passa a ser a
-  chave de verdade. Ambíguos vão para uma fila de revisão manual — com ~99 clientes, revisar à mão o
-  que ficar duvidoso custa minutos e evita mandar mensagem para o cliente errado.
-- Com telefone e e-mail reais, o portal do cliente passa a funcionar e o `@sem-email.invalid` morre.
+Casamento medido contra os 37 ativos:
+
+| | |
+|---|---|
+| Casam por nome exato, com telefone | 29 |
+| Casam por prefixo de nome, com telefone | 3 |
+| Casam mas o lead está sem telefone | 3 |
+| Não casam com nenhum lead | 2 |
+| **Ganham telefone real** | **32 / 37** |
+
+Sem telefone ficam: Ricardo Mendes, Lanna, Chanderliê, Kepler Pascoal, Flávio SSPDS — preenchimento
+manual, são cinco.
+
+- Import dos leads → preenche `phone_normalized` e e-mail nos `clients` da Sprint 1. A partir daí o
+  telefone é a chave de verdade. Ambíguos vão para fila de revisão manual em vez de casar sozinhos.
+- Com telefone e e-mail reais, o portal do cliente funciona e o `@sem-email.invalid` morre.
+- A planilha traz também `Canal de captação`, `Perfil`, `Tomador de decisão` e `id_soloapp` — o
+  `id_soloapp` já é um ponteiro pronto para o SoloApp, mesmo que só 2 estejam preenchidos hoje.
 - Checklist padronizado por sub-etapa, itens como ação (tabela acima), Jestor vira histórico recolhido.
 - Card só avança quando os itens da sub-etapa estão cumpridos.
 
-## Sprint 3 — operação, custo e documentos
+## Sprint 3 — resultado real do projeto, estoque e documentos
 
-- Lista de materiais do serviço consumindo do estoque → custo real por projeto.
+### O modelo financeiro: estimativa ≠ resultado
+
+A oportunidade traz **preço estimado**. O projeto tem que responder outra pergunta: **quanto dinheiro
+sobrou de verdade.** São coisas diferentes e não podem viver no mesmo campo — por isso
+`valor_projeto` continua sendo o contratado, e o resultado real vem de um razão de lançamentos.
+
+**`project_ledger`** — um lançamento por linha: `tipo` (entrada | saída), `categoria`, `descrição`,
+`valor`, `data_prevista`, `data_realizada`, `status` (previsto | realizado), `origem`
+(manual | pagamento | compra | serviço).
+
+Categorias, exatamente como você descreveu a operação:
+
+| | Categorias |
+|---|---|
+| **Entradas** | recebimento do cliente (parcela, entrada, financiamento) |
+| **Deduções da receita** | taxa de cartão, comissão paga |
+| **Custos do projeto** | capex, instalação, homologação, materiais avulsos, logística, outros serviços |
+| **Custos não previstos** | retrabalho/problema, serviço extra exigido no projeto |
+
+Com isso o card mostra quatro números que hoje não existem:
+
+```
+Contratado        valor_projeto
+Recebido líquido  Σ entradas realizadas − deduções
+Custo real        Σ saídas realizadas
+Resultado         recebido líquido − custo real
+```
+
+E, como cada lançamento tem data prevista e data realizada, o **fluxo de caixa** sai de graça: o que
+já entrou, o que falta entrar, o que vence. É esse extrato que vira a entrada do app financeiro
+depois — o SoloPro registra, o app financeiro consolida.
+
+**Não é tabela nova do zero.** Boa parte do custo já está no sistema, só espalhada: `payments`
+(parcelas do cliente), `project_purchases.valor` (materiais), `services.valor_fechado`,
+`custo_logistica`, `outros_custos`, e `projects.homologacao_valor`. O razão **deriva** desses
+lançamentos automaticamente e só aceita entrada manual para o que não tem origem — comissão, taxa de
+cartão e custo de problema. Assim ninguém digita duas vezes, e o número fecha com a operação.
+
+- Lista de materiais do serviço consumindo do estoque → custo real por projeto, alimentando o razão.
 - **Formulário público com token**: cliente preenche e devolve documentos (conta de luz, RG/CPF, docs
   de homologação). Duas consequências: o documento recebido **cumpre o item do checklist** que o
   esperava, e é aqui que **CPF/CNPJ finalmente entra** — passando a ser a chave definitiva, acima do
