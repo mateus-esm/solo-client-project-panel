@@ -52,6 +52,8 @@ Thumbs.db
 *.xlsx
 jestor*.json
 
-# Dumps do banco — podem conter OTPs, sessoes e dados de clientes
+# Dumps do banco — podem conter OTPs, sessoes e dados de clientes.
+# Migracoes sao versionadas de proposito: sem elas o schema nao sobe no deploy.
 *.sql
+!lib/db/migrations/*.sql
 db-dump*
