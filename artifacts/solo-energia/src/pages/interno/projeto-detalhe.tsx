@@ -5,6 +5,7 @@ import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2, Package
 import { InternalLayout } from "@/components/internal-layout";
 import { ProcessoFicha } from "@/components/processo-ficha";
 import { ChecklistGroups } from "@/components/checklist-groups";
+import { PlantCard } from "@/components/plant-card";
 import { ComprasSection } from "@/components/compras-section";
 import { FinanceiroSection } from "@/components/financeiro-section";
 import { Button } from "@/components/ui/button";
@@ -304,6 +305,12 @@ export default function ProjetoDetalhePage() {
           projectId={project.id}
           basePath={`/internal/projects/${project.id}/processo`}
         />
+      </div>
+
+      <div className="mb-6">
+
+        <PlantCard projectId={project.id} />
+
       </div>
 
       <div className="bg-card border border-white/5 rounded-3xl p-6">

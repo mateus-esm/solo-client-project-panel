@@ -475,3 +475,102 @@ export const formatBRL = (value: number | null | undefined) =>
   value === null || value === undefined
     ? "—"
     : value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// ─── Clientes, usinas e estoque (Sprint 1.2) ─────────────────────────────────
+
+export interface Client {
+  id: number;
+  name: string;
+  phone: string | null;
+  phoneNormalized: string | null;
+  email: string | null;
+  cpfCnpj: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  origem: string;
+  canalCaptacao: string | null;
+  observacoes: string | null;
+  createdAt: string;
+  projectCount?: number;
+}
+
+export interface Plant {
+  id: number;
+  projectId: number | null;
+  clientId: number | null;
+  name: string | null;
+  tipoUsina: string | null;
+  status: string | null;
+  concessionaria: string | null;
+  enderecoInstalacao: string | null;
+  city: string | null;
+  state: string | null;
+  potenciaInstaladaKwp: number | null;
+  areaConstruidaM2: number | null;
+  geracaoEstimadaKwh: number | null;
+  receitaEstimada: number | null;
+  consumoMedioMensal: number | null;
+  dataInicio: string | null;
+  dataAtivacao: string | null;
+  moduloFabricante: string | null;
+  moduloPotenciaW: number | null;
+  moduloQuantidade: number | null;
+  inversorFabricante: string | null;
+  inversorPotenciaKw: number | null;
+  inversorQuantidade: number | null;
+  tipoEstrutura: string | null;
+  tipoMonitoramento: string | null;
+  monitoramentoUrl: string | null;
+  driveUrl: string | null;
+  observacoes: string | null;
+}
+
+export interface ClientDetail {
+  client: Client;
+  projects: InternalProject[];
+  plants: Plant[];
+}
+
+export const STOCK_CATEGORIAS = [
+  "modulo",
+  "inversor",
+  "estrutura",
+  "cabo",
+  "protecao",
+  "ferramenta",
+  "outro",
+] as const;
+export type StockCategoria = (typeof STOCK_CATEGORIAS)[number];
+
+export const STOCK_CATEGORIA_LABELS: Record<StockCategoria, string> = {
+  modulo: "Módulo",
+  inversor: "Inversor",
+  estrutura: "Estrutura",
+  cabo: "Cabo",
+  protecao: "Proteção",
+  ferramenta: "Ferramenta",
+  outro: "Outro",
+};
+
+export interface StockItem {
+  id: number;
+  sku: string | null;
+  name: string;
+  categoria: string;
+  unidade: string;
+  quantidade: number;
+  custoUnitario: number | null;
+  estoqueMinimo: number | null;
+  supplierId: number | null;
+  localizacao: string | null;
+  observacoes: string | null;
+}
+
+/** (85) 9 8888-7777 a partir de 85988887777 — só para exibição. */
+export function formatPhone(raw: string | null | undefined): string {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return raw ?? "—";
+}

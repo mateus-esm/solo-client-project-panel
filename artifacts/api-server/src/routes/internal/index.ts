@@ -5,6 +5,9 @@ import techniciansRouter from "./technicians";
 import installersRouter from "./installers";
 import procurementRouter from "./procurement";
 import financeRouter from "./finance";
+import clientsRouter from "./clients";
+import plantsRouter from "./plants";
+import stockRouter from "./stock";
 import { requireAdmin } from "../../lib/adminAuth";
 
 const router: IRouter = Router();
@@ -17,5 +20,8 @@ router.use(techniciansRouter);
 router.use(installersRouter);
 router.use(procurementRouter);
 router.use(financeRouter);
+router.use(clientsRouter);
+router.use(plantsRouter);
+router.use(stockRouter);
 
 export default router;
