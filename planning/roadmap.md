@@ -5,6 +5,126 @@
 
 ---
 
+# PLANO ATUAL — Sprints até o SoloPro v1 — Claude (Fable 5), 2026-08-09
+
+> Este é o plano vigente. As seções abaixo são histórico das decisões que levaram até aqui.
+> Arquitetura dos 3 sistemas: `planning/arquitetura-integracao.md`.
+
+## Onde estamos
+
+37 projetos ativos já rodando no banco, R$ 730.657 em carteira, 3.289 itens de checklist.
+Falta: **clients**, **plants** e **estoque** — e corrigir o modelo de checklist.
+
+## A correção mais importante: checklist é tarefa, não caixinha
+
+Você apontou dois erros, e os dois são meus:
+
+**1. Os checklists ficaram diferentes por projeto.** Isso veio do import: eu trouxe os 3.289 tokens do
+Jestor com os rótulos que cada projeto tinha lá. O resultado é que cada card tem uma lista diferente —
+exatamente o que não pode acontecer. O checklist **é do processo**, não do projeto.
+
+**2. Marcar uma caixinha não é executar a tarefa.** A caixinha é uma declaração de que alguém fez
+algo; a tarefa é o algo. Enquanto for caixinha, o sistema não sabe se a homologação tem técnico —
+sabe apenas que alguém disse que sim.
+
+**A visão certa:** cada sub-etapa tem um checklist **padronizado**, e cada item é uma **ação real**.
+O item "Atribuir técnico de homologação" não é marcado — ele é **cumprido quando o técnico é
+atribuído**. O checklist vira um **atalho para a ação**, e a conclusão é consequência do trabalho
+feito, não uma marcação manual.
+
+Isso muda o significado do sistema. O checklist deixa de ser lista de lembretes e vira o **motor do
+processo**: quando todos os itens da sub-etapa estão cumpridos, o card é liberado para avançar.
+E como cada item passa a ser um dado verificável (tem técnico? tem documento? tem serviço criado?),
+o sistema pode avançar sozinho — é o que destrava o low-touch mais adiante.
+
+O primitivo já existe: `project_checklist_items.kind` já é `check | form | service | client_notify`.
+Falta ampliar os tipos de ação e ligar cada um ao dado que o satisfaz.
+
+**Exemplos de itens-ação por tipo:**
+
+| Ação | O que satisfaz o item |
+|---|---|
+| Atribuir técnico de homologação | `projects.homologacao_technician_id` preenchido |
+| Anexar conta de luz do cliente | documento da categoria recebido |
+| Registrar protocolo na concessionária | `homologacao_processos.numero_solicitacao` preenchido |
+| Criar serviço de instalação | serviço vinculado criado |
+| Agendar com o cliente | agendamento com data confirmada |
+| Registrar compra de material | compra vinculada ao projeto |
+| Cadastrar dados da usina | ficha da usina completa |
+| Liberar acesso do monitoramento | credenciais da usina preenchidas |
+
+**O que fazer com os 3.289 itens importados:** não apagar (são 1.988 marcados como feitos, é
+histórico real do Jestor), mas também não deixar competindo com o padrão. Ficam marcados como
+`origem = 'jestor'` e aparecem numa seção recolhida de histórico. O checklist padrão é semeado por
+cima e passa a ser o que vale. A posição real do projeto já está no `stage`/`sub_stage`.
+
+---
+
+## Sprint 1 — v1 utilizável com dado real (hoje → amanhã)
+
+Objetivo: abrir o SoloPro amanhã e ver **cliente, projeto e usina** de verdade.
+
+**1.1 `clients`** — `cpf_cnpj` (único, aceita nulo), nome, email, telefone, endereço, origem.
+Mais `projects.client_id`. Um cliente pode ter N projetos/serviços; ao chegar negócio novo, casa por
+CPF/CNPJ e **não duplica**. Corrige também o bug do login: hoje `auth.ts` usa `.limit(1)` e o cliente
+com 2 projetos só enxerga um.
+
+**1.2 `plants` (usinas)** — 1 por projeto entregue: potência instalada, concessionária, geração
+estimada, área, data de ativação, link de monitoramento, drive, e a ficha de equipamentos
+(módulo: fabricante/potência/quantidade; inversor: fabricante/potência/quantidade). É o registro que
+depois alimenta `Plant` + `Inverter` no SoloApp.
+
+**1.3 `estoque`** — itens com saldo e custo. Começa vazia; a equipe cadastra. A ligação com a lista
+de materiais do serviço vem na Sprint 3.
+
+**1.4 Backfill com as planilhas** — sem inventar dado:
+
+| Fonte | O que entra | Cobertura |
+|---|---|---|
+| Propostas (248 linhas) | endereço de instalação, concessionária, módulos, inversor, tipo de monitoramento, consumo médio | **24 dos 37** ativos casam por nome (18 exato, 4 prefixo, 2 aproximado) |
+| Usinas Jestor (97 linhas) | potência instalada, geração estimada, receita estimada, data de ativação, link de monitoramento, drive | complementa os concluídos e parte dos ativos |
+| Projetos (já importado) | cliente, valor, etapa, checklist | 37/37 |
+
+**Regra de duplicidade nas propostas:** 27 clientes têm mais de uma proposta. Vale a que tem
+**Oportunidade** preenchida — isso resolve 24 dos 27. Os 3 restantes ficam para revisão manual.
+
+**O que a planilha de propostas NÃO resolve:** `Email do Consultor` e `Telefone do Consultor` são do
+**consultor**, não do cliente. E `CPF/CNPJ` só tem 2 de 248. Ou seja: **contato do cliente continua
+faltando** — a base de leads é a fonte, e entra na Sprint 2. 13 dos 37 ativos não têm proposta
+nenhuma (a maioria O&M e projetos antigos); esses ficam para preenchimento manual.
+
+**Pronto quando:** abrir um card e ver cliente, endereço, concessionária e ficha da usina.
+
+## Sprint 2 — checklist como tarefa + contatos reais
+
+- Checklist padronizado por sub-etapa, itens como ação (tabela acima), Jestor vira histórico recolhido.
+- Card só avança quando os itens da sub-etapa estão cumpridos.
+- Import da base de leads → e-mail e telefone reais nos `clients`, casando por nome com revisão
+  manual dos ambíguos. Aí o portal do cliente passa a funcionar de verdade e o `@sem-email.invalid` morre.
+
+## Sprint 3 — operação e custo
+
+- Lista de materiais do serviço consumindo do estoque → custo real por projeto.
+- Formulário público com token: cliente preenche e devolve documentos (conta de luz, RG/CPF, docs de
+  homologação), e o documento recebido **cumpre o item do checklist** que o esperava.
+- Tipo no pipeline (projeto / O&M / monitoramento / carregador EV): mesmo funil, filtro por tipo,
+  gate de homologação não se aplica a O&M.
+
+## Sprint 4 — integrações
+
+- Sales Engine → SoloPro: oportunidade ganha vira cliente + projeto (webhook já existe lá).
+- SoloPro → SoloApp: usina ativada vira `Plant` + `Inverter` + UCs/rateio.
+- SoloApp → SoloPro: ticket vira serviço de O&M.
+- Importar os 96 projetos concluídos como arquivo histórico.
+
+## Princípio para todas as sprints
+
+Nada entra sem dado real por trás. Onde o dado não existe, o campo fica vazio e visível como
+pendência — não preenchido com suposição. Foi assim que os 37 entraram, e é o que permite confiar
+no que está na tela.
+
+---
+
 # Product Manager — Claude (Fable 5) — 2026-08-08
 
 ## Veredito
