@@ -24,3 +24,4 @@ export * from "./checklists";
 export * from "./homologacao";
 export * from "./installers";
 export * from "./procurement";
+export * from "./clients";

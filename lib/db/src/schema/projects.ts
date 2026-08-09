@@ -41,6 +41,9 @@ export type DocumentDisplayCategory = typeof DOCUMENT_DISPLAY_CATEGORIES[number]
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
   jestorId: text("jestor_id").unique(),
+  // Identidade durável do cliente. clientName/clientEmail continuam preenchidos
+  // (o portal do cliente e o Jestor dependem deles), mas clientId é a referência.
+  clientId: integer("client_id"),
   clientName: text("client_name").notNull(),
   clientEmail: text("client_email").notNull(),
   clientPhone: text("client_phone"),
