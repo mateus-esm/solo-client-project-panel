@@ -88,6 +88,60 @@ ninguém da equipe tocar em nada.
 
 **Pronto quando:** enviar o link, o cliente preencher, e o item do checklist virar cumprido sozinho.
 
+### 3.5 Acesso Enel e procuração — o que destrava a homologação e a coleta de faturas
+
+O mesmo formulário coleta duas coisas que hoje faltam e travam processo: os **dados de acesso à Enel**
+e a **procuração assinada**.
+
+**O que o bot realmente precisa.** Li o `Bot-Enel` do Solo App e ele tem dois caminhos, com exigências
+bem diferentes:
+
+| Rota do bot | Entrada | Precisa de senha? |
+|---|---|---|
+| `POST /extract-via-segunda-via` | `numeroCliente`, `cpfCnpj`, `mesReferencia`, `webhookUrl` | **Não** |
+| `POST /` (login) | `login`, `senha`, `codigoCliente`, `mesReferencia` | Sim |
+
+**Decisão: pedir primeiro o caminho sem senha.** `numeroCliente` + `cpfCnpj` já bastam para puxar a
+segunda via. Pedir a senha do portal da Enel do cliente é atrito enorme e passivo de segurança — fica
+como campo **opcional**, para os casos em que a rota sem senha não resolver.
+
+Dois detalhes operacionais que o código revela e precisam entrar no desenho:
+
+- O bot tem `POST /set-sms-code`: o login da Enel usa **2FA por SMS**. Ou seja, o caminho com senha
+  não é totalmente automático — alguém precisa repassar o código. Mais uma razão para preferir a rota
+  sem senha.
+- Tem `POST /decrypt-pdf` com senha: a fatura da Enel vem em **PDF protegido**. A senha costuma
+  derivar do CPF, então o CPF é duplamente necessário.
+
+**Campos a coletar** (na `clients` ou numa `client_enel_access`):
+
+| Campo | Origem | Observação |
+|---|---|---|
+| `numero_cliente_enel` | formulário | com o CPF já habilita a coleta de faturas |
+| `numero_instalacao` (UC) | formulário / conta de luz | vira `ConsumerUnit` no SoloApp e é a base do rateio |
+| `cpf_cnpj` | formulário (item 3.2) | também abre o PDF da fatura |
+| `login_enel` / `senha_enel` | formulário, **opcional** | **criptografada**, mesmo esquema da Onda 5 |
+
+**Procuração.** Campo para o documento assinado que dá à Solo poder de agir perante a Enel:
+`procuracao_url`, `procuracao_assinada_em`, `procuracao_validade`. É o que permite tocar a
+homologação e, depois, **ajustar rateio** sem o cliente a cada passo.
+
+**Vira tarefa na homologação.** Duas ações novas na sub-etapa `homologacao_envio_a_concessionaria`:
+
+| Ação | Cumprida quando |
+|---|---|
+| `procuracao_assinada` | `procuracao_url` preenchido |
+| `acesso_enel_coletado` | `numero_cliente_enel` e `cpf_cnpj` preenchidos |
+
+Assim o técnico vê no card o que falta para poder falar com a Enel, e o cliente cumpre os dois itens
+sozinho pelo formulário — sem ninguém da equipe marcar nada.
+
+**Fecha o ciclo com o SoloApp:** `numero_instalacao` alimenta `ConsumerUnit`/`CreditAllocation`
+(o rateio) e a coleta de faturas alimenta `EnergyBill`.
+
+**Pronto quando:** o cliente assina a procuração e informa o número de cliente Enel pelo formulário, e
+os dois itens do checklist de homologação ficam cumpridos sozinhos.
+
 ## Onda 4 — Resultado real do projeto
 
 O que você descreveu: contratado é uma coisa, **dinheiro que sobrou** é outra.
@@ -173,12 +227,17 @@ solar. Manutenção não tem Projeto Técnico nem Homologação.
 | Razão financeiro nasce vazio e é abandonado | lançamento manual primeiro (4.3); derivação só quando houver origem |
 | Link público do formulário vazar dado de cliente | token por cliente, com validade e revogável; nunca lista, só o próprio registro |
 | Senha de monitoramento em texto | criptografia é requisito da Onda 5, não item opcional |
+| Guardar senha do portal Enel do cliente | preferir a rota sem senha (`numeroCliente` + `cpfCnpj`); senha é campo opcional e criptografado |
+| 2FA por SMS quebra a automação com login | é o motivo de a rota sem senha ser a principal |
 | Sprint grande demais | ver ordem de corte abaixo |
 
 ## Ordem e corte
 
 Ondas **1 e 2 primeiro** — são dívida da Sprint 2 e pequenas. Depois **3**, que destrava CPF e
 documentos. Depois **4**, que é o maior valor de negócio.
+
+O item **3.5 (acesso Enel + procuração)** anda junto com a Onda 3: é o mesmo formulário, e sem ele a
+homologação continua dependendo de pedir dado por WhatsApp.
 
 Se precisar cortar: **5 e 6 saem** sem prejuízo imediato — nenhum projeto chegou à entrega de
 monitoramento, e o O&M já convive com o funil errado há meses. Se precisar cortar mais, a **Onda 4
