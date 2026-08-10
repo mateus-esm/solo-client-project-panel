@@ -21,6 +21,7 @@ import {
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { stepCompletionPercent } from "../../lib/jestor";
+import { resolveAcoes } from "../../lib/checklist-actions";
 import { getOrCreateProcesso, patchProcesso, processoPatchSchema } from "../homologacao";
 import { sendWhatsApp } from "../../lib/notifications";
 import {
@@ -155,7 +156,8 @@ router.get("/projects/:id", async (req, res) => {
       .where(eq(servicesTable.projectId, id))
       .orderBy(asc(servicesTable.id));
     const supplies = await supplySummaries([id]);
-    res.json({ project, checklist, services, supply: supplies.get(id) ?? EMPTY_SUPPLY });
+    const acoesCumpridas = await resolveAcoes(id);
+    res.json({ project, checklist, services, supply: supplies.get(id) ?? EMPTY_SUPPLY, acoesCumpridas });
   } catch (err) {
     req.log.error({ err }, "Failed to get project detail");
     res.status(500).json({ message: "Internal server error" });
@@ -332,7 +334,7 @@ router.post("/projects/:id/checklist", async (req, res) => {
     }
     const [item] = await db
       .insert(projectChecklistItemsTable)
-      .values({ ...parsed.data, projectId: id })
+      .values({ ...parsed.data, projectId: id, origem: "manual" })
       .returning();
     res.status(201).json(item);
   } catch (err) {
@@ -365,7 +367,11 @@ router.post("/projects/:id/checklist/seed", async (req, res) => {
             eq(projectChecklistItemsTable.stage, stage),
           ),
         );
-      const existingSlugs = new Set(existing.map((i) => i.checklistSlug));
+      // Só conta item do padrão: se o grupo tem 200 itens do Jestor (histórico),
+      // ele ainda precisa receber o checklist padrão.
+      const existingSlugs = new Set(
+        existing.filter((i) => i.origem !== "jestor").map((i) => i.checklistSlug),
+      );
 
       const toInsert: (typeof projectChecklistItemsTable.$inferInsert)[] = [];
       for (const group of CHECKLIST_TEMPLATE[stage] ?? []) {
@@ -378,6 +384,7 @@ router.post("/projects/:id/checklist/seed", async (req, res) => {
             checklistSlug: group.slug,
             label: tpl.label,
             kind: tpl.kind,
+            origem: "template",
             sortOrder: idx,
           });
         });

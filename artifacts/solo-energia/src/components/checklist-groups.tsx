@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ClipboardList, Users, CalendarClock, Pencil } from "lucide-react";
+import { Plus, Trash2, ClipboardList, Users, CalendarClock, Pencil, Check, ArrowRight, History, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +21,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   api,
+  acoesFor,
+  ACAO_CTA,
   CHECKLIST_TEMPLATE,
   CHECKLIST_FIELD_DEFS,
   SERVICE_TIPOS,
   type ChecklistItem,
   type ChecklistFieldDef,
   type StageId,
+  type ChecklistAcao,
 } from "@/lib/internal-api";
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
@@ -544,17 +547,102 @@ function AddItemInput({
   );
 }
 
+/**
+ * Item-ação: não é caixinha. O estado vem derivado do dado real (acoesCumpridas)
+ * e o botão leva direto para onde a ação acontece.
+ */
+function AcaoRow({
+  label,
+  acao,
+  cumprida,
+  onAtalho,
+}: {
+  label: string;
+  acao: ChecklistAcao;
+  cumprida: boolean;
+  onAtalho: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <div
+        className={
+          cumprida
+            ? "w-4 h-4 mt-0.5 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0"
+            : "w-4 h-4 mt-0.5 rounded-full border border-white/20 shrink-0"
+        }
+        title={cumprida ? "Cumprido pela ação no sistema" : "Pendente"}
+      >
+        {cumprida && <Check className="w-2.5 h-2.5" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cumprida ? "text-sm text-muted-foreground line-through" : "text-sm text-foreground"}>
+          {label}
+        </p>
+        {!cumprida && (
+          <button
+            onClick={onAtalho}
+            className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-0.5"
+          >
+            {ACAO_CTA[acao]} <ArrowRight className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Itens importados do Jestor: histórico, somente leitura, recolhido. */
+function HistoricoJestor({ items }: { items: ChecklistItem[] }) {
+  const [open, setOpen] = useState(false);
+  if (items.length === 0) return null;
+  const feitos = items.filter((i) => i.done).length;
+  return (
+    <div className="md:col-span-2 bg-background/40 border border-white/5 rounded-2xl p-4">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+          <History className="w-3.5 h-3.5" />
+          Histórico do Jestor — {items.length} itens, {feitos} concluídos
+        </span>
+        <ChevronDown
+          className={open ? "w-4 h-4 text-muted-foreground rotate-180 transition-transform" : "w-4 h-4 text-muted-foreground transition-transform"}
+        />
+      </button>
+      {open && (
+        <div className="mt-3 space-y-1 max-h-72 overflow-y-auto">
+          {items.map((i) => (
+            <p key={i.id} className="text-xs text-muted-foreground">
+              <span className={i.done ? "text-primary/70" : "text-muted-foreground/60"}>
+                {i.done ? "✓" : "○"}
+              </span>{" "}
+              {i.label}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChecklistGroups({
   projectId,
   stage,
   items,
   invalidateKeys,
   groupSlugPrefix,
+  acoesCumpridas,
+  onAtalho,
 }: {
   projectId: number;
   stage: StageId;
   items: ChecklistItem[];
   invalidateKeys: unknown[][];
+  /** Ações já cumpridas, derivadas do dado real pelo backend. */
+  acoesCumpridas?: ChecklistAcao[];
+  /** Leva o usuário para onde a ação acontece. */
+  onAtalho?: (atalho: { tipo: "rota" | "aba"; destino: string }) => void;
   /** Optional filter to show only groups whose slug starts with this prefix
    *  (e.g. "homologacao_" on the internal Homologação page). */
   groupSlugPrefix?: string;
@@ -595,21 +683,34 @@ export function ChecklistGroups({
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {groups.map((group) => {
-        const groupItems = items.filter((i) => i.checklistSlug === group.slug);
-        const doneCount = groupItems.filter((i) => i.done).length;
+        const todos = items.filter((i) => i.checklistSlug === group.slug);
+        const groupItems = todos.filter((i) => i.origem !== "jestor");
+        const acoes = acoesFor(group.slug);
+        const acoesOk = acoes.filter((a) => (acoesCumpridas ?? []).includes(a.acao)).length;
+        const doneCount = groupItems.filter((i) => i.done).length + acoesOk;
+        const totalCount = groupItems.length + acoes.length;
         return (
           <div key={group.slug} className="bg-card border border-white/5 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-foreground">{group.title}</h3>
               <span className="text-xs text-muted-foreground">
-                {doneCount}/{groupItems.length}
+                {doneCount}/{totalCount}
               </span>
             </div>
             <div className="space-y-2">
+              {acoes.map((a) => (
+                <AcaoRow
+                  key={a.acao}
+                  label={a.label}
+                  acao={a.acao}
+                  cumprida={(acoesCumpridas ?? []).includes(a.acao)}
+                  onAtalho={() => onAtalho?.(a.atalho)}
+                />
+              ))}
               {groupItems.map((item) => (
                 <ItemRow key={item.id} item={item} invalidateKeys={invalidateKeys} />
               ))}
-              {groupItems.length === 0 && (
+              {groupItems.length === 0 && acoes.length === 0 && (
                 <p className="text-xs text-muted-foreground">
                   {seedMutation.isPending ? "Criando itens padrão..." : "Nenhum item ainda."}
                 </p>
@@ -624,6 +725,7 @@ export function ChecklistGroups({
           </div>
         );
       })}
+      <HistoricoJestor items={items.filter((i) => i.origem === "jestor")} />
     </div>
   );
 }

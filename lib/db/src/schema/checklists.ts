@@ -15,6 +15,9 @@ export const projectChecklistItemsTable = pgTable(
     // Item behavior: "check" = simple checkbox; "form" = structured fields saved to metadata;
     // "service" = creates a linked service + notifies the team; "client_notify" = notifies client.
     kind: text("kind").notNull().default("check"),
+    // jestor = importado do Jestor (histórico, somente leitura)
+    // template = semeado do checklist padrão | manual = criado pela equipe
+    origem: text("origem").notNull().default("template"),
     // Structured data for form/service items: field values, linked serviceId, etc.
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     done: boolean("done").notNull().default(false),

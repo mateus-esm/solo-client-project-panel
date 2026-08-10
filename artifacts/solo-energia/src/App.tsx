@@ -26,6 +26,7 @@ import Equipes from "@/pages/interno/equipes";
 import Clientes from "@/pages/interno/clientes";
 import ClienteDetalhe from "@/pages/interno/cliente-detalhe";
 import Estoque from "@/pages/interno/estoque";
+import Usinas from "@/pages/interno/usinas";
 import Fornecedores from "@/pages/interno/fornecedores";
 import FinanceiroGeral from "@/pages/interno/financeiro";
 import HomologacaoLogin from "@/pages/homologacao/login";
@@ -174,6 +175,9 @@ function Router() {
       </Route>
       <Route path="/interno/clientes/:id">
         {() => <AdminGuard><ClienteDetalhe /></AdminGuard>}
+      </Route>
+      <Route path="/interno/usinas">
+        {() => <AdminGuard><Usinas /></AdminGuard>}
       </Route>
       <Route path="/interno/estoque">
         {() => <AdminGuard><Estoque /></AdminGuard>}

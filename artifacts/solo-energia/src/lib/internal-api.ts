@@ -364,6 +364,7 @@ export const CHECKLIST_FIELD_DEFS: Record<string, ChecklistFieldDef[]> = {
 };
 
 export interface ChecklistItem {
+  origem?: string;
   id: number;
   projectId: number;
   stage: StageId;
@@ -430,6 +431,7 @@ export interface ProjectDetail {
   checklist: ChecklistItem[];
   services: ServiceItem[];
   supply: SupplySummary;
+  acoesCumpridas?: ChecklistAcao[];
 }
 
 // --- Fetch helper ---
@@ -574,3 +576,75 @@ export function formatPhone(raw: string | null | undefined): string {
   if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return raw ?? "—";
 }
+
+// ─── Itens-ação do checklist (Sprint 2) ──────────────────────────────────────
+// Espelha lib/db/src/schema/pipeline.ts. Item-ação não é caixinha: é cumprido
+// quando a ação real acontece, e o cumprimento vem derivado do backend.
+
+export type ChecklistAcao =
+  | "atribuir_tecnico_homologacao"
+  | "protocolo_concessionaria"
+  | "anexar_documentos_cliente"
+  | "registrar_compra"
+  | "receber_material"
+  | "criar_servico_instalacao"
+  | "concluir_servico_instalacao"
+  | "agendar_com_cliente"
+  | "cadastrar_usina"
+  | "liberar_monitoramento"
+  | "registrar_pagamento";
+
+export interface ChecklistActionItem {
+  label: string;
+  acao: ChecklistAcao;
+  atalho: { tipo: "rota" | "aba"; destino: string };
+}
+
+export const ACAO_CTA: Record<ChecklistAcao, string> = {
+  atribuir_tecnico_homologacao: "Atribuir técnico",
+  protocolo_concessionaria: "Registrar protocolo",
+  anexar_documentos_cliente: "Anexar documentos",
+  registrar_compra: "Registrar compra",
+  receber_material: "Dar baixa no material",
+  criar_servico_instalacao: "Criar serviço",
+  concluir_servico_instalacao: "Concluir serviço",
+  agendar_com_cliente: "Agendar",
+  cadastrar_usina: "Cadastrar usina",
+  liberar_monitoramento: "Liberar monitoramento",
+  registrar_pagamento: "Registrar pagamento",
+};
+
+export const CHECKLIST_ACTION_ITEMS: Record<string, ChecklistActionItem[]> = {
+  onboarding_documentacao_do_cliente: [
+    { label: "Receber documentos do cliente", acao: "anexar_documentos_cliente", atalho: { tipo: "aba", destino: "documentos" } },
+  ],
+  onboarding_financeiro: [
+    { label: "Registrar o pagamento / entrada", acao: "registrar_pagamento", atalho: { tipo: "aba", destino: "financeiro" } },
+  ],
+  homologacao_envio_a_concessionaria: [
+    { label: "Atribuir técnico de homologação", acao: "atribuir_tecnico_homologacao", atalho: { tipo: "aba", destino: "homologacao" } },
+    { label: "Registrar protocolo na concessionária", acao: "protocolo_concessionaria", atalho: { tipo: "aba", destino: "homologacao" } },
+  ],
+  planejamento_de_execucao_logistica_de_materiais: [
+    { label: "Registrar a compra dos equipamentos", acao: "registrar_compra", atalho: { tipo: "aba", destino: "compras" } },
+  ],
+  planejamento_de_execucao_recebimento_de_material: [
+    { label: "Confirmar recebimento do material", acao: "receber_material", atalho: { tipo: "aba", destino: "compras" } },
+  ],
+  planejamento_de_execucao_designacao_de_equipe: [
+    { label: "Criar o serviço de instalação", acao: "criar_servico_instalacao", atalho: { tipo: "rota", destino: "/interno/servicos" } },
+  ],
+  planejamento_de_execucao_agendamento_com_cliente: [
+    { label: "Agendar a instalação com o cliente", acao: "agendar_com_cliente", atalho: { tipo: "aba", destino: "agendamento" } },
+  ],
+  execucao_instalacao_dos_equipamentos: [
+    { label: "Concluir o serviço de instalação", acao: "concluir_servico_instalacao", atalho: { tipo: "rota", destino: "/interno/servicos" } },
+  ],
+  ativacao_configuracao_do_monitoramento: [
+    { label: "Cadastrar a ficha da usina", acao: "cadastrar_usina", atalho: { tipo: "aba", destino: "usina" } },
+    { label: "Liberar o monitoramento para o cliente", acao: "liberar_monitoramento", atalho: { tipo: "aba", destino: "usina" } },
+  ],
+};
+
+export const acoesFor = (slug: string): ChecklistActionItem[] =>
+  CHECKLIST_ACTION_ITEMS[slug] ?? [];

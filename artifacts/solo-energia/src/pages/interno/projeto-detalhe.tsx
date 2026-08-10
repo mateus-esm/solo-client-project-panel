@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useRoute } from "wouter";
+import { Link, useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2, Package } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
@@ -115,6 +115,7 @@ export default function ProjetoDetalhePage() {
   const projectId = Number(params?.id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const queryKey = ["internal-project", projectId];
 
   const { data, isLoading } = useQuery<ProjectDetail>({
@@ -291,6 +292,11 @@ export default function ProjetoDetalhePage() {
           stage={activeStage}
           items={checklist.filter((i) => i.stage === activeStage)}
           invalidateKeys={[queryKey]}
+          acoesCumpridas={data.acoesCumpridas}
+          onAtalho={(a) => {
+            if (a.tipo === "rota") navigate(a.destino);
+            else document.getElementById(`bloco-${a.destino}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
         />
       </div>
 

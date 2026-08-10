@@ -327,3 +327,132 @@ export const SERVICE_STATUS_PAGAMENTO = [
   "Aprovado",
   "Pago",
 ] as const;
+
+// ─── Itens-ação ───────────────────────────────────────────────────────────────
+// Um item-ação não é caixinha: ele é cumprido quando a AÇÃO REAL acontece no
+// sistema. "Atribuir técnico de homologação" fica cumprido quando o técnico é
+// atribuído — ninguém marca nada.
+//
+// São 100% derivados: não existem como linha no banco. Vêm deste template e o
+// cumprimento é calculado a partir do dado real a cada leitura. Isso torna
+// impossível dois projetos terem checklists diferentes, e faz o item voltar a
+// pendente sozinho se a ação for desfeita.
+
+export const CHECKLIST_ACOES = [
+  "atribuir_tecnico_homologacao",
+  "protocolo_concessionaria",
+  "anexar_documentos_cliente",
+  "registrar_compra",
+  "receber_material",
+  "criar_servico_instalacao",
+  "concluir_servico_instalacao",
+  "agendar_com_cliente",
+  "cadastrar_usina",
+  "liberar_monitoramento",
+  "registrar_pagamento",
+] as const;
+
+export type ChecklistAcao = (typeof CHECKLIST_ACOES)[number];
+
+export interface ChecklistActionItem {
+  label: string;
+  acao: ChecklistAcao;
+  /** Para onde o atalho leva. `aba` navega dentro da própria tela do projeto. */
+  atalho: { tipo: "rota" | "aba"; destino: string };
+}
+
+/** Texto do botão de atalho, por ação. */
+export const ACAO_CTA: Record<ChecklistAcao, string> = {
+  atribuir_tecnico_homologacao: "Atribuir técnico",
+  protocolo_concessionaria: "Registrar protocolo",
+  anexar_documentos_cliente: "Anexar documentos",
+  registrar_compra: "Registrar compra",
+  receber_material: "Dar baixa no material",
+  criar_servico_instalacao: "Criar serviço",
+  concluir_servico_instalacao: "Concluir serviço",
+  agendar_com_cliente: "Agendar",
+  cadastrar_usina: "Cadastrar usina",
+  liberar_monitoramento: "Liberar monitoramento",
+  registrar_pagamento: "Registrar pagamento",
+};
+
+/** Itens-ação por sub-etapa. Convivem com os itens manuais (`check`) do template. */
+export const CHECKLIST_ACTION_ITEMS: Record<string, ChecklistActionItem[]> = {
+  onboarding_documentacao_do_cliente: [
+    {
+      label: "Receber documentos do cliente",
+      acao: "anexar_documentos_cliente",
+      atalho: { tipo: "aba", destino: "documentos" },
+    },
+  ],
+  onboarding_financeiro: [
+    {
+      label: "Registrar o pagamento / entrada",
+      acao: "registrar_pagamento",
+      atalho: { tipo: "aba", destino: "financeiro" },
+    },
+  ],
+  homologacao_envio_a_concessionaria: [
+    {
+      label: "Atribuir técnico de homologação",
+      acao: "atribuir_tecnico_homologacao",
+      atalho: { tipo: "aba", destino: "homologacao" },
+    },
+    {
+      label: "Registrar protocolo na concessionária",
+      acao: "protocolo_concessionaria",
+      atalho: { tipo: "aba", destino: "homologacao" },
+    },
+  ],
+  planejamento_de_execucao_logistica_de_materiais: [
+    {
+      label: "Registrar a compra dos equipamentos",
+      acao: "registrar_compra",
+      atalho: { tipo: "aba", destino: "compras" },
+    },
+  ],
+  planejamento_de_execucao_recebimento_de_material: [
+    {
+      label: "Confirmar recebimento do material",
+      acao: "receber_material",
+      atalho: { tipo: "aba", destino: "compras" },
+    },
+  ],
+  planejamento_de_execucao_designacao_de_equipe: [
+    {
+      label: "Criar o serviço de instalação",
+      acao: "criar_servico_instalacao",
+      atalho: { tipo: "rota", destino: "/interno/servicos" },
+    },
+  ],
+  planejamento_de_execucao_agendamento_com_cliente: [
+    {
+      label: "Agendar a instalação com o cliente",
+      acao: "agendar_com_cliente",
+      atalho: { tipo: "aba", destino: "agendamento" },
+    },
+  ],
+  execucao_instalacao_dos_equipamentos: [
+    {
+      label: "Concluir o serviço de instalação",
+      acao: "concluir_servico_instalacao",
+      atalho: { tipo: "rota", destino: "/interno/servicos" },
+    },
+  ],
+  ativacao_configuracao_do_monitoramento: [
+    {
+      label: "Cadastrar a ficha da usina",
+      acao: "cadastrar_usina",
+      atalho: { tipo: "aba", destino: "usina" },
+    },
+    {
+      label: "Liberar o monitoramento para o cliente",
+      acao: "liberar_monitoramento",
+      atalho: { tipo: "aba", destino: "usina" },
+    },
+  ],
+};
+
+export function acoesFor(slug: string): ChecklistActionItem[] {
+  return CHECKLIST_ACTION_ITEMS[slug] ?? [];
+}

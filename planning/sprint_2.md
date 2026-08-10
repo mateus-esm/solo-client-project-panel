@@ -135,3 +135,79 @@ parece válido.
 Onda 1 → Onda 2 → Onda 3, nessa sequência, porque cada uma depende da anterior. A Onda 4 entra em
 qualquer momento. Se precisar cortar, **a Onda 1 sozinha já resolve** a queixa original de que cada
 projeto tem um checklist diferente.
+
+---
+
+# Execução — Ondas 1 e 2 + Usinas — 2026-08-10
+
+**Concluído e verificado contra o banco de produção.** Ondas 3 e 4 seguem pendentes.
+
+## O que mudou no conceito
+
+O item-ação **não existe como linha no banco**. Ele vem do template em
+`lib/db/src/schema/pipeline.ts` e o cumprimento é **calculado a cada leitura** a partir do dado real.
+
+Duas consequências que resolvem a queixa original:
+
+1. **É impossível dois projetos terem checklists diferentes** — não há linha para divergir.
+2. **O item volta a pendente sozinho** se a ação for desfeita (técnico desatribuído, serviço
+   cancelado). Com `done` gravado isso exigiria sincronizar dois lugares.
+
+## Onda 1 — histórico separado do padrão
+
+Migração `014_checklist_origem.sql`: coluna `origem` (`jestor` | `template` | `manual`). Os **3.331
+itens** importados foram marcados como `jestor`.
+
+Na tela eles saíram do checklist e viraram um bloco **"Histórico do Jestor — N itens, N concluídos"**,
+recolhido e somente leitura. Nada foi apagado.
+
+O seed do padrão foi corrigido: antes ele pulava grupo que já tivesse qualquer item, então um grupo
+com 200 itens do Jestor nunca receberia o checklist padrão. Agora só conta item de origem `template`.
+
+## Onda 2 — o item virou ação
+
+11 ações, cada uma amarrada a dado que já existe:
+
+| Ação | Cumprida quando |
+|---|---|
+| `atribuir_tecnico_homologacao` | `projects.homologacao_technician_id` preenchido |
+| `protocolo_concessionaria` | `homologacao_processos.numero_solicitacao` preenchido |
+| `anexar_documentos_cliente` | documento com arquivo anexado |
+| `registrar_compra` / `receber_material` | compra registrada / com status `recebida` |
+| `criar_servico_instalacao` / `concluir_servico_instalacao` | serviço de instalação criado / concluído |
+| `agendar_com_cliente` | agendamento registrado |
+| `cadastrar_usina` / `liberar_monitoramento` | ficha da usina / link de monitoramento |
+| `registrar_pagamento` | parcela com status pago |
+
+Na tela, o item-ação não tem caixinha: mostra estado derivado e um **atalho** ("Atribuir técnico",
+"Cadastrar usina") que leva direto para onde a ação acontece — outra rota ou o bloco certo da própria
+tela do projeto.
+
+O resolver (`lib/checklist-actions.ts`) avalia **em lote por projeto**, uma consulta por tipo de
+condição, e devolve `acoesCumpridas` junto do detalhe do projeto.
+
+## Página de Usinas
+
+`/interno/usinas` — a tela que faltava. Lista as 31 usinas com kWp, concessionária, módulos, inversor
+e link de monitoramento, com busca e filtro **"Sem monitoramento"**. Cada linha abre o projeto.
+Entrou no menu lateral.
+
+## Verificação (banco de produção, sessão admin)
+
+| Teste | Resultado |
+|---|---|
+| Migração 014 | aplicada; 3.331 itens marcados `jestor` |
+| Projeto 3 (sem técnico, sem serviço) | `['cadastrar_usina']` |
+| **Projeto 2** (com técnico e serviço) | `['atribuir_tecnico_homologacao', 'cadastrar_usina', 'criar_servico_instalacao']` |
+| `GET /internal/plants` | 31 usinas, 0 com monitoramento |
+
+O contraste entre os projetos 2 e 3 é a prova de que o cumprimento vem do dado real, não de marcação.
+
+## O que falta (Ondas 3 e 4)
+
+- **Onda 3 — gate de avanço:** marcar quais ações são obrigatórias por sub-etapa e bloquear o avanço
+  do card enquanto faltarem, dizendo o que falta.
+- **Onda 4 — identidade:** 7 clientes sem telefone, e-mail em 11 de 37, e o `.limit(1)` do login.
+
+Nenhuma ação está amarrada às sub-etapas de Execução e Concluído ainda — foram mapeadas 9 das 34
+sub-etapas, as que têm dado correspondente hoje. As demais seguem com itens manuais.
