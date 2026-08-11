@@ -2,6 +2,7 @@
  * Internal (admin-protected) routes for managing homologacao technicians.
  * POST   /internal/technicians        — create a technician
  * GET    /internal/technicians        — list all technicians
+ * PATCH  /internal/technicians/:id    — update name/phone
  * DELETE /internal/technicians/:id   — remove a technician
  */
 import { Router, type IRouter } from "express";
@@ -17,6 +18,13 @@ const createSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(8),
+  // Sem telefone o técnico não entra no grupo de WhatsApp do processo.
+  phone: z.string().nullish(),
+});
+
+const updateSchema = z.object({
+  name: z.string().min(1).optional(),
+  phone: z.string().nullish(),
 });
 
 router.get("/technicians", async (req, res) => {
@@ -26,6 +34,7 @@ router.get("/technicians", async (req, res) => {
         id: homologacaoTechniciansTable.id,
         name: homologacaoTechniciansTable.name,
         email: homologacaoTechniciansTable.email,
+        phone: homologacaoTechniciansTable.phone,
         createdAt: homologacaoTechniciansTable.createdAt,
       })
       .from(homologacaoTechniciansTable)
@@ -44,15 +53,16 @@ router.post("/technicians", async (req, res) => {
       res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
       return;
     }
-    const { name, email, password } = parsed.data;
+    const { name, email, password, phone } = parsed.data;
     const passwordHash = hashPassword(password);
     const [tech] = await db
       .insert(homologacaoTechniciansTable)
-      .values({ name, email: email.toLowerCase().trim(), passwordHash })
+      .values({ name, email: email.toLowerCase().trim(), passwordHash, phone: phone ?? null })
       .returning({
         id: homologacaoTechniciansTable.id,
         name: homologacaoTechniciansTable.name,
         email: homologacaoTechniciansTable.email,
+        phone: homologacaoTechniciansTable.phone,
         createdAt: homologacaoTechniciansTable.createdAt,
       });
     res.status(201).json(tech);
@@ -62,6 +72,36 @@ router.post("/technicians", async (req, res) => {
       return;
     }
     req.log.error({ err }, "Failed to create technician");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.patch("/technicians/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const parsed = updateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    const [tech] = await db
+      .update(homologacaoTechniciansTable)
+      .set(parsed.data)
+      .where(eq(homologacaoTechniciansTable.id, id))
+      .returning({
+        id: homologacaoTechniciansTable.id,
+        name: homologacaoTechniciansTable.name,
+        email: homologacaoTechniciansTable.email,
+        phone: homologacaoTechniciansTable.phone,
+        createdAt: homologacaoTechniciansTable.createdAt,
+      });
+    if (!tech) {
+      res.status(404).json({ message: "Técnico não encontrado" });
+      return;
+    }
+    res.json(tech);
+  } catch (err) {
+    req.log.error({ err }, "Failed to update technician");
     res.status(500).json({ message: "Internal server error" });
   }
 });

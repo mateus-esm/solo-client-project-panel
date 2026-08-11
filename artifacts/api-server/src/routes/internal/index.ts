@@ -8,6 +8,7 @@ import financeRouter from "./finance";
 import clientsRouter from "./clients";
 import plantsRouter from "./plants";
 import stockRouter from "./stock";
+import whatsappRouter from "./whatsapp";
 import { requireAdmin } from "../../lib/adminAuth";
 
 const router: IRouter = Router();
@@ -23,5 +24,6 @@ router.use(financeRouter);
 router.use(clientsRouter);
 router.use(plantsRouter);
 router.use(stockRouter);
+router.use(whatsappRouter);
 
 export default router;

@@ -17,6 +17,7 @@ import {
   schedulingRequestsTable,
   projectPurchasesTable,
   homologacaoProcessosTable,
+  whatsappGroupsTable,
   type ChecklistAcao,
 } from "@workspace/db/schema";
 import { eq, and, isNotNull, ne, sql } from "drizzle-orm";
@@ -70,6 +71,15 @@ export async function resolveAcoes(projectId: number): Promise<ChecklistAcao[]> 
     .where(eq(schedulingRequestsTable.projectId, projectId))
     .limit(1);
   if (sched) done.add("agendar_com_cliente");
+
+  const [grupo] = await db
+    .select({ id: whatsappGroupsTable.id })
+    .from(whatsappGroupsTable)
+    .where(
+      and(eq(whatsappGroupsTable.projectId, projectId), eq(whatsappGroupsTable.kind, "cliente")),
+    )
+    .limit(1);
+  if (grupo) done.add("criar_grupo_whatsapp");
 
   // Compras: uma consulta agregada resolve "registrada" e "recebida".
   const compras = await db

@@ -28,3 +28,4 @@ export * from "./clients";
 export * from "./migrations-table";
 export * from "./conversations";
 export * from "./messages";
+export * from "./whatsapp";

@@ -8,6 +8,7 @@ import { ChecklistGroups } from "@/components/checklist-groups";
 import { PlantCard } from "@/components/plant-card";
 import { ComprasSection } from "@/components/compras-section";
 import { FinanceiroSection } from "@/components/financeiro-section";
+import { NotificarWhatsApp } from "@/components/notificar-whatsapp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -299,6 +300,8 @@ export default function ProjetoDetalhePage() {
           }}
         />
       </div>
+
+      <NotificarWhatsApp projectId={project.id} invalidateKeys={[queryKey]} />
 
       <FinanceiroSection project={project} invalidateKey={queryKey} />
 

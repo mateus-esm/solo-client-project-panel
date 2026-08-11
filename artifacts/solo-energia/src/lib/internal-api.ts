@@ -316,6 +316,8 @@ export interface Technician {
   id: number;
   name: string;
   email: string;
+  /** Necessário para entrar no grupo de WhatsApp da homologação. */
+  phone: string | null;
   createdAt: string;
 }
 
@@ -592,7 +594,8 @@ export type ChecklistAcao =
   | "agendar_com_cliente"
   | "cadastrar_usina"
   | "liberar_monitoramento"
-  | "registrar_pagamento";
+  | "registrar_pagamento"
+  | "criar_grupo_whatsapp";
 
 export interface ChecklistActionItem {
   label: string;
@@ -612,11 +615,15 @@ export const ACAO_CTA: Record<ChecklistAcao, string> = {
   cadastrar_usina: "Cadastrar usina",
   liberar_monitoramento: "Liberar monitoramento",
   registrar_pagamento: "Registrar pagamento",
+  criar_grupo_whatsapp: "Criar grupo",
 };
 
 export const CHECKLIST_ACTION_ITEMS: Record<string, ChecklistActionItem[]> = {
   onboarding_documentacao_do_cliente: [
     { label: "Receber documentos do cliente", acao: "anexar_documentos_cliente", atalho: { tipo: "aba", destino: "documentos" } },
+  ],
+  onboarding_boas_vindas: [
+    { label: "Criar o grupo de WhatsApp com o cliente", acao: "criar_grupo_whatsapp", atalho: { tipo: "aba", destino: "whatsapp" } },
   ],
   onboarding_financeiro: [
     { label: "Registrar o pagamento / entrada", acao: "registrar_pagamento", atalho: { tipo: "aba", destino: "financeiro" } },
@@ -648,3 +655,100 @@ export const CHECKLIST_ACTION_ITEMS: Record<string, ChecklistActionItem[]> = {
 
 export const acoesFor = (slug: string): ChecklistActionItem[] =>
   CHECKLIST_ACTION_ITEMS[slug] ?? [];
+
+// ─── Notificação por WhatsApp (Sprint 3) ─────────────────────────────────────
+// O catálogo de templates NÃO é espelhado aqui: vem de
+// GET /internal/whatsapp/templates. São 43 mensagens — duas cópias divergiriam.
+
+export interface TemplateVar {
+  key: string;
+  label: string;
+  auto?: string;
+  multiline?: boolean;
+}
+
+export interface NotificationTemplate {
+  code: string;
+  categoria: string;
+  nome: string;
+  quandoUsar: string;
+  publico: "cliente" | "equipe";
+  vars: TemplateVar[];
+  body: string;
+}
+
+export interface TemplateCatalog {
+  categorias: string[];
+  templates: NotificationTemplate[];
+}
+
+export type WhatsappGroupKind = "cliente" | "instalacao" | "homologacao";
+
+export interface WhatsappDestino {
+  id: string;
+  tipo: "grupo" | "privado";
+  kind: WhatsappGroupKind;
+  label: string;
+  jid: string | null;
+  detalhe: string;
+  podeCriar: boolean;
+}
+
+export interface WhatsappContexto {
+  configurado: boolean;
+  projeto: { id: number; clientName: string; clientPhone: string | null; potencia: number | null };
+  contexto: Record<string, string>;
+  destinos: WhatsappDestino[];
+}
+
+export interface WhatsappSend {
+  id: number;
+  projectId: number | null;
+  templateCode: string | null;
+  targetType: "grupo" | "privado";
+  targetKind: WhatsappGroupKind;
+  targetJid: string;
+  targetLabel: string | null;
+  body: string;
+  status: "enviado" | "falhou";
+  error: string | null;
+  sentBy: string | null;
+  createdAt: string;
+}
+
+export interface WhatsappGroup {
+  id: number;
+  projectId: number;
+  kind: WhatsappGroupKind;
+  jid: string;
+  subject: string;
+  subjectFull: string | null;
+  inviteUrl: string | null;
+  createdAt: string;
+}
+
+/** Grupo que já existe no WhatsApp da Solo, candidato a ser vinculado. */
+export interface GrupoDisponivel {
+  jid: string;
+  subject: string;
+  size: number;
+  vinculadoA: { projectId: number; kind: WhatsappGroupKind } | null;
+  /** 0–1: parecença com o nome do cliente do projeto consultado. */
+  score?: number;
+}
+
+export interface GruposDisponiveis {
+  grupos: GrupoDisponivel[];
+  clientName: string | null;
+}
+
+/** Troca {{chave}} pelos valores; buraco vira [chave], bem visível no preview. */
+export function renderTemplate(
+  body: string,
+  values: Record<string, string | undefined>,
+): string {
+  return body.replace(/\{\{(\w+)\}\}/g, (_m, key: string) => {
+    const v = values[key];
+    return v != null && v.trim() !== "" ? v.trim() : `[${key}]`;
+  });
+}

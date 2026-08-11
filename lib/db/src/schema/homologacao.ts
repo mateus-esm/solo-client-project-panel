@@ -28,6 +28,8 @@ export const homologacaoTechniciansTable = pgTable("homologacao_technicians", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  // Entra no grupo de WhatsApp do processo quando atribuído ao projeto.
+  phone: text("phone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

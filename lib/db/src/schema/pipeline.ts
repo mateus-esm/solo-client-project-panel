@@ -168,7 +168,8 @@ export const CHECKLIST_ITEM_TEMPLATE: Record<string, ChecklistItemTemplate[]> = 
     { label: "Confirmar que está tudo preenchido", kind: "check" },
   ],
   onboarding_boas_vindas: [
-    { label: "Criar grupo com o cliente", kind: "check" },
+    // "Criar grupo com o cliente" saiu daqui: virou item-ação (criar_grupo_whatsapp),
+    // cumprido de verdade quando o grupo existe em whatsapp_groups.
     { label: "Enviar mensagem de boas-vindas", kind: "check" },
     { label: "Liberar acesso ao portal do cliente", kind: "check" },
   ],
@@ -350,6 +351,7 @@ export const CHECKLIST_ACOES = [
   "cadastrar_usina",
   "liberar_monitoramento",
   "registrar_pagamento",
+  "criar_grupo_whatsapp",
 ] as const;
 
 export type ChecklistAcao = (typeof CHECKLIST_ACOES)[number];
@@ -374,6 +376,7 @@ export const ACAO_CTA: Record<ChecklistAcao, string> = {
   cadastrar_usina: "Cadastrar usina",
   liberar_monitoramento: "Liberar monitoramento",
   registrar_pagamento: "Registrar pagamento",
+  criar_grupo_whatsapp: "Criar grupo",
 };
 
 /** Itens-ação por sub-etapa. Convivem com os itens manuais (`check`) do template. */
@@ -383,6 +386,13 @@ export const CHECKLIST_ACTION_ITEMS: Record<string, ChecklistActionItem[]> = {
       label: "Receber documentos do cliente",
       acao: "anexar_documentos_cliente",
       atalho: { tipo: "aba", destino: "documentos" },
+    },
+  ],
+  onboarding_boas_vindas: [
+    {
+      label: "Criar o grupo de WhatsApp com o cliente",
+      acao: "criar_grupo_whatsapp",
+      atalho: { tipo: "aba", destino: "whatsapp" },
     },
   ],
   onboarding_financeiro: [

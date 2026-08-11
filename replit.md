@@ -163,8 +163,11 @@ Jestor::curlCall($url, "POST", json_encode($data), [
 | `WEBHOOK_SECRET` | Secret token sent by Jestor in `x-webhook-secret` header |
 | `JESTOR_API_TOKEN` | Bearer token for Jestor API |
 | `JESTOR_COMPANY_SLUG` | Jestor company slug (subdomain) |
-| `WHATSAPP_API_URL` | Base URL for Evolution API (e.g. `http://72.61.219.156:8081`) |
-| `WHATSAPP_API_TOKEN` | Evolution API apikey |
+| `WHATSAPP_API_URL` | Base URL of the whatsmiau gateway (e.g. `http://72.61.219.156:8081`) |
+| `WHATSAPP_API_KEY` | whatsmiau `apikey` header value |
+| `WHATSAPP_INSTANCE` | Connected instance name (default `solobusiness`) |
+| `WHATSAPP_ADMIN_PHONES` | Solo staff added to every project group: `5585996487923:Mateus,5585999289511:Gabriel` |
+| `WHATSAPP_GROUP_SUBJECT_MAX` | Optional. Group-name limit; defaults to 25, the cap whatsmiau enforces |
 | `RESEND_API_KEY` | Resend API key for email notifications |
 | `PORTAL_URL` | Public URL of the portal (for WhatsApp/email links) |
 | `AI_INTEGRATIONS_OPENAI_BASE_URL` | Replit AI proxy base URL (provisioned by OpenAI integration) |
