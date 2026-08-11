@@ -21,6 +21,7 @@ import {
   type ChecklistAcao,
 } from "@workspace/db/schema";
 import { eq, and, isNotNull, ne, sql } from "drizzle-orm";
+import { logger } from "./logger";
 
 /** Ações cumpridas de um projeto. O que não está na lista está pendente. */
 export async function resolveAcoes(projectId: number): Promise<ChecklistAcao[]> {
@@ -72,14 +73,22 @@ export async function resolveAcoes(projectId: number): Promise<ChecklistAcao[]> 
     .limit(1);
   if (sched) done.add("agendar_com_cliente");
 
-  const [grupo] = await db
-    .select({ id: whatsappGroupsTable.id })
-    .from(whatsappGroupsTable)
-    .where(
-      and(eq(whatsappGroupsTable.projectId, projectId), eq(whatsappGroupsTable.kind, "cliente")),
-    )
-    .limit(1);
-  if (grupo) done.add("criar_grupo_whatsapp");
+  // Isolado do resto: se a migração 015 ainda não rodou, a tabela não existe e
+  // a consulta explode. Derrubar a ficha inteira do projeto — checklist,
+  // serviços, suprimentos — por causa de um item derivado seria desproporcional.
+  // O item fica pendente e o log diz o porquê.
+  try {
+    const [grupo] = await db
+      .select({ id: whatsappGroupsTable.id })
+      .from(whatsappGroupsTable)
+      .where(
+        and(eq(whatsappGroupsTable.projectId, projectId), eq(whatsappGroupsTable.kind, "cliente")),
+      )
+      .limit(1);
+    if (grupo) done.add("criar_grupo_whatsapp");
+  } catch (err) {
+    logger.error({ err, projectId }, "Não deu para checar o grupo de WhatsApp — rodou a migração?");
+  }
 
   // Compras: uma consulta agregada resolve "registrada" e "recebida".
   const compras = await db
