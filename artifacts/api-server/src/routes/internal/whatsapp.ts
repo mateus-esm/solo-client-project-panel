@@ -24,11 +24,20 @@ import {
 import { eq, and, ne, desc, isNotNull } from "drizzle-orm";
 import { z } from "zod/v4";
 import {
-  NOTIFICATION_TEMPLATES,
+  AUTO_FILL_OPTIONS,
   TEMPLATE_CATEGORIAS,
   contextDefaults,
   type TemplateContext,
 } from "../../lib/whatsapp-templates";
+import {
+  listarTemplatesAtivos,
+  listarTemplatesAdmin,
+  criarTemplate,
+  atualizarTemplate,
+  excluirTemplate,
+  restaurarPadrao,
+  extrairChaves,
+} from "../../lib/template-store";
 import {
   ensureGroup,
   findGroup,
@@ -42,8 +51,123 @@ const router: IRouter = Router();
 
 const kindSchema = z.enum(WHATSAPP_GROUP_KINDS);
 
-router.get("/whatsapp/templates", (_req, res) => {
-  res.json({ categorias: TEMPLATE_CATEGORIAS, templates: NOTIFICATION_TEMPLATES });
+/** Catálogo para o bloco de envio: só os ativos, já no formato de uso. */
+router.get("/whatsapp/templates", async (req, res) => {
+  try {
+    const templates = await listarTemplatesAtivos();
+    res.json({ categorias: TEMPLATE_CATEGORIAS, templates });
+  } catch (err) {
+    req.log.error({ err }, "Falha ao listar templates");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─── Administração da biblioteca ──────────────────────────────────────────────
+
+const templateSchema = z.object({
+  code: z
+    .string()
+    .min(2)
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "Use só letras, números e hífen"),
+  categoria: z.string().min(1),
+  nome: z.string().min(1),
+  quandoUsar: z.string().default(""),
+  publico: z.enum(["cliente", "equipe"]).default("cliente"),
+  body: z.string().min(1).max(4096),
+  ativo: z.boolean().default(true),
+  sortOrder: z.coerce.number().int().optional(),
+  vars: z
+    .array(
+      z.object({
+        key: z.string(),
+        label: z.string(),
+        auto: z.string().optional(),
+        multiline: z.boolean().optional(),
+      }),
+    )
+    .optional(),
+});
+
+router.get("/whatsapp/templates/admin", async (req, res) => {
+  try {
+    res.json({
+      categorias: TEMPLATE_CATEGORIAS,
+      autoFills: AUTO_FILL_OPTIONS,
+      templates: await listarTemplatesAdmin(),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Falha ao listar templates (admin)");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/templates", async (req, res) => {
+  try {
+    const parsed = templateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    res.status(201).json(await criarTemplate(parsed.data));
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "Já existe um template com esse código" });
+      return;
+    }
+    req.log.error({ err }, "Falha ao criar template");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.patch("/whatsapp/templates/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const parsed = templateSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    const row = await atualizarTemplate(id, parsed.data);
+    if (!row) {
+      res.status(404).json({ message: "Template não encontrado" });
+      return;
+    }
+    res.json(row);
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "Já existe um template com esse código" });
+      return;
+    }
+    req.log.error({ err }, "Falha ao atualizar template");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.delete("/whatsapp/templates/:id", async (req, res) => {
+  try {
+    await excluirTemplate(parseInt(req.params.id, 10));
+    res.status(204).end();
+  } catch (err) {
+    req.log.error({ err }, "Falha ao excluir template");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/** Traz de volta os templates de fábrica que foram apagados. Não sobrescreve. */
+router.post("/whatsapp/templates/restaurar-padrao", async (req, res) => {
+  try {
+    res.json({ restaurados: await restaurarPadrao() });
+  } catch (err) {
+    req.log.error({ err }, "Falha ao restaurar templates padrão");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/** Prévia das variáveis que o corpo gera — o editor usa enquanto se digita. */
+router.post("/whatsapp/templates/chaves", (req, res) => {
+  const body = typeof req.body?.body === "string" ? req.body.body : "";
+  res.json({ chaves: extrairChaves(body) });
 });
 
 // ─── Contexto do projeto ──────────────────────────────────────────────────────

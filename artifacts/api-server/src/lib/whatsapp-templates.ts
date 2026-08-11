@@ -48,6 +48,21 @@ export interface TemplateVar {
   multiline?: boolean;
 }
 
+/** O que o ERP sabe preencher sozinho — alimenta o seletor do editor. */
+export const AUTO_FILL_OPTIONS: Array<{ value: AutoFill; label: string }> = [
+  { value: "primeiroNome", label: "Primeiro nome do cliente" },
+  { value: "nomeCliente", label: "Nome completo do cliente" },
+  { value: "potencia", label: "Potência da usina (kWp)" },
+  { value: "cidadeUf", label: "Cidade/UF" },
+  { value: "valorProjeto", label: "Valor do projeto" },
+  { value: "equipe", label: "Equipe de execução" },
+  { value: "concessionaria", label: "Concessionária" },
+  { value: "transportadora", label: "Transportadora" },
+  { value: "codigoRastreio", label: "Código de rastreio" },
+  { value: "linkPortal", label: "Link do portal do cliente" },
+  { value: "linkMonitoramento", label: "Link do monitoramento" },
+];
+
 export interface NotificationTemplate {
   code: string;
   categoria: TemplateCategoria;
@@ -1015,4 +1030,48 @@ export function initialValues(
  */
 export function contextDefaults(ctx: TemplateContext): Record<string, string> {
   return { concessionaria: ctx.concessionaria ?? "Enel" };
+}
+
+// ─── Variáveis derivadas do corpo ─────────────────────────────────────────────
+// Na biblioteca editável, ninguém cadastra variável: o que vale é `{{chave}}` no
+// texto. Uma lista mantida à parte uma hora divergiria do corpo — e aí o campo
+// apareceria no formulário sem ir para a mensagem, ou a mensagem sairia com um
+// buraco sem ter onde preencher.
+
+/** Chaves que o corpo pode usar sem virar campo — vêm do projeto. */
+export const CHAVES_DE_CONTEXTO = new Set(["concessionaria"]);
+
+/** Extrai `{{chave}}` do corpo, na ordem em que aparecem, sem repetir. */
+export function extrairChaves(body: string): string[] {
+  const achadas = [...body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]);
+  return [...new Set(achadas)].filter((k) => !CHAVES_DE_CONTEXTO.has(k));
+}
+
+/**
+ * Variável com `auto` solto como texto: é assim que ela volta do banco, onde a
+ * biblioteca editável mora. `TemplateVar` (com AutoFill) encaixa aqui.
+ */
+export interface TemplateVarLike {
+  key: string;
+  label: string;
+  auto?: string;
+  multiline?: boolean;
+}
+
+/**
+ * Reconcilia a lista de variáveis com o corpo: mantém rótulo e `auto` do que já
+ * existia, cria o que apareceu, descarta o que saiu do texto.
+ */
+export function reconciliarVars(
+  body: string,
+  anteriores: TemplateVarLike[] = [],
+): TemplateVarLike[] {
+  const porChave = new Map(anteriores.map((v) => [v.key, v]));
+  return extrairChaves(body).map((key) => porChave.get(key) ?? { key, label: rotuloPadrao(key) });
+}
+
+/** "linkFormulario" -> "Link formulario". Ponto de partida; o usuário ajusta. */
+export function rotuloPadrao(key: string): string {
+  const comEspaco = key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ");
+  return comEspaco.charAt(0).toUpperCase() + comEspaco.slice(1).toLowerCase();
 }

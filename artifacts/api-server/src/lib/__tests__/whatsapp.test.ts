@@ -5,6 +5,8 @@ import {
   TEMPLATE_BY_CODE,
   renderTemplate,
   initialValues,
+  extrairChaves,
+  reconciliarVars,
 } from "../whatsapp-templates";
 import { isPlausibleBrazilianPhone, normalizePhone, normalizeGroupJid } from "../whatsmiau";
 
@@ -159,6 +161,49 @@ describe("normalização de número", () => {
     expect(isPlausibleBrazilianPhone("123")).toBe(false);
     expect(isPlausibleBrazilianPhone("55859999999999")).toBe(false); // longo demais
     expect(isPlausibleBrazilianPhone("550199999999")).toBe(false); // DDD inexistente
+  });
+});
+
+describe("variáveis derivadas do corpo", () => {
+  it("pega cada chave uma vez, na ordem do texto", () => {
+    expect(extrairChaves("Olá {{nome}}, valor {{valor}}. Até logo, {{nome}}!")).toEqual([
+      "nome",
+      "valor",
+    ]);
+  });
+
+  it("não transforma chave de contexto em campo do formulário", () => {
+    // concessionaria vem do projeto; pedir para digitar seria trabalho à toa.
+    expect(extrairChaves("Enviado à {{concessionaria}} para {{nome}}")).toEqual(["nome"]);
+  });
+
+  it("preserva rótulo e auto-preenchimento ao editar o corpo", () => {
+    const antes = [
+      { key: "nome", label: "Nome do cliente", auto: "primeiroNome" },
+      { key: "valor", label: "Valor da entrada" },
+    ];
+    const depois = reconciliarVars("Olá {{nome}}, prazo {{prazo}}.", antes);
+    expect(depois).toEqual([
+      { key: "nome", label: "Nome do cliente", auto: "primeiroNome" },
+      { key: "prazo", label: "Prazo" },
+    ]);
+  });
+
+  it("descarta variável que saiu do texto", () => {
+    const depois = reconciliarVars("Olá {{nome}}.", [
+      { key: "nome", label: "Nome" },
+      { key: "removida", label: "Sumiu" },
+    ]);
+    expect(depois.map((v) => v.key)).toEqual(["nome"]);
+  });
+
+  it("dá um rótulo legível para chave nova", () => {
+    expect(reconciliarVars("{{linkFormulario}}")[0].label).toBe("Link formulario");
+    expect(reconciliarVars("{{data_entrega}}")[0].label).toBe("Data entrega");
+  });
+
+  it("corpo sem variável não gera campo", () => {
+    expect(reconciliarVars("Mensagem fixa, sem nada para preencher.")).toEqual([]);
   });
 });
 

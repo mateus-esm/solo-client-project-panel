@@ -69,7 +69,46 @@ invasivo. **Desvincular** também só solta o ponteiro; o grupo continua lá.
 Por isso o card mostra **Vincular** antes de **Criar**: para cliente antigo,
 criar um segundo grupo dividiria a conversa em dois lugares.
 
-### 4. Criar o grupo virou tarefa do onboarding
+### 4. Biblioteca de templates editável — `/interno/templates`
+
+Os 43 templates saíram do código e foram para o banco. Página nova no menu:
+criar, editar o texto, arquivar e excluir **sem deploy**. Salvou, vale na hora
+em todos os projetos.
+
+**Variáveis não se cadastram — saem do texto.** Escreveu `{{valor}}` no corpo,
+virou campo no formulário de envio. Apagou do texto, o campo some. Manter uma
+lista à parte garantiria que uma hora ela ia divergir do corpo: campo pedindo
+dado que a mensagem não usa, ou mensagem saindo com `[buraco]` sem ter onde
+preencher.
+
+Para cada variável detectada você define o **rótulo**, se é **texto longo**, e
+com o que o ERP **preenche sozinho** (primeiro nome, potência, cidade, valor,
+equipe, concessionária, rastreio, link do portal, link de monitoramento).
+
+O editor mostra a **prévia no balão do WhatsApp**, com «assim» marcando o que o
+operador digita na hora e o resto já preenchido.
+
+O catálogo em código virou **carga de fábrica**: semeia a tabela na primeira
+leitura e nunca mais interfere. **Restaurar padrão** traz de volta os de fábrica
+que foram apagados, sem sobrescrever os seus.
+
+### 5. Editar sem trocar de página — gaveta no pipeline
+
+Trocar um telefone custava: pipeline → ficha do projeto → editar → voltar.
+Agora clicar no cartão do funil abre uma **gaveta lateral** com duas abas:
+
+- **Dados** — nome, WhatsApp, e-mail, cidade/UF, potência, capex, valor,
+  macro-etapa, sub-etapa e observações. Salvar atualiza o projeto **e o cadastro
+  do cliente junto** (o telefone corrigido no projeto passa a valer no cliente,
+  senão o grupo de WhatsApp continuaria saindo com o número velho).
+- **Notificar** — o mesmo bloco de envio da ficha, inteiro: template, ajuste,
+  grupo ou privado.
+
+Os seletores de etapa e sub-etapa do cartão continuam funcionando sem abrir a
+gaveta. E o cartão passa a avisar **"Sem WhatsApp cadastrado"** — o furo que
+impede grupo e notificação aparece no funil, não só na ficha.
+
+### 6. Criar o grupo virou tarefa do onboarding
 
 `"Criar grupo com o cliente"` era caixinha manual em *Boas-vindas e Portal*.
 Agora é **item-ação** (`criar_grupo_whatsapp`): fica cumprido quando o grupo
@@ -223,13 +262,15 @@ espelhamento manual que o resto de `internal-api.ts` segue.
 
 **Banco**
 - `lib/db/migrations/015_whatsapp_grupos_e_envios.sql` — tabelas novas + `phone` no técnico
-- `lib/db/src/schema/whatsapp.ts` — `whatsapp_groups`, `whatsapp_sends`
+- `lib/db/migrations/016_notification_templates.sql` — biblioteca editável
+- `lib/db/src/schema/whatsapp.ts` — `whatsapp_groups`, `whatsapp_sends`, `notification_templates`
 - `lib/db/src/schema/pipeline.ts` — ação `criar_grupo_whatsapp`
 - `lib/db/src/schema/homologacao.ts` — `phone`
 
 **API**
 - `artifacts/api-server/src/lib/whatsmiau.ts` — cliente do gateway (inclui `resolveJids`)
-- `artifacts/api-server/src/lib/whatsapp-templates.ts` — os 43 templates
+- `artifacts/api-server/src/lib/whatsapp-templates.ts` — carga de fábrica dos 43 templates + variáveis derivadas do corpo
+- `artifacts/api-server/src/lib/template-store.ts` — biblioteca no banco (semeadura, CRUD)
 - `artifacts/api-server/src/lib/whatsapp-subject.ts` — nome do grupo e casamento com cliente (lógica pura)
 - `artifacts/api-server/src/lib/whatsapp-groups.ts` — criar, vincular, participantes
 - `artifacts/api-server/src/lib/grupo-avatar.ts` — foto em base64
@@ -238,14 +279,24 @@ espelhamento manual que o resto de `internal-api.ts` segue.
 - `artifacts/api-server/src/lib/__tests__/whatsapp.test.ts` — 21 testes, passando
 
 **Front**
-- `artifacts/solo-energia/src/components/notificar-whatsapp.tsx`
+- `artifacts/solo-energia/src/components/notificar-whatsapp.tsx` — bloco de envio
+- `artifacts/solo-energia/src/components/projeto-quick-edit.tsx` — gaveta do pipeline
+- `artifacts/solo-energia/src/pages/interno/templates.tsx` — biblioteca editável
+- `artifacts/solo-energia/src/pages/interno/pipeline.tsx` — cartão abre a gaveta
 - `artifacts/solo-energia/src/pages/interno/projeto-detalhe.tsx`
 - `artifacts/solo-energia/src/lib/internal-api.ts`
+- `artifacts/solo-energia/src/App.tsx`, `components/internal-layout.tsx` — rota e menu
 
 ### Rotas
 
 ```
-GET    /api/internal/whatsapp/templates              catálogo
+GET    /api/internal/whatsapp/templates              catálogo (só ativos)
+GET    /api/internal/whatsapp/templates/admin        tudo + categorias + auto-fills
+POST   /api/internal/whatsapp/templates              cria
+PATCH  /api/internal/whatsapp/templates/:id          edita / arquiva
+DELETE /api/internal/whatsapp/templates/:id          exclui
+POST   /api/internal/whatsapp/templates/restaurar-padrao
+GET    /api/internal/projects/:id/resumo             só a linha, para a gaveta
 GET    /api/internal/whatsapp/grupos-disponiveis     grupos reais do WhatsApp
                                      ?projectId=N    …ordenados pela parecença
 GET    /api/internal/whatsapp/:projectId/contexto    destinos + variáveis preenchidas
@@ -318,9 +369,10 @@ foto e o texto, e pode apagar quando quiser.
 
 **Automatizado:**
 
-- `vitest run`: **27/27 passando** (nome do grupo em todos os tamanhos,
-  integridade dos 43 templates, normalização de número, JID, casamento de grupo
-  com cliente usando os nomes reais dos seus grupos)
+- `vitest run`: **33/33 passando** (nome do grupo em todos os tamanhos,
+  integridade dos 43 templates, variáveis derivadas do corpo, normalização de
+  número, JID, casamento de grupo com cliente usando os nomes reais dos seus
+  grupos)
 - `typecheck` de `api-server` e `solo-energia`: limpos
 - `build` de `api-server` (esbuild) e de `solo-energia` (vite, 3103 módulos): ok
 
@@ -336,6 +388,18 @@ foto e o texto, e pode apagar quando quiser.
   Replit os binários corretos já vêm no install.
 
 ---
+
+## Onde ficam os templates
+
+Três lugares, com papéis diferentes:
+
+| Onde | O que é |
+|---|---|
+| `/interno/templates` | **A biblioteca.** Onde você cria e edita. É a verdade. |
+| Dentro do projeto, botão "Escolher template" | Onde você **usa** na hora de notificar |
+| `whatsapp-templates.ts` | Carga de fábrica. Só serve para semear e para o "Restaurar padrão" |
+
+`planning/assets/solo_cx_templates.md` fica como registro do documento original.
 
 ## Próximos passos naturais
 

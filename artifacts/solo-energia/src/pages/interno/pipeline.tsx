@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Zap, MapPin, Package } from "lucide-react";
+import { Plus, Zap, MapPin, Package, Phone } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
+import { ProjetoQuickEdit } from "@/components/projeto-quick-edit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,6 +160,8 @@ export default function PipelinePage() {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  /** Projeto aberto na gaveta de edição rápida. */
+  const [editando, setEditando] = useState<number | null>(null);
 
   const stageMutation = useMutation({
     mutationFn: ({ id, stage }: { id: number; stage: StageId }) =>
@@ -220,7 +222,9 @@ export default function PipelinePage() {
                   {items.map((p) => {
                     const badge = supplyBadge(p.supply);
                     return (
-                      <Link key={p.id} href={`/interno/projetos/${p.id}`}>
+                      // Clicar no cartão abre a gaveta em vez de navegar: trocar
+                      // um telefone não deveria custar sair do funil e voltar.
+                      <div key={p.id} onClick={() => setEditando(p.id)}>
                         <div className="bg-card border border-white/5 rounded-2xl p-4 cursor-pointer hover:border-primary/40 transition-colors space-y-3">
                           <p className="font-medium text-foreground leading-tight">{p.clientName}</p>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -232,6 +236,13 @@ export default function PipelinePage() {
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground">Capex: {formatBRL(p.capex)}</p>
+                          {!p.clientPhone && (
+                            // Sem telefone não há grupo nem notificação — o furo
+                            // precisa aparecer no funil, não só na ficha.
+                            <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                              <Phone className="w-3 h-3" /> Sem WhatsApp cadastrado
+                            </p>
+                          )}
                           <span
                             className={
                               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] " +
@@ -247,7 +258,8 @@ export default function PipelinePage() {
                             <Package className="w-3 h-3" /> {badge.label}
                           </span>
                           {subStages.length > 0 && (
-                            <div onClick={(e) => e.preventDefault()}>
+                            // stopPropagation: mexer no seletor não pode abrir a gaveta.
+                            <div onClick={(e) => e.stopPropagation()}>
                               <Select
                                 value={
                                   subStages.some((g) => g.slug === p.subStage)
@@ -274,14 +286,14 @@ export default function PipelinePage() {
                               </Select>
                             </div>
                           )}
-                          <div onClick={(e) => e.preventDefault()}>
+                          <div onClick={(e) => e.stopPropagation()}>
                             <StageSelect
                               value={p.stage}
                               onChange={(newStage) => stageMutation.mutate({ id: p.id, stage: newStage })}
                             />
                           </div>
                         </div>
-                      </Link>
+                      </div>
                     );
                   })}
                   {items.length === 0 && (
@@ -295,6 +307,8 @@ export default function PipelinePage() {
           })}
         </div>
       )}
+
+      <ProjetoQuickEdit projectId={editando} onClose={() => setEditando(null)} />
     </InternalLayout>
   );
 }

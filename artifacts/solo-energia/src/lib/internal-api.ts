@@ -752,3 +752,43 @@ export function renderTemplate(
     return v != null && v.trim() !== "" ? v.trim() : `[${key}]`;
   });
 }
+
+// ─── Biblioteca editável de templates ─────────────────────────────────────────
+
+/** Chaves que vêm do projeto e não viram campo do formulário. */
+export const CHAVES_DE_CONTEXTO = new Set(["concessionaria"]);
+
+/**
+ * Variáveis de um template saem do próprio corpo. Espelha extrairChaves() do
+ * servidor — o editor precisa reagir enquanto se digita, sem ida ao servidor.
+ */
+export function extrairChavesDoCorpo(body: string): string[] {
+  const achadas = [...body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]);
+  return [...new Set(achadas)].filter((k) => !CHAVES_DE_CONTEXTO.has(k));
+}
+
+export interface TemplateRow {
+  id: number;
+  code: string;
+  categoria: string;
+  nome: string;
+  quandoUsar: string;
+  publico: string;
+  vars: TemplateVar[];
+  body: string;
+  ativo: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AutoFillOption {
+  value: string;
+  label: string;
+}
+
+export interface TemplateAdminPayload {
+  categorias: string[];
+  autoFills: AutoFillOption[];
+  templates: TemplateRow[];
+}

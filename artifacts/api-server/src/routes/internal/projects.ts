@@ -16,10 +16,12 @@ import {
   defaultSubStage,
   homologacaoTechniciansTable,
   projectPurchasesTable,
+  clientsTable,
   type PipelineStage,
 } from "@workspace/db/schema";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
+import { logger } from "../../lib/logger";
 import { stepCompletionPercent } from "../../lib/jestor";
 import { resolveAcoes } from "../../lib/checklist-actions";
 import { getOrCreateProcesso, patchProcesso, processoPatchSchema } from "../homologacao";
@@ -46,6 +48,39 @@ const updateProjectSchema = insertProjectSchema.partial().extend({
   stage: stageSchema.optional(),
   subStage: z.string().nullable().optional(),
 });
+
+/**
+ * Reflete no cadastro do cliente o que foi editado no projeto.
+ *
+ * Silencioso de propósito: o projeto já foi salvo, e um telefone que colide com
+ * o de outro cliente (índice único em phone_normalized) não pode desfazer isso.
+ * Nesse caso o projeto fica com o dado novo e o cadastro com o antigo — visível
+ * na tela de clientes, em vez de um erro no meio do fluxo.
+ */
+async function sincronizarCliente(
+  clientId: number | null,
+  dados: { clientName?: string; clientPhone?: string | null; clientEmail?: string },
+): Promise<void> {
+  if (clientId == null) return;
+
+  const patch: Record<string, unknown> = {};
+  if (dados.clientName !== undefined) patch.name = dados.clientName;
+  if (dados.clientEmail !== undefined) patch.email = dados.clientEmail;
+  if (dados.clientPhone !== undefined) {
+    patch.phone = dados.clientPhone;
+    patch.phoneNormalized = dados.clientPhone ? dados.clientPhone.replace(/\D/g, "") : null;
+  }
+  if (Object.keys(patch).length === 0) return;
+
+  try {
+    await db
+      .update(clientsTable)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(clientsTable.id, clientId));
+  } catch (err) {
+    logger.warn({ err, clientId }, "Projeto salvo, mas o cadastro do cliente não acompanhou");
+  }
+}
 
 function clientStepPatch(stage: PipelineStage, subStage: string | null): {
   statusStep?: number;
@@ -164,6 +199,26 @@ router.get("/projects/:id", async (req, res) => {
   }
 });
 
+/**
+ * Só a linha do projeto. A edição rápida abre por cima do pipeline e não usa
+ * checklist, serviços nem suprimentos — puxar a ficha inteira seria meia dúzia
+ * de consultas para preencher um formulário de dez campos.
+ */
+router.get("/projects/:id/resumo", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+    if (!project) {
+      res.status(404).json({ message: "Projeto não encontrado" });
+      return;
+    }
+    res.json(project);
+  } catch (err) {
+    req.log.error({ err }, "Failed to get project summary");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 router.patch("/projects/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -247,6 +302,12 @@ router.patch("/projects/:id", async (req, res) => {
       .set({ ...parsed.data, subStage: targetSubStage, ...patch })
       .where(eq(projectsTable.id, id))
       .returning();
+
+    // Nome, telefone e e-mail moram nos dois lugares: no projeto (o portal do
+    // cliente e o Jestor leem de lá) e no cliente, que é a identidade durável.
+    // Corrigir o telefone editando o projeto tem de valer no cadastro também —
+    // senão o grupo de WhatsApp continua saindo com o número velho.
+    await sincronizarCliente(current.clientId, parsed.data);
 
     // Notify the client exactly when their visible step advances (macro change, or a
     // sub-etapa change crossing the Projeto Técnico → Homologação boundary).
