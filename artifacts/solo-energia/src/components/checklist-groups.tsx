@@ -662,7 +662,11 @@ export function ChecklistGroups({
   // Auto-seed default typed items when a stage tab is opened and any template group
   // has no items yet (the server skips groups that already have items, so this also
   // reconciles new template groups on existing projects).
-  const hasMissingGroup = groups.some((g) => !items.some((i) => i.checklistSlug === g.slug));
+  // Itens do Jestor são histórico e ficam escondidos dos grupos; não contam como
+  // "grupo já preenchido", senão projetos importados nunca recebem o checklist padrão.
+  const hasMissingGroup = groups.some(
+    (g) => !items.some((i) => i.checklistSlug === g.slug && i.origem !== "jestor"),
+  );
   useEffect(() => {
     const key = `${projectId}:${stage}`;
     if (groups.length > 0 && hasMissingGroup && !seedAttempted.current.has(key)) {
