@@ -2,4 +2,5 @@
 - [Financial visibility rules](financial-visibility-rules.md) — installer/technician APIs must allow-list fields (never leak internal costs); new file columns need storage-route auth checks.
 - [Zod v4 quirks](zod-v4-quirks.md) — z.record with an enum key demands every key; use z.partialRecord for sparse maps.
 - [Pipeline macro/sub-etapas](pipeline-macro-substages.md) — stage = macro-etapa, sub_stage = checklist-group slug; supply track replaces compras/logistica stages; scope/gates live in shared helpers.
+- [User operates in production](prod-first-user.md) — user works daily in the published app; debug reports against the prod DB/logs, and remind them fixes need Publish.
 - [DB migrations workflow](db-migrations.md) — drizzle-kit push hangs on an interactive prompt; apply DDL via psql "$DATABASE_URL" AND add a matching lib/db/migrations/*.sql file.

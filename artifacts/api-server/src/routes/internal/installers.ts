@@ -8,7 +8,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import multer from "multer";
-import { hashPassword } from "../../lib/installerAuth";
+import { hashPassword, verifyPassword } from "../../lib/installerAuth";
 import { ObjectStorageService } from "../../lib/objectStorage";
 
 const router: IRouter = Router();
@@ -103,6 +103,8 @@ router.post("/installers", async (req, res) => {
 const updateInstallerSchema = z.object({
   name: z.string().min(1).optional(),
   teamName: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  password: z.string().min(8).optional(),
   razaoSocial: z.string().nullish(),
   cnpj: z.string().nullish(),
   responsavelNome: z.string().nullish(),
@@ -123,18 +125,68 @@ router.patch("/installers/:id", async (req, res) => {
       res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
       return;
     }
-    const [account] = await db
-      .update(installerAccountsTable)
-      .set(parsed.data)
-      .where(eq(installerAccountsTable.id, id))
-      .returning(accountColumns);
+    const { email, password, ...rest } = parsed.data;
+    const patch: Record<string, unknown> = { ...rest };
+    if (email !== undefined) patch.email = email.toLowerCase().trim();
+    if (password !== undefined) patch.passwordHash = hashPassword(password);
+    if (Object.keys(patch).length === 0) {
+      res.status(400).json({ message: "Nada para atualizar" });
+      return;
+    }
+    // Credencial trocada → derruba sessões antigas na mesma transação.
+    const account = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(installerAccountsTable)
+        .set(patch)
+        .where(eq(installerAccountsTable.id, id))
+        .returning(accountColumns);
+      if (row && (password !== undefined || email !== undefined)) {
+        await tx.delete(installerSessionsTable).where(eq(installerSessionsTable.accountId, id));
+      }
+      return row;
+    });
     if (!account) {
       res.status(404).json({ message: "Conta não encontrada" });
       return;
     }
     res.json(account);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.constraint === "installer_accounts_email_unique" || err?.code === "23505") {
+      res.status(409).json({ message: "E-mail já cadastrado" });
+      return;
+    }
     req.log.error({ err }, "Failed to update installer account");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─── Validate installer credentials (admin sanity check, no session created) ──
+
+const validateAuthSchema = z.object({ password: z.string().min(1) });
+
+router.post("/installers/:id/validate-auth", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ message: "ID inválido" });
+      return;
+    }
+    const parsed = validateAuthSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    const [account] = await db
+      .select({ email: installerAccountsTable.email, passwordHash: installerAccountsTable.passwordHash })
+      .from(installerAccountsTable)
+      .where(eq(installerAccountsTable.id, id));
+    if (!account) {
+      res.status(404).json({ message: "Conta não encontrada" });
+      return;
+    }
+    res.json({ ok: verifyPassword(parsed.data.password, account.passwordHash), email: account.email });
+  } catch (err) {
+    req.log.error({ err }, "Failed to validate installer credentials");
     res.status(500).json({ message: "Internal server error" });
   }
 });

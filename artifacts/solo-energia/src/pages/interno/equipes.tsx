@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Plus, Trash2, Upload, IdCard, Building2, UserPlus, FileCheck2 } from "lucide-react";
+import { Users, Plus, Trash2, Upload, IdCard, Building2, UserPlus, FileCheck2, Pencil, KeyRound } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +81,122 @@ function NewTeamDialog() {
             disabled={create.isPending || !form.name || !form.email || !form.teamName || form.password.length < 8}
           >
             {create.isPending ? "Salvando..." : "Cadastrar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Testa o login (e-mail + senha) contra o hash salvo, sem criar sessão. */
+function TestAccessSection({ endpoint, email }: { endpoint: string; email: string }) {
+  const [password, setPassword] = useState("");
+  const [result, setResult] = useState<null | boolean>(null);
+
+  const test = useMutation({
+    mutationFn: () => api.post<{ ok: boolean }>(endpoint, { password }),
+    onSuccess: (r) => setResult(r.ok),
+    onError: () => setResult(false),
+  });
+
+  return (
+    <div className="border-t border-white/5 pt-3 space-y-2">
+      <Label className="flex items-center gap-1.5"><KeyRound className="w-3.5 h-3.5" /> Testar acesso ({email})</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          type="password"
+          placeholder="Senha para testar o login"
+          value={password}
+          onChange={(e) => { setPassword(e.target.value); setResult(null); }}
+        />
+        <Button variant="secondary" disabled={!password || test.isPending} onClick={() => test.mutate()}>
+          {test.isPending ? "Testando..." : "Testar"}
+        </Button>
+      </div>
+      {result !== null && (
+        <p className={`text-xs ${result ? "text-green-400" : "text-destructive"}`}>
+          {result ? "✓ Login funcionando — e-mail e senha conferem." : "✗ Senha não confere com a cadastrada."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function EditTeamDialog({ account }: { account: InstallerAccount }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const fromAccount = () => ({
+    name: account.name,
+    teamName: account.teamName,
+    email: account.email,
+    password: "",
+    razaoSocial: account.razaoSocial ?? "",
+    cnpj: account.cnpj ?? "",
+    responsavelNome: account.responsavelNome ?? "",
+    responsavelTelefone: account.responsavelTelefone ?? "",
+    pixKey: account.pixKey ?? "",
+    formaPagamento: account.formaPagamento ?? "",
+  });
+  const [form, setForm] = useState(fromAccount);
+  // Ao abrir, ressincroniza com o dado atual (evita sobrescrever edições salvas antes).
+  const handleOpenChange = (o: boolean) => {
+    if (o) setForm(fromAccount());
+    setOpen(o);
+  };
+
+  const save = useMutation({
+    mutationFn: () => {
+      const { password, ...rest } = form;
+      return api.patch<InstallerAccount>(`/internal/installers/${account.id}`, {
+        ...rest,
+        ...(password ? { password } : {}),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK });
+      setForm((f) => ({ ...f, password: "" }));
+      setOpen(false);
+      toast({ title: "Equipe atualizada" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" title="Editar equipe"><Pencil className="w-4 h-4" /></Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Editar equipe</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Nome de exibição *</Label><Input value={form.name} onChange={set("name")} /></div>
+            <div><Label>Nome da equipe *</Label><Input value={form.teamName} onChange={set("teamName")} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>E-mail de acesso *</Label><Input type="email" value={form.email} onChange={set("email")} /></div>
+            <div><Label>Nova senha</Label><Input type="password" value={form.password} onChange={set("password")} placeholder="deixe em branco p/ manter" /></div>
+          </div>
+          <div className="border-t border-white/5 pt-3 grid grid-cols-2 gap-3">
+            <div><Label>Razão social</Label><Input value={form.razaoSocial} onChange={set("razaoSocial")} /></div>
+            <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={set("cnpj")} /></div>
+            <div><Label>Responsável</Label><Input value={form.responsavelNome} onChange={set("responsavelNome")} /></div>
+            <div><Label>Telefone do responsável</Label><Input value={form.responsavelTelefone} onChange={set("responsavelTelefone")} /></div>
+            <div><Label>Chave PIX</Label><Input value={form.pixKey} onChange={set("pixKey")} /></div>
+            <div><Label>Forma de pagamento</Label><Input value={form.formaPagamento} onChange={set("formaPagamento")} /></div>
+          </div>
+          <TestAccessSection endpoint={`/internal/installers/${account.id}/validate-auth`} email={account.email} />
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={save.isPending || !form.name || !form.email || !form.teamName || (form.password.length > 0 && form.password.length < 8)}
+          >
+            {save.isPending ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -177,9 +293,12 @@ function TeamCard({ account }: { account: InstallerAccount }) {
           )}
           {account.pixKey && <p className="text-xs text-muted-foreground">PIX: {account.pixKey}</p>}
         </div>
-        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => delTeam.mutate()}>
-          <Trash2 className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center">
+          <EditTeamDialog account={account} />
+          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => delTeam.mutate()}>
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="border-t border-white/5 pt-2">
@@ -242,6 +361,66 @@ function NewTechnicianDialog() {
   );
 }
 
+function EditTechnicianDialog({ tech }: { tech: Technician }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const fromTech = () => ({
+    name: tech.name,
+    email: tech.email,
+    phone: tech.phone ?? "",
+    password: "",
+  });
+  const [form, setForm] = useState(fromTech);
+  const handleOpenChange = (o: boolean) => {
+    if (o) setForm(fromTech());
+    setOpen(o);
+  };
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch<Technician>(`/internal/technicians/${tech.id}`, {
+        name: form.name,
+        email: form.email,
+        phone: form.phone || null,
+        ...(form.password ? { password: form.password } : {}),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_TECH });
+      setForm((f) => ({ ...f, password: "" }));
+      setOpen(false);
+      toast({ title: "Técnico atualizado" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" title="Editar técnico"><Pencil className="w-4 h-4" /></Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Editar técnico</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
+          <div><Label>E-mail de acesso *</Label><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></div>
+          <div><Label>Telefone (WhatsApp)</Label><Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="ex: 5585999990000" /></div>
+          <div><Label>Nova senha</Label><Input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="deixe em branco p/ manter" /></div>
+          <TestAccessSection endpoint={`/internal/technicians/${tech.id}/validate-auth`} email={tech.email} />
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={save.isPending || !form.name || !form.email || (form.password.length > 0 && form.password.length < 8)}
+          >
+            {save.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function TechniciansSection() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -284,6 +463,7 @@ function TechniciansSection() {
                 <p className="text-sm text-foreground truncate">{t.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{t.email}</p>
               </div>
+              <EditTechnicianDialog tech={t} />
               <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(t.id)}>
                 <Trash2 className="w-4 h-4" />
               </Button>

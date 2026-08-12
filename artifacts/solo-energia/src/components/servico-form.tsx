@@ -19,6 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   api,
@@ -85,6 +95,68 @@ const EMPTY: FormState = {
   formaPagamento: "",
   pixConta: "",
 };
+
+/** Seletor de projeto com busca — em listas grandes o Select puro esconde nomes. */
+function ProjectCombobox({
+  projects,
+  value,
+  onChange,
+}: {
+  projects: InternalProject[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const sorted = [...projects].sort((a, b) =>
+    a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }),
+  );
+  const selected = value !== NONE ? projects.find((p) => String(p.id) === value) : undefined;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal h-9 px-3"
+        >
+          <span className="truncate">{selected ? selected.clientName : "Sem projeto"}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar projeto..." />
+          <CommandList>
+            <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__sem_projeto__"
+                onSelect={() => { onChange(NONE); setOpen(false); }}
+              >
+                <Check className={`mr-2 h-4 w-4 ${value === NONE ? "opacity-100" : "opacity-0"}`} />
+                Sem projeto
+              </CommandItem>
+              {sorted.map((p) => (
+                <CommandItem
+                  key={p.id}
+                  value={`${p.clientName} ${p.id}`}
+                  onSelect={() => { onChange(String(p.id)); setOpen(false); }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${value === String(p.id) ? "opacity-100" : "opacity-0"}`} />
+                  <span className="truncate">{p.clientName}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">#{p.id}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function FileSection({
   service,
@@ -508,22 +580,11 @@ export function ServicoFormDialog({
           <div className="grid md:grid-cols-2 gap-3">
             <div>
               <Label>Projeto</Label>
-              <Select
+              <ProjectCombobox
+                projects={projects ?? []}
                 value={form.projectId}
-                onValueChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sem projeto" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Sem projeto</SelectItem>
-                  {(projects ?? []).map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.clientName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
+              />
             </div>
             <div>
               <Label>Valor do serviço (R$)</Label>
