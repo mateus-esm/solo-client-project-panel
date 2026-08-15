@@ -1,0 +1,48 @@
+Contexto: acabei de subir para o main uma integração nova — o handoff do pipeline
+de vendas para o pipeline de projetos. Preciso que você faça o setup e me devolva
+a URL do webhook. NÃO altere nenhum arquivo de código.
+
+Faça nesta ordem:
+
+1. `git pull` no main. Confirme que estes arquivos existem:
+   - artifacts/api-server/src/routes/sales.ts
+   - artifacts/api-server/src/lib/sales-payload.ts
+   - lib/db/migrations/017_handoff_vendas.sql
+   - artifacts/solo-energia/src/pages/interno/indicacoes.tsx
+
+2. Rode a migração: `pnpm --filter @workspace/db migrate`
+   Depois confirme no banco que a tabela `projects` ganhou as colunas:
+   sales_deal_id, sales_payload, consultor_nome, consultor_email,
+   consultor_telefone, link_proposta, link_contrato, comissao_esperada,
+   comissao_fixa, indicado_por, indicado_por_telefone
+   e que existe o índice único UQ_projects_sales_deal.
+
+3. Crie um Secret chamado SALES_WEBHOOK_SECRET com valor aleatório forte
+   (32+ caracteres). Me mostre o valor gerado.
+
+4. Confira se PORTAL_URL e SOLO_TEAM_PHONE existem nos Secrets.
+   Se PORTAL_URL não existir, defina com o domínio público do deployment.
+   Se SOLO_TEAM_PHONE não existir, me avise — é o número que recebe o aviso
+   de negócio fechado.
+
+5. Rode `pnpm --filter @workspace/api-server test` e me diga o resultado
+   (esperado: 35 testes passando em sales-payload.test.ts).
+
+6. Publique / redeploy, para os Secrets entrarem em vigor.
+
+7. Teste a rota no domínio publicado, com os dois curls:
+   a) curl -s -w "\n%{http_code}\n" -X POST \
+        https://<DOMINIO>/api/webhooks/sales/deal-won \
+        -H "Content-Type: application/json" -d '{}'
+      → tem que devolver 401
+   b) o mesmo, acrescentando -H "x-webhook-secret: <SALES_WEBHOOK_SECRET>"
+      → tem que devolver 400 com "Corpo sem o objeto `data` do registro"
+   Se der 404, o deploy não pegou o código novo — me diga.
+
+8. Me devolva no final:
+   - a URL completa: https://<DOMINIO>/api/webhooks/sales/deal-won
+   - o valor do SALES_WEBHOOK_SECRET
+   - o resultado dos dois curls
+   - se a migração aplicou, e se PORTAL_URL / SOLO_TEAM_PHONE já existiam
+
+Se algo falhar, pare e me diga o quê. Não tente corrigir por conta própria.
