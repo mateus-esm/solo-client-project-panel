@@ -30,6 +30,7 @@ import Usinas from "@/pages/interno/usinas";
 import Fornecedores from "@/pages/interno/fornecedores";
 import FinanceiroGeral from "@/pages/interno/financeiro";
 import Templates from "@/pages/interno/templates";
+import Indicacoes from "@/pages/interno/indicacoes";
 import HomologacaoLogin from "@/pages/homologacao/login";
 import HomologacaoDashboard from "@/pages/homologacao/dashboard";
 import HomologacaoProjects from "@/pages/homologacao/index";
@@ -194,6 +195,9 @@ function Router() {
       </Route>
       <Route path="/interno/templates">
         {() => <AdminGuard><Templates /></AdminGuard>}
+      </Route>
+      <Route path="/interno/indicacoes">
+        {() => <AdminGuard><Indicacoes /></AdminGuard>}
       </Route>
 
       {/* Homologação team portal */}

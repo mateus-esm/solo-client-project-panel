@@ -41,6 +41,12 @@ export type DocumentDisplayCategory = typeof DOCUMENT_DISPLAY_CATEGORIES[number]
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
   jestorId: text("jestor_id").unique(),
+  // Card do pipeline comercial que virou este projeto. Chave de idempotência do
+  // handoff Vendas → Operação: o webhook faz retry e o mesmo negócio não pode
+  // abrir dois projetos.
+  salesDealId: text("sales_deal_id").unique(),
+  // Corpo cru do webhook, para auditoria e reprocessamento.
+  salesPayload: jsonb("sales_payload").$type<Record<string, unknown>>(),
   // Identidade durável do cliente. clientName/clientEmail continuam preenchidos
   // (o portal do cliente e o Jestor dependem deles), mas clientId é a referência.
   clientId: integer("client_id"),
@@ -88,6 +94,18 @@ export const projectsTable = pgTable("projects", {
   homologacaoFormaPagamento: text("homologacao_forma_pagamento"),
   homologacaoPix: text("homologacao_pix"),
   sectionVisibility: jsonb("section_visibility").$type<SectionVisibility>().default(DEFAULT_SECTION_VISIBILITY),
+  // Origem comercial — vem do negócio ganho no pipeline de vendas.
+  consultorNome: text("consultor_nome"),
+  consultorEmail: text("consultor_email"),
+  consultorTelefone: text("consultor_telefone"),
+  linkProposta: text("link_proposta"),
+  linkContrato: text("link_contrato"),
+  comissaoEsperada: real("comissao_esperada"),
+  comissaoFixa: real("comissao_fixa"),
+  // Indicação: quem trouxe este negócio. No projeto, e não no cliente, porque a
+  // indicação premia o negócio fechado — o mesmo cliente pode voltar por outra via.
+  indicadoPor: text("indicado_por"),
+  indicadoPorTelefone: text("indicado_por_telefone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

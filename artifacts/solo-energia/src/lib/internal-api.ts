@@ -182,7 +182,35 @@ export interface InternalProject {
   homologacaoPago: boolean;
   homologacaoFormaPagamento: string | null;
   homologacaoPix: string | null;
+  // Origem comercial — preenchido pelo handoff do pipeline de vendas.
+  salesDealId: string | null;
+  consultorNome: string | null;
+  consultorEmail: string | null;
+  consultorTelefone: string | null;
+  linkProposta: string | null;
+  linkContrato: string | null;
+  comissaoEsperada: number | null;
+  comissaoFixa: number | null;
+  indicadoPor: string | null;
+  indicadoPorTelefone: string | null;
   createdAt: string;
+}
+
+/** Uma pessoa que indicou, com todos os negócios que ela trouxe. */
+export interface Indicacao {
+  nome: string;
+  telefone: string | null;
+  total: number;
+  valorTotal: number;
+  projetos: Array<{
+    id: number;
+    clientName: string;
+    valorProjeto: number | null;
+    stage: StageId;
+    indicadoPor: string | null;
+    indicadoPorTelefone: string | null;
+    createdAt: string;
+  }>;
 }
 
 export interface TeamMember {

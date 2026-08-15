@@ -97,6 +97,9 @@ All routes under `/api`:
 - `GET /api/jestor/sync/:jestorId` — pull latest data from Jestor API and update portal
 - `POST /api/webhooks/jestor/project` — **unified Jestor webhook** (create + update)
   - Header: `x-webhook-secret: <WEBHOOK_SECRET env var>`
+- `POST /api/webhooks/sales/deal-won` — **handoff Vendas → Operação** (negócio ganho vira projeto)
+  - Header `x-webhook-secret: <SALES_WEBHOOK_SECRET>` ou `?token=<SALES_WEBHOOK_SECRET>`
+- `GET /api/internal/indicacoes` — indicações agrupadas por quem indicou (requer admin)
 - `POST /api/chat` — streaming SSE AI assistant (GPT-5.2, project-context-aware, Portuguese)
 - `GET /api/scheduling` — list scheduling requests for session's project
 - `POST /api/scheduling` — create scheduling request + WhatsApp notify team
@@ -123,6 +126,30 @@ All routes under `/api`:
   "tracking_carrier": "Logística Rápida"
 }
 ```
+
+## Handoff Vendas → Operação (`POST /api/webhooks/sales/deal-won`)
+
+O negócio ganho no pipeline comercial abre **cliente + projeto + usina** no ERP, numa transação.
+Aceita o corpo nativo do Jestor (`{event, data}`) direto ou repassado pelo n8n (`[{body: {...}}]`).
+
+- **Idempotente** por `projects.sales_deal_id` (único): reenvio devolve 200 com o mesmo `project_id`.
+- **Silencioso para o cliente**: avisa só a equipe (`SOLO_TEAM_PHONE`). Boas-vindas e grupo de
+  WhatsApp continuam sendo itens-ação do onboarding.
+- **Dedup de cliente** por telefone normalizado, depois CPF/CNPJ. Cliente existente ganha mais um
+  projeto e tem os campos vazios completados — nunca sobrescritos.
+- O projeto nasce em `stage: onboarding`, sub-etapa `onboarding_documentacao_do_cliente`.
+- `systemPower` (kWp) é **derivado** de `potencia_do_modulo_w × numero_de_modulos ÷ 1000`.
+- A usina só é criada quando há ficha técnica; negócio ganho sem proposta vinculada não gera
+  linha vazia em `plants`.
+- O corpo cru fica em `projects.sales_payload` (jsonb) para auditoria e reprocessamento.
+
+A leitura do payload mora em `artifacts/api-server/src/lib/sales-payload.ts` — módulo puro, coberto
+por `src/lib/__tests__/sales-payload.test.ts` com o corpo real capturado em produção. Ele resolve as
+armadilhas do formato: números como string em formato BR ou US, campos vazios como `""`/`"[]"`,
+chave primária com nome dinâmico (`id_<table_id>`) e `oportunidade` inteira nula.
+
+**Indicações.** `lead.quem_esta_indicando` + `lead.seu_telefone` viram `projects.indicado_por` /
+`indicado_por_telefone`, agregados em `GET /internal/indicacoes` e na tela `/interno/indicacoes`.
 
 ## Jestor Lowcode Automation
 
@@ -161,6 +188,7 @@ Jestor::curlCall($url, "POST", json_encode($data), [
 | `DATABASE_URL` | PostgreSQL connection string |
 | `SESSION_SECRET` | Session secret |
 | `WEBHOOK_SECRET` | Secret token sent by Jestor in `x-webhook-secret` header |
+| `SALES_WEBHOOK_SECRET` | Secret do handoff de vendas (`/webhooks/sales/deal-won`). Cai no `WEBHOOK_SECRET` se ausente |
 | `JESTOR_API_TOKEN` | Bearer token for Jestor API |
 | `JESTOR_COMPANY_SLUG` | Jestor company slug (subdomain) |
 | `WHATSAPP_API_URL` | Base URL of the whatsmiau gateway (e.g. `http://72.61.219.156:8081`) |
@@ -188,7 +216,8 @@ When `statusStep === 4`, a scheduling card appears on the dashboard allowing cli
 
 ## Database Schema
 
-- `projects` — all Jestor fields mapped + status_step (1-7), dates, valor_projeto, forma_pagamento
+- `projects` — all Jestor fields mapped + status_step (1-7), dates, valor_projeto, forma_pagamento,
+  origem comercial (`sales_deal_id` único, `sales_payload`, consultor, links, comissão, indicação)
 - `documents` — type (pending_upload/available_download), **category** (entrada/intra_projeto), **required** (bool)
 - `notifications` — timeline per project, readable via PATCH /read
 - `scheduling_requests` — project agendamentos with requestedDate, notes, status (pending/confirmed/cancelled)
