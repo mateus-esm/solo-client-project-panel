@@ -133,7 +133,7 @@ async function resolverCliente(
 
 function resumoParaEquipe(n: NegocioGanho, projectId: number): string {
   const linhas = [
-    "🎉 *Negócio fechado — projeto aberto no ERP*",
+    "*Novo Projeto — SoloPro ERP*",
     "",
     `*Cliente:* ${n.cliente.nome ?? n.dealName ?? "(sem nome)"}`,
   ];
@@ -141,6 +141,24 @@ function resumoParaEquipe(n: NegocioGanho, projectId: number): string {
     linhas.push(`*Valor:* ${n.contrato.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`);
   }
   if (n.sistema.potenciaKwp != null) linhas.push(`*Sistema:* ${n.sistema.potenciaKwp} kWp`);
+  if (n.sistema.moduloFabricante || n.sistema.moduloPotenciaW || n.sistema.moduloQuantidade) {
+    const partes = [
+      n.sistema.moduloQuantidade != null ? `${n.sistema.moduloQuantidade}x` : null,
+      n.sistema.moduloFabricante,
+      n.sistema.moduloPotenciaW != null ? `${n.sistema.moduloPotenciaW} W` : null,
+    ].filter(Boolean);
+    linhas.push(`*Módulos:* ${partes.join(" ")}`);
+  }
+  if (n.sistema.inversorFabricante || n.sistema.inversorPotenciaKw) {
+    const partes = [
+      n.sistema.inversorQuantidade != null && n.sistema.inversorQuantidade > 1
+        ? `${n.sistema.inversorQuantidade}x`
+        : null,
+      n.sistema.inversorFabricante,
+      n.sistema.inversorPotenciaKw != null ? `${n.sistema.inversorPotenciaKw} kW` : null,
+    ].filter(Boolean);
+    linhas.push(`*Inversor:* ${partes.join(" ")}`);
+  }
   if (n.instalacao.endereco) linhas.push(`*Local:* ${n.instalacao.endereco}`);
   if (n.consultor.nome) linhas.push(`*Consultor:* ${n.consultor.nome}`);
   if (n.indicacao) linhas.push(`*Indicado por:* ${n.indicacao.nome}`);
@@ -275,9 +293,14 @@ router.post("/webhooks/sales/deal-won", async (req, res) => {
 
     // Fora da transação e sem await: o WhatsApp da equipe não pode desfazer um
     // projeto já gravado nem segurar a resposta do webhook.
-    const equipe = process.env.SOLO_TEAM_PHONE;
-    if (equipe) {
-      sendWhatsApp(equipe, resumoParaEquipe(negocio, resultado.projectId)).catch(() => {});
+    // Aceita mais de um número separado por vírgula (ex.: "5585...,5585...").
+    const equipe = (process.env.SOLO_TEAM_PHONE ?? "")
+      .split(",")
+      .map((tel) => tel.trim())
+      .filter(Boolean);
+    const resumo = resumoParaEquipe(negocio, resultado.projectId);
+    for (const tel of equipe) {
+      sendWhatsApp(tel, resumo).catch(() => {});
     }
 
     res.status(201).json({
