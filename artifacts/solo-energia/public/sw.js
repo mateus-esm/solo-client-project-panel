@@ -1,4 +1,4 @@
-const CACHE_NAME = "solopro-homologacao-v2";
+const CACHE_NAME = "solopro-homologacao-v3";
 const APP_SHELL = [
   "/",
   "/homologacao/login",
