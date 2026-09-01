@@ -9,20 +9,6 @@ export interface ServiceFile {
   createdAt: string;
 }
 
-export interface ProjectDocument {
-  id: number;
-  projectId: number;
-  name: string;
-  type: string;
-  category: string;
-  displayCategory: string | null;
-  required: boolean;
-  description: string | null;
-  fileUrl: string | null;
-  uploadedAt: string | null;
-  createdAt: string;
-}
-
 export interface TeamMember {
   id: number;
   accountId: number;
@@ -64,7 +50,6 @@ export interface Service {
   updatedAt: string;
   files: ServiceFile[];
   members?: TeamMember[];
-  projectDocuments?: ProjectDocument[];
 }
 
 export function useInstallerServices() {

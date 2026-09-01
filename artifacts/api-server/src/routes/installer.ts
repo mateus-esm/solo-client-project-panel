@@ -6,7 +6,6 @@ import {
   serviceTeamMembersTable,
   servicesTable,
   serviceFilesTable,
-  documentsTable,
   type ServiceFile,
 } from "@workspace/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
@@ -22,7 +21,6 @@ import {
   INSTALLER_COOKIE,
   type InstallerRequest,
 } from "../lib/installerAuth";
-import { CLIENT_INTAKE_DOCUMENTS, ensureClientIntakeDocuments } from "../lib/client-intake";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -180,25 +178,8 @@ router.get("/installer/services", requireInstaller, async (req: InstallerRequest
       filesByService.set(f.serviceId, list);
     }
 
-    const projectIds = [...new Set(services.map((service) => service.projectId).filter((id): id is number => id != null))];
-    await Promise.all(projectIds.map((projectId) => ensureClientIntakeDocuments(projectId)));
-    const intakeDocumentNames: Set<string> = new Set(CLIENT_INTAKE_DOCUMENTS.map((document) => document.name));
-    const projectDocuments = projectIds.length
-      ? await db.select().from(documentsTable).where(inArray(documentsTable.projectId, projectIds))
-      : [];
-    const documentsByProject = new Map<number, typeof projectDocuments>();
-    for (const document of projectDocuments.filter((document) => intakeDocumentNames.has(document.name))) {
-      const list = documentsByProject.get(document.projectId) ?? [];
-      list.push(document);
-      documentsByProject.set(document.projectId, list);
-    }
-
     res.json(
-      services.map((s) => ({
-        ...toInstallerService(s),
-        files: filesByService.get(s.id) ?? [],
-        projectDocuments: s.projectId ? documentsByProject.get(s.projectId) ?? [] : [],
-      }))
+      services.map((s) => ({ ...toInstallerService(s), files: filesByService.get(s.id) ?? [] }))
     );
   } catch (err) {
     req.log.error({ err }, "Failed to list installer services");
@@ -226,19 +207,11 @@ router.get("/installer/services/:id", requireInstaller, async (req: InstallerReq
       res.status(404).json({ message: "Serviço não encontrado" });
       return;
     }
-    const projectDocuments = service.projectId
-      ? await ensureClientIntakeDocuments(service.projectId).then((documents) =>
-        documents.filter((document) =>
-          document.projectId === service.projectId &&
-          CLIENT_INTAKE_DOCUMENTS.some((intakeDocument) => intakeDocument.name === document.name)
-        )
-      )
-      : [];
     const [files, members] = await Promise.all([
       db.select().from(serviceFilesTable).where(eq(serviceFilesTable.serviceId, id)),
       loadServiceMembers(id),
     ]);
-    res.json({ ...toInstallerService(service), files, members, projectDocuments });
+    res.json({ ...toInstallerService(service), files, members });
   } catch (err) {
     req.log.error({ err }, "Failed to get installer service");
     res.status(500).json({ message: "Internal server error" });

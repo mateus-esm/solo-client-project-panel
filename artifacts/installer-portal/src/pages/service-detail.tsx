@@ -343,38 +343,6 @@ export default function ServiceDetail() {
             </CardContent>
           </Card>
 
-          {/* Client intake documents needed for technical execution */}
-          {service.projectDocuments && service.projectDocuments.length > 0 && (
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Documentos do projeto
-                </CardTitle>
-                <CardDescription>
-                  Arquivos enviados pelo cliente para apoiar a execução.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {service.projectDocuments.map((document) => (
-                  <div key={document.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm text-foreground truncate">{document.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {document.required ? "Obrigatório" : "Opcional"} · {document.fileUrl ? "Recebido" : "Pendente"}
-                      </p>
-                    </div>
-                    {document.fileUrl ? (
-                      <a href={document.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline shrink-0">
-                        Abrir
-                      </a>
-                    ) : null}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
           {/* Contract + Financial Section */}
           {(service.contratoUrl || service.valorFechado != null) && (
             <Card className="border-border/60 shadow-sm">
