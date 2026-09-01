@@ -28,6 +28,11 @@ export default function Login() {
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  function postLoginPath() {
+    const next = new URLSearchParams(window.location.search).get("next");
+    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  }
+
   useEffect(() => {
     if (resendCooldown > 0) {
       const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
@@ -92,7 +97,7 @@ export default function Login() {
       }
 
       await queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
-      window.location.href = "/";
+      window.location.href = postLoginPath();
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status;
       if (status === 429) {
@@ -119,7 +124,7 @@ export default function Login() {
         return;
       }
       await queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
-      window.location.href = "/";
+      window.location.href = postLoginPath();
     } catch {
       setError("Não foi possível conectar ao servidor.");
     } finally {

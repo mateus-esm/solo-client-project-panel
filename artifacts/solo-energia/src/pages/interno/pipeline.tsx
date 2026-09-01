@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Zap, MapPin, Package, Phone } from "lucide-react";
+import { Plus, Zap, MapPin, Package, Phone, ClipboardList } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { ProjetoQuickEdit } from "@/components/projeto-quick-edit";
 import { Button } from "@/components/ui/button";
@@ -257,6 +257,19 @@ export default function PipelinePage() {
                           >
                             <Package className="w-3 h-3" /> {badge.label}
                           </span>
+                          {p.clientIntakeStatus && (
+                            <span
+                              className={
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] " +
+                                (p.clientIntakeStatus === "submitted"
+                                  ? "bg-emerald-500/15 text-emerald-400"
+                                  : "bg-amber-500/15 text-amber-400")
+                              }
+                            >
+                              <ClipboardList className="w-3 h-3" />
+                              {p.clientIntakeStatus === "submitted" ? "Ficha recebida" : "Ficha em rascunho"}
+                            </span>
+                          )}
                           {subStages.length > 0 && (
                             // stopPropagation: mexer no seletor não pode abrir a gaveta.
                             <div onClick={(e) => e.stopPropagation()}>

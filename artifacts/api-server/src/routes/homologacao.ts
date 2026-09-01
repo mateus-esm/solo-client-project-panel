@@ -28,6 +28,7 @@ import {
   type AuthenticatedRequest,
 } from "../lib/homologacaoAuth";
 import { stepCompletionPercent } from "../lib/jestor";
+import { ensureClientIntakeDocuments } from "../lib/client-intake";
 import {
   homologacaoAprovada,
   comprasGateError,
@@ -541,6 +542,7 @@ router.get("/homologacao/projects/:id", requireHomologacao, async (req, res) => 
       return;
     }
 
+    await ensureClientIntakeDocuments(id);
     const [checklist, documents, services] = await Promise.all([
       db
         .select()

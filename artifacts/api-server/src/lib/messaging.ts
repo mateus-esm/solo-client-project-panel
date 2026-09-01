@@ -40,7 +40,7 @@ function normalizePhone(phone: string): string {
   return `55${digits}`;
 }
 
-function getPortalUrl(): string {
+export function getPortalUrl(): string {
   const domains = process.env.REPLIT_DOMAINS;
   if (domains) {
     const primary = domains.split(",")[0].trim();
@@ -225,6 +225,12 @@ export function buildInviteWhatsAppText(clientName: string): string {
   const portalUrl = getPortalUrl();
   const firstName = clientName.split(" ")[0];
   return `Olá, ${firstName}! ☀️\n\nSeu portal de acompanhamento do projeto solar está pronto!\n\nAcesse agora: ${portalUrl}/login\n\nUse o seu e-mail cadastrado para entrar — você receberá um código de verificação.\n\n— Equipe Solo Energia`;
+}
+
+export function buildClientIntakeInviteText(clientName: string): string {
+  const firstName = clientName.split(" ")[0];
+  const intakeUrl = `${getPortalUrl()}/login?next=/client-intake`;
+  return `Olá, ${firstName}!\n\nPrecisamos de algumas informações e documentos para preparar o projeto elétrico da sua instalação.\n\nPreencha sua ficha pelo portal: ${intakeUrl}\n\nO acesso é feito com o seu e-mail cadastrado e um código de verificação.\n\n— Equipe Solo Energia`;
 }
 
 export function buildMessageWhatsAppText(clientName: string, title: string, body: string): string {

@@ -193,6 +193,31 @@ export interface InternalProject {
   comissaoFixa: number | null;
   indicadoPor: string | null;
   indicadoPorTelefone: string | null;
+  clientIntakeStatus?: "draft" | "submitted" | null;
+  createdAt: string;
+}
+
+export interface ClientIntakeSubmission {
+  id: number;
+  projectId: number;
+  status: "draft" | "submitted";
+  data: Record<string, string>;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDocument {
+  id: number;
+  projectId: number;
+  name: string;
+  type: string;
+  category: string;
+  displayCategory: string | null;
+  required: boolean;
+  description: string | null;
+  fileUrl: string | null;
+  uploadedAt: string | null;
   createdAt: string;
 }
 
@@ -462,6 +487,8 @@ export interface ProjectDetail {
   services: ServiceItem[];
   supply: SupplySummary;
   acoesCumpridas?: ChecklistAcao[];
+  documents?: ProjectDocument[];
+  clientIntake?: ClientIntakeSubmission | null;
 }
 
 // --- Fetch helper ---

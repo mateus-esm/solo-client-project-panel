@@ -4,12 +4,15 @@ import { db } from "@workspace/db";
 import {
   projectsTable, documentsTable, notificationsTable, paymentsTable,
   DEFAULT_SECTION_VISIBILITY, type SectionVisibility,
+  clientIntakeSubmissionsTable,
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
+import { z } from "zod/v4";
 import { getJestorProject, mapJestorStatusToStep, stepCompletionPercent } from "../lib/jestor";
 import { resolveSession } from "../lib/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { comprovanteStore } from "../lib/comprovanteStore";
+import { ensureClientIntakeDocuments } from "../lib/client-intake";
 
 const objectStorage = new ObjectStorageService();
 
@@ -231,6 +234,140 @@ router.get("/documents", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to list documents");
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+const intakeDataSchema = z.object({
+  nomeCompleto: z.string().trim().max(160).optional(),
+  tipoDocumento: z.enum(["cpf", "cnpj"]).optional(),
+  cpf: z.string().trim().max(32).optional(),
+  cnpj: z.string().trim().max(32).optional(),
+  rgCnh: z.string().trim().max(64).optional(),
+  titularidadeUnidadeConsumidora: z.string().trim().max(160).optional(),
+  enderecoInstalacao: z.string().trim().max(500).optional(),
+  telefone: z.string().trim().max(40).optional(),
+  email: z.string().trim().max(254).optional(),
+  numeroUnidadeConsumidora: z.string().trim().max(80).optional(),
+  senhaUnidadeConsumidora: z.string().max(200).optional(),
+  numeroUnidadeConsumidoraRateio: z.string().trim().max(80).optional(),
+  senhaUnidadeConsumidoraRateio: z.string().max(200).optional(),
+});
+
+const requiredIntakeFields = [
+  ["nomeCompleto", "Nome completo"],
+  ["rgCnh", "RG ou CNH"],
+  ["titularidadeUnidadeConsumidora", "Titularidade da unidade consumidora"],
+  ["enderecoInstalacao", "Endereço completo da instalação"],
+  ["telefone", "Telefone"],
+  ["email", "E-mail"],
+  ["numeroUnidadeConsumidora", "Número da unidade consumidora"],
+  ["senhaUnidadeConsumidora", "Senha de acesso da unidade consumidora"],
+] as const;
+
+function intakeValidationErrors(data: Record<string, string>) {
+  const errors: Record<string, string> = {};
+  for (const [field, label] of requiredIntakeFields) {
+    if (!data[field]?.trim()) errors[field] = `${label} é obrigatório.`;
+  }
+  if (data.tipoDocumento === "cnpj" && !data.cnpj?.trim()) errors.cnpj = "Informe o CNPJ do titular.";
+  if (data.tipoDocumento !== "cnpj" && !data.cpf?.trim()) errors.cpf = "Informe o CPF do titular.";
+  if (data.email && !/^\S+@\S+\.\S+$/.test(data.email)) errors.email = "Informe um e-mail válido.";
+  return errors;
+}
+
+async function getClientIntake(projectId: number) {
+  const [submission] = await db
+    .select()
+    .from(clientIntakeSubmissionsTable)
+    .where(eq(clientIntakeSubmissionsTable.projectId, projectId))
+    .limit(1);
+  const documents = await ensureClientIntakeDocuments(projectId);
+  return { submission: submission ?? null, documents: documents.map(formatDocument) };
+}
+
+router.get("/client-intake", requireAuth, async (req, res) => {
+  try {
+    const projectId = req.sessionProjectId!;
+    const [project] = await db
+      .select({
+        id: projectsTable.id,
+        clientName: projectsTable.clientName,
+        clientEmail: projectsTable.clientEmail,
+        clientPhone: projectsTable.clientPhone,
+        city: projectsTable.city,
+        state: projectsTable.state,
+      })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, projectId))
+      .limit(1);
+    if (!project) {
+      res.status(404).json({ message: "Projeto não encontrado" });
+      return;
+    }
+    res.json({ project, ...(await getClientIntake(projectId)) });
+  } catch (err) {
+    req.log.error({ err }, "Failed to load client intake");
+    res.status(500).json({ message: "Não foi possível carregar a ficha" });
+  }
+});
+
+async function saveClientIntake(projectId: number, data: Record<string, string>, submit: boolean) {
+  const now = new Date();
+  const [saved] = await db
+    .insert(clientIntakeSubmissionsTable)
+    .values({
+      projectId,
+      status: submit ? "submitted" : "draft",
+      data,
+      submittedAt: submit ? now : null,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: clientIntakeSubmissionsTable.projectId,
+      set: {
+        status: submit ? "submitted" : "draft",
+        data,
+        submittedAt: submit ? now : null,
+        updatedAt: now,
+      },
+    })
+    .returning();
+  return saved;
+}
+
+router.patch("/client-intake", requireAuth, async (req, res) => {
+  try {
+    const parsed = intakeDataSchema.safeParse(req.body?.data);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    const saved = await saveClientIntake(req.sessionProjectId!, parsed.data as Record<string, string>, false);
+    res.json(saved);
+  } catch (err) {
+    req.log.error({ err }, "Failed to save client intake draft");
+    res.status(500).json({ message: "Não foi possível salvar a ficha" });
+  }
+});
+
+router.post("/client-intake/submit", requireAuth, async (req, res) => {
+  try {
+    const parsed = intakeDataSchema.safeParse(req.body?.data);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Dados inválidos", errors: parsed.error.issues });
+      return;
+    }
+    const data = parsed.data as Record<string, string>;
+    const errors = intakeValidationErrors(data);
+    if (Object.keys(errors).length) {
+      res.status(400).json({ message: "Revise os campos obrigatórios antes de enviar.", errors });
+      return;
+    }
+    const saved = await saveClientIntake(req.sessionProjectId!, data, true);
+    res.json(saved);
+  } catch (err) {
+    req.log.error({ err }, "Failed to submit client intake");
+    res.status(500).json({ message: "Não foi possível enviar a ficha" });
   }
 });
 

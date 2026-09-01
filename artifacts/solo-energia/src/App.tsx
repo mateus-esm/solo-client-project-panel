@@ -10,6 +10,7 @@ import customFontUrl from "@assets/NeueMontreal-Bold_1774472757874.otf";
 
 import Dashboard from "@/pages/dashboard";
 import Documents from "@/pages/documents";
+import ClientIntake from "@/pages/client-intake";
 import Notifications from "@/pages/notifications";
 import Finance from "@/pages/finance";
 import Login from "@/pages/login";
@@ -136,6 +137,9 @@ function Router() {
       </Route>
       <Route path="/documents">
         {() => <AuthGuard><Documents /></AuthGuard>}
+      </Route>
+      <Route path="/client-intake">
+        {() => <AuthGuard><ClientIntake /></AuthGuard>}
       </Route>
       <Route path="/notifications">
         {() => <AuthGuard><Notifications /></AuthGuard>}

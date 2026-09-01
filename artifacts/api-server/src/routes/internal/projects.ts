@@ -17,6 +17,9 @@ import {
   homologacaoTechniciansTable,
   projectPurchasesTable,
   clientsTable,
+  documentsTable,
+  clientIntakeSubmissionsTable,
+  projectAccessEmailsTable,
   type PipelineStage,
 } from "@workspace/db/schema";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
@@ -26,6 +29,14 @@ import { stepCompletionPercent } from "../../lib/jestor";
 import { resolveAcoes } from "../../lib/checklist-actions";
 import { getOrCreateProcesso, patchProcesso, processoPatchSchema } from "../homologacao";
 import { sendWhatsApp } from "../../lib/notifications";
+import {
+  buildClientIntakeInviteText,
+  buildMessageWhatsAppText,
+  getPortalUrl,
+  sendWhatsApp as sendMessagingWhatsApp,
+  sendMessageEmail,
+} from "../../lib/messaging";
+import { ensureClientIntakeDocuments } from "../../lib/client-intake";
 import {
   homologacaoAprovada,
   comprasGateError,
@@ -144,7 +155,21 @@ router.get("/projects", async (req, res) => {
       ? await db.select().from(projectsTable).where(eq(projectsTable.stage, stageFilter)).orderBy(asc(projectsTable.id))
       : await db.select().from(projectsTable).orderBy(asc(projectsTable.id));
     const supplies = await supplySummaries(projects.map((p) => p.id));
-    res.json(projects.map((p) => ({ ...p, supply: supplies.get(p.id) ?? EMPTY_SUPPLY })));
+    const intakeRows = projects.length
+      ? await db
+        .select({
+          projectId: clientIntakeSubmissionsTable.projectId,
+          status: clientIntakeSubmissionsTable.status,
+        })
+        .from(clientIntakeSubmissionsTable)
+        .where(inArray(clientIntakeSubmissionsTable.projectId, projects.map((p) => p.id)))
+      : [];
+    const intakeStatus = new Map(intakeRows.map((row) => [row.projectId, row.status]));
+    res.json(projects.map((p) => ({
+      ...p,
+      supply: supplies.get(p.id) ?? EMPTY_SUPPLY,
+      clientIntakeStatus: intakeStatus.get(p.id) ?? null,
+    })));
   } catch (err) {
     req.log.error({ err }, "Failed to list internal projects");
     res.status(500).json({ message: "Internal server error" });
@@ -180,22 +205,104 @@ router.get("/projects/:id", async (req, res) => {
       res.status(404).json({ message: "Projeto não encontrado" });
       return;
     }
-    const checklist = await db
-      .select()
-      .from(projectChecklistItemsTable)
-      .where(eq(projectChecklistItemsTable.projectId, id))
-      .orderBy(asc(projectChecklistItemsTable.sortOrder), asc(projectChecklistItemsTable.id));
-    const services = await db
-      .select()
-      .from(servicesTable)
-      .where(eq(servicesTable.projectId, id))
-      .orderBy(asc(servicesTable.id));
+    const documents = await ensureClientIntakeDocuments(id);
+    const [checklist, services, intakeRows] = await Promise.all([
+      db
+        .select()
+        .from(projectChecklistItemsTable)
+        .where(eq(projectChecklistItemsTable.projectId, id))
+        .orderBy(asc(projectChecklistItemsTable.sortOrder), asc(projectChecklistItemsTable.id)),
+      db
+        .select()
+        .from(servicesTable)
+        .where(eq(servicesTable.projectId, id))
+        .orderBy(asc(servicesTable.id)),
+      db
+        .select()
+        .from(clientIntakeSubmissionsTable)
+        .where(eq(clientIntakeSubmissionsTable.projectId, id))
+        .limit(1),
+    ]);
     const supplies = await supplySummaries([id]);
     const acoesCumpridas = await resolveAcoes(id);
-    res.json({ project, checklist, services, supply: supplies.get(id) ?? EMPTY_SUPPLY, acoesCumpridas });
+    res.json({
+      project,
+      checklist,
+      services,
+      documents,
+      clientIntake: intakeRows[0] ?? null,
+      supply: supplies.get(id) ?? EMPTY_SUPPLY,
+      acoesCumpridas,
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to get project detail");
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/projects/:id/client-intake/invite", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id, 10);
+    const channel = req.body?.channel as string | undefined;
+    if (!["whatsapp", "email", "both"].includes(channel ?? "")) {
+      res.status(400).json({ message: "channel deve ser whatsapp, email ou both" });
+      return;
+    }
+
+    const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
+    if (!project) {
+      res.status(404).json({ message: "Projeto não encontrado" });
+      return;
+    }
+
+    await ensureClientIntakeDocuments(projectId);
+    const title = "Preencha os dados do seu projeto elétrico";
+    const intakeUrl = `${getPortalUrl()}/login?next=/client-intake`;
+    const body = `Olá, ${project.clientName.split(" ")[0]}!\n\nPara prepararmos o projeto elétrico da sua instalação, precisamos receber algumas informações e documentos.\n\nAcesse o portal e preencha a ficha: ${intakeUrl}\n\nO acesso é feito com seu e-mail cadastrado e um código de verificação. Você pode salvar o rascunho e continuar depois.`;
+    const customMessage = typeof req.body?.customMessage === "string" ? req.body.customMessage.trim() : "";
+    const sent: string[] = [];
+    const failed: string[] = [];
+
+    await db.insert(notificationsTable).values({
+      projectId,
+      title,
+      message: customMessage || body,
+      read: false,
+    });
+
+    if (channel === "whatsapp" || channel === "both") {
+      if (!project.clientPhone) {
+        failed.push("whatsapp: telefone não cadastrado");
+      } else {
+        const result = await sendMessagingWhatsApp(
+          project.clientPhone,
+          customMessage || buildClientIntakeInviteText(project.clientName),
+        );
+        if (result.ok) sent.push("whatsapp");
+        else failed.push(`whatsapp: ${result.error}`);
+      }
+    }
+
+    if (channel === "email" || channel === "both") {
+      const additionalAccess = await db
+        .select({ email: projectAccessEmailsTable.email })
+        .from(projectAccessEmailsTable)
+        .where(eq(projectAccessEmailsTable.projectId, projectId));
+      const recipients = [...new Set([project.clientEmail, ...additionalAccess.map((row) => row.email)])];
+      const results = await Promise.all(
+        recipients.map((email) => sendMessageEmail(email, project.clientName, title, customMessage || body)),
+      );
+      const successful = results.filter((result) => result.ok).length;
+      if (successful) sent.push(`email (${successful}/${recipients.length})`);
+      results.forEach((result, index) => {
+        if (!result.ok) failed.push(`email ${recipients[index]}: ${result.error}`);
+      });
+    }
+
+    res.json({ ok: true, sent, failed: failed.length ? failed : undefined, url: intakeUrl });
+  } catch (err) {
+    req.log.error({ err }, "Failed to send client intake invite");
+    res.status(500).json({ message: "Não foi possível enviar o convite" });
   }
 });
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2, Package } from "lucide-react";
+import { ArrowLeft, Zap, MapPin, Wallet, TrendingUp, Wrench, FileCheck2, Package, ClipboardList, Mail, MessageCircle, Loader2, CheckCircle2, Send } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { ProcessoFicha } from "@/components/processo-ficha";
 import { ChecklistGroups } from "@/components/checklist-groups";
@@ -33,6 +33,7 @@ import {
   type InternalProject,
   type Technician,
   type StageId,
+  type ProjectDocument,
 } from "@/lib/internal-api";
 
 const STAGES_WITH_CHECKLIST = STAGES.filter((s) => CHECKLIST_TEMPLATE[s].length > 0);
@@ -111,6 +112,133 @@ function HomologacaoAssignment({ project, invalidateKey }: { project: InternalPr
   );
 }
 
+function ClientIntakePanel({
+  project,
+  documents,
+  clientIntake,
+  invalidateKey,
+}: {
+  project: InternalProject;
+  documents: ProjectDocument[];
+  clientIntake: ProjectDetail["clientIntake"];
+  invalidateKey: unknown[];
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const invite = useMutation({
+    mutationFn: (channel: "email" | "whatsapp" | "both") =>
+      api.post<{ sent: string[]; failed?: string[] }>("/internal/projects/" + project.id + "/client-intake/invite", { channel }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: invalidateKey });
+      toast({
+        title: "Convite enviado",
+        description: [...result.sent, ...(result.failed ?? [])].join(" · ") || "Confira os canais configurados.",
+      });
+    },
+    onError: (err: Error) => toast({ title: "Erro ao enviar convite", description: err.message, variant: "destructive" }),
+  });
+
+  const received = documents.filter((document) => Boolean(document.fileUrl));
+  const statusLabel = clientIntake?.status === "submitted" ? "Ficha enviada pelo cliente" : clientIntake ? "Rascunho salvo pelo cliente" : "Ainda não iniciada";
+  const statusClass = clientIntake?.status === "submitted"
+    ? "bg-emerald-500/15 text-emerald-400"
+    : clientIntake ? "bg-amber-500/15 text-amber-400" : "bg-white/5 text-muted-foreground";
+  const intakeData = clientIntake?.data ?? {};
+  const dataRows = [
+    ["CPF/CNPJ", intakeData.cpf],
+    ["RG/CNH", intakeData.rgCnh],
+    ["Titularidade", intakeData.titularidadeUnidadeConsumidora],
+    ["Endereço da instalação", intakeData.enderecoInstalacao],
+    ["Telefone", intakeData.telefone || project.clientPhone],
+    ["E-mail", intakeData.email || project.clientEmail],
+    ["UC titular", intakeData.numeroUnidadeConsumidora],
+    ["UC de rateio", intakeData.numeroUnidadeRateio],
+    ["Senha da UC", intakeData.senhaUnidadeConsumidora ? "Cadastrada (oculta)" : undefined],
+    ["Senha da UC de rateio", intakeData.senhaUnidadeRateio ? "Cadastrada (oculta)" : undefined],
+  ].filter(([, value]) => Boolean(value));
+
+  return (
+    <div className="bg-card border border-white/5 rounded-3xl p-6 mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-primary" /> Dados para projeto elétrico
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Formulário e documentos recebidos no portal do cliente.
+          </p>
+        </div>
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${statusClass}`}>
+          {clientIntake?.status === "submitted" && <CheckCircle2 className="w-3.5 h-3.5" />}
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+        <div className="rounded-xl bg-background/50 px-3 py-3">
+          <p className="text-[11px] text-muted-foreground">Documentos</p>
+          <p className="text-sm text-foreground font-medium mt-1">{received.length}/{documents.length || 0} recebidos</p>
+        </div>
+        <div className="rounded-xl bg-background/50 px-3 py-3">
+          <p className="text-[11px] text-muted-foreground">Titular</p>
+          <p className="text-sm text-foreground font-medium mt-1 truncate">{clientIntake?.data?.nomeCompleto || "—"}</p>
+        </div>
+        <div className="rounded-xl bg-background/50 px-3 py-3">
+          <p className="text-[11px] text-muted-foreground">Unidade consumidora</p>
+          <p className="text-sm text-foreground font-medium mt-1 truncate">{clientIntake?.data?.numeroUnidadeConsumidora || "—"}</p>
+        </div>
+        <div className="rounded-xl bg-background/50 px-3 py-3">
+          <p className="text-[11px] text-muted-foreground">Contato</p>
+          <p className="text-sm text-foreground font-medium mt-1 truncate">{clientIntake?.data?.telefone || project.clientPhone || "—"}</p>
+        </div>
+      </div>
+
+      {documents.length > 0 && (
+        <div className="space-y-2 mt-5">
+          {documents.map((document) => (
+            <div key={document.id} className="flex items-center justify-between gap-3 rounded-xl bg-background/50 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm text-foreground truncate">{document.name}</p>
+                <p className="text-[11px] text-muted-foreground">{document.required ? "Obrigatório" : "Opcional"} · {document.fileUrl ? "Recebido" : "Pendente"}</p>
+              </div>
+              {document.fileUrl ? (
+                <a href={document.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline shrink-0">Abrir</a>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {dataRows.length > 0 && (
+        <div className="mt-5 pt-5 border-t border-white/5">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Dados preenchidos</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+            {dataRows.map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <p className="text-[11px] text-muted-foreground">{label}</p>
+                <p className="text-sm text-foreground truncate mt-0.5">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 mt-5 pt-4 border-t border-white/5">
+        <span className="text-xs text-muted-foreground mr-1">Enviar formulário:</span>
+        <Button variant="outline" size="sm" disabled={invite.isPending} onClick={() => invite.mutate("email")}>
+          {invite.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Mail className="w-3.5 h-3.5 mr-1.5" />} E-mail
+        </Button>
+        <Button variant="outline" size="sm" disabled={invite.isPending} onClick={() => invite.mutate("whatsapp")}>
+          <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> WhatsApp
+        </Button>
+        <Button variant="outline" size="sm" disabled={invite.isPending} onClick={() => invite.mutate("both")}>
+          <Send className="w-3.5 h-3.5 mr-1.5" /> Ambos
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjetoDetalhePage() {
   const [, params] = useRoute("/interno/projetos/:id");
   const projectId = Number(params?.id);
@@ -161,7 +289,7 @@ export default function ProjetoDetalhePage() {
     );
   }
 
-  const { project, checklist, services, supply } = data;
+  const { project, checklist, services, supply, documents = [], clientIntake } = data;
   const activeStage = checklistStage ?? project.stage;
   const subStages = subStagesFor(project.stage);
   const badge = supplyBadge(supply);
@@ -302,6 +430,13 @@ export default function ProjetoDetalhePage() {
       </div>
 
       <NotificarWhatsApp projectId={project.id} invalidateKeys={[queryKey]} />
+
+      <ClientIntakePanel
+        project={project}
+        documents={documents}
+        clientIntake={clientIntake}
+        invalidateKey={queryKey}
+      />
 
       <FinanceiroSection project={project} invalidateKey={queryKey} />
 

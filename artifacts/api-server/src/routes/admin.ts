@@ -210,6 +210,58 @@ router.get("/admin/projects/:id", requireAdmin, async (req, res) => {
   }
 });
 
+router.patch("/admin/projects/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    const {
+      clientName, clientEmail, clientPhone, systemPower, statusStep,
+      city, state, valorProjeto, formaDePagamento, observacoesGerais,
+      notes, estimatedActivation, trackingCode, trackingCarrier,
+      dataInicioPrevista, dataConclusaoPrevista, dataDeFechamento,
+      dataDePagamento, dataDeCompras, dataDeEntregaDoEquipamento,
+      schedulingLink, sectionVisibility,
+    } = req.body;
+
+    const updateData: Partial<typeof projectsTable.$inferInsert> = {};
+    if (clientName !== undefined) updateData.clientName = clientName;
+    if (clientEmail !== undefined) updateData.clientEmail = String(clientEmail).toLowerCase();
+    if (clientPhone !== undefined) updateData.clientPhone = clientPhone || null;
+    if (systemPower !== undefined) updateData.systemPower = Number(systemPower);
+    if (statusStep !== undefined) {
+      const step = Number(statusStep);
+      updateData.statusStep = step;
+      updateData.completionPercent = stepCompletionPercent(step);
+    }
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (valorProjeto !== undefined) updateData.valorProjeto = valorProjeto ? Number(valorProjeto) : null;
+    if (formaDePagamento !== undefined) updateData.formaDePagamento = formaDePagamento || null;
+    if (observacoesGerais !== undefined) updateData.observacoesGerais = observacoesGerais || null;
+    if (notes !== undefined) updateData.notes = notes || null;
+    if (estimatedActivation !== undefined) updateData.estimatedActivation = estimatedActivation || null;
+    if (trackingCode !== undefined) updateData.trackingCode = trackingCode || null;
+    if (trackingCarrier !== undefined) updateData.trackingCarrier = trackingCarrier || null;
+    if (dataInicioPrevista !== undefined) updateData.dataInicioPrevista = dataInicioPrevista || null;
+    if (dataConclusaoPrevista !== undefined) updateData.dataConclusaoPrevista = dataConclusaoPrevista || null;
+    if (dataDeFechamento !== undefined) updateData.dataDeFechamento = dataDeFechamento || null;
+    if (dataDePagamento !== undefined) updateData.dataDePagamento = dataDePagamento || null;
+    if (dataDeCompras !== undefined) updateData.dataDeCompras = dataDeCompras || null;
+    if (dataDeEntregaDoEquipamento !== undefined) updateData.dataDeEntregaDoEquipamento = dataDeEntregaDoEquipamento || null;
+    if (schedulingLink !== undefined) updateData.schedulingLink = schedulingLink || null;
+    if (sectionVisibility !== undefined) updateData.sectionVisibility = sectionVisibility;
+
+    const [updated] = Object.keys(updateData).length > 0
+      ? await db.update(projectsTable).set(updateData).where(eq(projectsTable.id, id)).returning()
+      : await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+
+    if (!updated) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
+    res.json(formatProject(updated));
+  } catch (err) {
+    req.log.error({ err }, "Admin: failed to update project");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
 router.get("/admin/projects/:id/access-emails", requireAdmin, async (req, res) => {
   try {
     const projectId = Number(req.params.id);
@@ -282,58 +334,6 @@ router.delete("/admin/projects/:id/access-emails/:emailId", requireAdmin, async 
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Admin: failed to remove project access email");
-    res.status(500).json({ message: "Erro interno" });
-  }
-});
-
-router.patch("/admin/projects/:id", requireAdmin, async (req, res) => {
-  try {
-    const id = parseInt(String(req.params.id), 10);
-    const {
-      clientName, clientEmail, clientPhone, systemPower, statusStep,
-      city, state, valorProjeto, formaDePagamento, observacoesGerais,
-      notes, estimatedActivation, trackingCode, trackingCarrier,
-      dataInicioPrevista, dataConclusaoPrevista, dataDeFechamento,
-      dataDePagamento, dataDeCompras, dataDeEntregaDoEquipamento,
-      schedulingLink, sectionVisibility,
-    } = req.body;
-
-    const updateData: Partial<typeof projectsTable.$inferInsert> = {};
-    if (clientName !== undefined) updateData.clientName = clientName;
-    if (clientEmail !== undefined) updateData.clientEmail = String(clientEmail).toLowerCase();
-    if (clientPhone !== undefined) updateData.clientPhone = clientPhone || null;
-    if (systemPower !== undefined) updateData.systemPower = Number(systemPower);
-    if (statusStep !== undefined) {
-      const step = Number(statusStep);
-      updateData.statusStep = step;
-      updateData.completionPercent = stepCompletionPercent(step);
-    }
-    if (city !== undefined) updateData.city = city;
-    if (state !== undefined) updateData.state = state;
-    if (valorProjeto !== undefined) updateData.valorProjeto = valorProjeto ? Number(valorProjeto) : null;
-    if (formaDePagamento !== undefined) updateData.formaDePagamento = formaDePagamento || null;
-    if (observacoesGerais !== undefined) updateData.observacoesGerais = observacoesGerais || null;
-    if (notes !== undefined) updateData.notes = notes || null;
-    if (estimatedActivation !== undefined) updateData.estimatedActivation = estimatedActivation || null;
-    if (trackingCode !== undefined) updateData.trackingCode = trackingCode || null;
-    if (trackingCarrier !== undefined) updateData.trackingCarrier = trackingCarrier || null;
-    if (dataInicioPrevista !== undefined) updateData.dataInicioPrevista = dataInicioPrevista || null;
-    if (dataConclusaoPrevista !== undefined) updateData.dataConclusaoPrevista = dataConclusaoPrevista || null;
-    if (dataDeFechamento !== undefined) updateData.dataDeFechamento = dataDeFechamento || null;
-    if (dataDePagamento !== undefined) updateData.dataDePagamento = dataDePagamento || null;
-    if (dataDeCompras !== undefined) updateData.dataDeCompras = dataDeCompras || null;
-    if (dataDeEntregaDoEquipamento !== undefined) updateData.dataDeEntregaDoEquipamento = dataDeEntregaDoEquipamento || null;
-    if (schedulingLink !== undefined) updateData.schedulingLink = schedulingLink || null;
-    if (sectionVisibility !== undefined) updateData.sectionVisibility = sectionVisibility;
-
-    const [updated] = Object.keys(updateData).length > 0
-      ? await db.update(projectsTable).set(updateData).where(eq(projectsTable.id, id)).returning()
-      : await db.select().from(projectsTable).where(eq(projectsTable.id, id));
-
-    if (!updated) { res.status(404).json({ message: "Projeto não encontrado" }); return; }
-    res.json(formatProject(updated));
-  } catch (err) {
-    req.log.error({ err }, "Admin: failed to update project");
     res.status(500).json({ message: "Erro interno" });
   }
 });
