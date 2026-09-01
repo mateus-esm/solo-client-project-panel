@@ -15,7 +15,7 @@ const NAV = [
   { href: "/interno/fornecedores", label: "Fornecedores", icon: Truck },
   { href: "/interno/equipes", label: "Equipes", icon: Users },
   { href: "/interno/estoque", label: "Estoque", icon: Package },
-  { href: "/interno/templates", label: "Templates", icon: MessageSquareText },
+  { href: "/interno/templates", label: "Biblioteca", icon: MessageSquareText },
   { href: "/admin", label: "Painel Admin", icon: LayoutDashboard },
 ];
 

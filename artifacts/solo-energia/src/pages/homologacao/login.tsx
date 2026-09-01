@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Loader2 } from "lucide-react";
+import { Loader2, FlaskConical } from "lucide-react";
 import logoUrl from "@assets/001_1775433962945.png";
 import { useQueryClient } from "@tanstack/react-query";
 import { HOMOLOGACAO_AUTH_KEY } from "@/hooks/use-homologacao-auth";
+
+const IS_DEV = import.meta.env.DEV;
 
 export default function HomologacaoLoginPage() {
   const [email, setEmail] = useState("");
@@ -27,6 +29,29 @@ export default function HomologacaoLoginPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.message ?? "Erro ao entrar");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: HOMOLOGACAO_AUTH_KEY });
+      navigate("/homologacao");
+    } catch {
+      setError("Erro de conexão. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDevLogin() {
+    if (loading) return;
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/homologacao/auth/dev-login", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message ?? "Falha no login de desenvolvimento");
         return;
       }
       await queryClient.invalidateQueries({ queryKey: HOMOLOGACAO_AUTH_KEY });
@@ -94,6 +119,18 @@ export default function HomologacaoLoginPage() {
               {loading ? "Entrando…" : "Entrar"}
             </button>
           </form>
+
+          {IS_DEV && (
+            <button
+              type="button"
+              onClick={handleDevLogin}
+              disabled={loading}
+              className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium text-muted-foreground border border-dashed border-white/10 hover:border-white/20 hover:text-foreground disabled:opacity-40 transition-all"
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}
+              Entrar sem senha (somente desenvolvimento)
+            </button>
+          )}
         </div>
       </div>
     </div>

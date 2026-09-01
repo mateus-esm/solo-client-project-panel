@@ -1,6 +1,11 @@
 import { randomBytes, createHash } from "crypto";
 import { db } from "@workspace/db";
-import { sessionsTable, otpCodesTable, projectsTable } from "@workspace/db/schema";
+import {
+  sessionsTable,
+  otpCodesTable,
+  projectsTable,
+  projectAccessEmailsTable,
+} from "@workspace/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -129,11 +134,21 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyOtpR
 
   resetVerifyAttempts(email);
 
-  const [project] = await db
+  let [project] = await db
     .select()
     .from(projectsTable)
     .where(eq(projectsTable.clientEmail, email.toLowerCase()))
     .limit(1);
+
+  if (!project) {
+    const [authorizedProject] = await db
+      .select({ project: projectsTable })
+      .from(projectAccessEmailsTable)
+      .innerJoin(projectsTable, eq(projectAccessEmailsTable.projectId, projectsTable.id))
+      .where(eq(projectAccessEmailsTable.email, email.toLowerCase()))
+      .limit(1);
+    project = authorizedProject?.project;
+  }
 
   if (!project) {
     return { ok: false, reason: "no_project" };

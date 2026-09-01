@@ -100,6 +100,38 @@ router.post("/installer/auth/login", async (req, res) => {
   }
 });
 
+router.post("/installer/auth/dev-login", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ message: "Not found" });
+    return;
+  }
+
+  try {
+    const [account] = await db
+      .select()
+      .from(installerAccountsTable)
+      .limit(1);
+
+    if (!account) {
+      res.status(404).json({ message: "Nenhuma conta de instalador cadastrada" });
+      return;
+    }
+
+    const token = await createInstallerSession(account.id);
+    res.cookie(INSTALLER_COOKIE, token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+    res.json({ ok: true, dev: true, name: account.name, email: account.email, teamName: account.teamName });
+  } catch (err) {
+    req.log.error({ err }, "Installer dev login failed");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 router.post("/installer/auth/logout", async (req, res) => {
   const token = req.cookies?.[INSTALLER_COOKIE];
   if (token) await deleteInstallerSession(token);

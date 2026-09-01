@@ -18,6 +18,11 @@ import {
   RotateCcw,
   Save,
   X,
+  ExternalLink,
+  KanbanSquare,
+  Wrench,
+  UserRound,
+  FileCheck2,
 } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { Button } from "@/components/ui/button";
@@ -50,6 +55,33 @@ import {
 } from "@/lib/internal-api";
 
 const SEM_AUTO = "__nenhum__";
+
+const ACCESS_LINKS = [
+  {
+    title: "Pipeline admin",
+    description: "Acompanhar e movimentar todos os projetos",
+    href: "/interno/pipeline",
+    icon: KanbanSquare,
+  },
+  {
+    title: "App da instalação",
+    description: "Área da equipe de execução",
+    href: "/installer/",
+    icon: Wrench,
+  },
+  {
+    title: "Portal do cliente",
+    description: "Login por código enviado por e-mail",
+    href: "/login",
+    icon: UserRound,
+  },
+  {
+    title: "App de homologação",
+    description: "Área dos técnicos de homologação",
+    href: "/homologacao/login",
+    icon: FileCheck2,
+  },
+] as const;
 
 /** Só para o preview: valores de exemplo no lugar das variáveis. */
 const EXEMPLO: Record<string, string> = {
@@ -161,6 +193,38 @@ export default function TemplatesPage() {
           </Button>
         </div>
       </div>
+
+      <section className="mb-7">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Acessos rápidos</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Atalhos para abrir cada área do Solo Energia
+            </p>
+          </div>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-white/10 rounded-full px-2.5 py-1">
+            Biblioteca
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {ACCESS_LINKS.map(({ title, description, href, icon: Icon }) => (
+            <a
+              key={href}
+              href={href}
+              className="group bg-card border border-white/5 rounded-2xl p-4 hover:border-primary/30 hover:bg-primary/[0.04] transition-colors"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+              </div>
+              <p className="text-sm text-foreground mt-3">{title}</p>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{description}</p>
+            </a>
+          ))}
+        </div>
+      </section>
 
       <div className="relative mb-6">
         <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />

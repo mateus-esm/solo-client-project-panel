@@ -3,7 +3,7 @@ import { useParams, Link } from "wouter";
 import {
   ArrowLeft, Save, Loader2, Plus, Trash2, Upload, Eye, CheckCircle2,
   FileText, Bell, Calendar, CreditCard, Settings, Download, RotateCcw, X,
-  Send, Mail, Smartphone, Link2,
+  Send, Mail, Smartphone, Link2, UserPlus,
 } from "lucide-react";
 import { useAdminLogout } from "@/hooks/use-admin-auth";
 import logoLight from "@assets/001_1775433962945.png";
@@ -44,6 +44,7 @@ type Project = Record<string, unknown> & {
   sectionVisibility: SectionViz;
   schedulingLink: string | null;
 };
+type AccessEmail = { id: number; projectId: number; email: string; createdAt: string };
 type Doc = { id: number; name: string; type: string; category: string; displayCategory: string; required: boolean; description: string | null; fileUrl: string | null; uploadedAt: string | null; createdAt: string };
 type Payment = { id: number; installmentNumber: number; amount: number; dueDate: string; paidDate: string | null; status: string; description: string | null };
 type Notification = { id: number; title: string; message: string; read: boolean; createdAt: string };
@@ -69,6 +70,7 @@ export default function AdminProjectEditor() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [schedRequests, setSchedRequests] = useState<SchedRequest[]>([]);
+  const [accessEmails, setAccessEmails] = useState<AccessEmail[]>([]);
 
   // Form state for Geral tab
   const [form, setForm] = useState<Record<string, string>>({});
@@ -83,9 +85,13 @@ export default function AdminProjectEditor() {
     async function load() {
       setLoading(true);
       try {
-        const [pRes] = await Promise.all([apiFetch(`/api/admin/projects/${projectId}`)]);
+        const [pRes, accessRes] = await Promise.all([
+          apiFetch(`/api/admin/projects/${projectId}`),
+          apiFetch(`/api/admin/projects/${projectId}/access-emails`),
+        ]);
         const p = await pRes.json();
         setProject(p);
+        if (accessRes.ok) setAccessEmails(await accessRes.json());
         setForm({
           clientName: p.clientName ?? "",
           clientEmail: p.clientEmail ?? "",
@@ -248,6 +254,9 @@ export default function AdminProjectEditor() {
             saving={saving}
             saveMsg={saveMsg}
             onSave={saveGeral}
+            projectId={projectId}
+            accessEmails={accessEmails}
+            setAccessEmails={setAccessEmails}
           />
         )}
         {activeTab === "documentos" && (
@@ -278,6 +287,7 @@ export default function AdminProjectEditor() {
 
 function GeralTab({
   form, setForm, sectionViz, setSectionViz, schedulingLink, setSchedulingLink, saving, saveMsg, onSave,
+  projectId, accessEmails, setAccessEmails,
 }: {
   form: Record<string, string>;
   setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -288,6 +298,9 @@ function GeralTab({
   saving: boolean;
   saveMsg: string;
   onSave: () => void;
+  projectId: number;
+  accessEmails: AccessEmail[];
+  setAccessEmails: React.Dispatch<React.SetStateAction<AccessEmail[]>>;
 }) {
   function f(key: string, v: string) { setForm((p) => ({ ...p, [key]: v })); }
 
@@ -298,6 +311,13 @@ function GeralTab({
         <Field label="Email"><Input type="email" value={form.clientEmail} onChange={(v) => f("clientEmail", v)} /></Field>
         <Field label="Telefone / WhatsApp"><Input value={form.clientPhone} onChange={(v) => f("clientPhone", v)} /></Field>
       </Section>
+
+      <AccessEmailsSection
+        projectId={projectId}
+        primaryEmail={form.clientEmail}
+        accessEmails={accessEmails}
+        setAccessEmails={setAccessEmails}
+      />
 
       <Section title="Localização">
         <Field label="Cidade"><Input value={form.city} onChange={(v) => f("city", v)} /></Field>
@@ -433,6 +453,123 @@ function GeralTab({
 }
 
 // ─── Documentos Tab ───────────────────────────────────────────────────────────
+
+function AccessEmailsSection({
+  projectId,
+  primaryEmail,
+  accessEmails,
+  setAccessEmails,
+}: {
+  projectId: number;
+  primaryEmail: string;
+  accessEmails: AccessEmail[];
+  setAccessEmails: React.Dispatch<React.SetStateAction<AccessEmail[]>>;
+}) {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function addEmail() {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const res = await apiFetch(`/api/admin/projects/${projectId}/access-emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalized }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message ?? "Não foi possível adicionar o e-mail");
+        return;
+      }
+      setAccessEmails((current) => [...current, data]);
+      setEmail("");
+    } catch {
+      setError("Erro de conexão");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeEmail(access: AccessEmail) {
+    const res = await apiFetch(`/api/admin/projects/${projectId}/access-emails/${access.id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setAccessEmails((current) => current.filter((item) => item.id !== access.id));
+    } else {
+      setError("Não foi possível remover o e-mail");
+    }
+  }
+
+  return (
+    <div className="glass-card rounded-3xl p-6 space-y-4">
+      <div className="flex items-start gap-3 pb-3 border-b border-border">
+        <UserPlus className="w-4 h-4 text-primary mt-0.5" />
+        <div>
+          <h2 className="text-base font-bold text-foreground">Pessoas com acesso ao portal</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Cada pessoa entra com um código temporário enviado ao próprio e-mail.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-secondary/50 px-3 py-2.5 text-sm">
+        <span className="text-foreground truncate">{primaryEmail || "E-mail principal não informado"}</span>
+        <span className="text-[10px] uppercase tracking-wider text-primary shrink-0">principal</span>
+      </div>
+
+      {accessEmails.length > 0 && (
+        <div className="space-y-2">
+          {accessEmails.map((access) => (
+            <div key={access.id} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 text-sm">
+              <span className="text-foreground truncate">{access.email}</span>
+              <button
+                type="button"
+                onClick={() => removeEmail(access)}
+                className="text-xs text-muted-foreground hover:text-red-400 transition-colors shrink-0"
+              >
+                Remover
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Input
+          type="email"
+          value={email}
+          onChange={(value) => setEmail(value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addEmail();
+            }
+          }}
+          placeholder="outra-pessoa@email.com"
+        />
+        <button
+          type="button"
+          onClick={addEmail}
+          disabled={!email.trim() || saving}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 hover:opacity-90 transition-all shrink-0"
+          style={{ background: "var(--brand-gradient)" }}
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          Adicionar
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <p className="text-[11px] text-muted-foreground">
+        Ao enviar o convite por e-mail, todos os e-mails deste projeto também recebem o convite.
+      </p>
+    </div>
+  );
+}
 
 function DocumentosTab({ projectId, docs, onRefresh }: { projectId: number; docs: Doc[]; onRefresh: () => void }) {
   const [showAdd, setShowAdd] = useState(false);
@@ -1197,11 +1334,16 @@ function Field({ label, children, className = "" }: { label: string; children: R
   );
 }
 
-function Input({ value, onChange, placeholder, type = "text", step }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; step?: string;
+function Input({ value, onChange, onKeyDown, placeholder, type = "text", step }: {
+  value: string;
+  onChange: (v: string) => void;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  type?: string;
+  step?: string;
 }) {
   return (
-    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} step={step}
+    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} step={step}
       className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" />
   );
 }

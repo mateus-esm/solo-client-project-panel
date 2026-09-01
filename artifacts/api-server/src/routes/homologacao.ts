@@ -118,6 +118,38 @@ router.post("/homologacao/auth/login", async (req, res) => {
   }
 });
 
+router.post("/homologacao/auth/dev-login", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ message: "Not found" });
+    return;
+  }
+
+  try {
+    const [technician] = await db
+      .select()
+      .from(homologacaoTechniciansTable)
+      .limit(1);
+
+    if (!technician) {
+      res.status(404).json({ message: "Nenhum técnico de homologação cadastrado" });
+      return;
+    }
+
+    const token = await createHomologacaoSession(technician.id);
+    res.cookie(HOMOLOGACAO_COOKIE, token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+    res.json({ ok: true, dev: true, name: technician.name, email: technician.email });
+  } catch (err) {
+    req.log.error({ err }, "Homologacao dev login failed");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 router.post("/homologacao/auth/logout", async (req, res) => {
   const token = req.cookies?.[HOMOLOGACAO_COOKIE];
   if (token) await deleteHomologacaoSession(token);

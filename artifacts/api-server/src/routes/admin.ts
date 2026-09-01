@@ -4,6 +4,7 @@ import type { RequestHandler } from "express";
 import { db } from "@workspace/db";
 import {
   projectsTable,
+  projectAccessEmailsTable,
   documentsTable,
   notificationsTable,
   paymentsTable,
@@ -11,7 +12,7 @@ import {
   DEFAULT_SECTION_VISIBILITY,
   type SectionVisibility,
 } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { requireAdmin, verifyAdminPassword, createAdminSession, deleteAdminSession } from "../lib/adminAuth";
 import { comprovanteStore } from "../lib/comprovanteStore";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -63,6 +64,28 @@ router.post("/admin/auth/login", async (req, res) => {
     path: "/",
   });
   res.json({ ok: true });
+});
+
+router.post("/admin/auth/dev-login", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ message: "Not found" });
+    return;
+  }
+
+  try {
+    const token = await createAdminSession();
+    res.cookie("solo_admin_session", token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+    res.json({ ok: true, dev: true });
+  } catch (err) {
+    req.log.error({ err }, "Admin dev login failed");
+    res.status(500).json({ message: "Erro interno" });
+  }
 });
 
 router.post("/admin/auth/logout", async (req, res) => {
@@ -183,6 +206,82 @@ router.get("/admin/projects/:id", requireAdmin, async (req, res) => {
     res.json(formatProject(project));
   } catch (err) {
     req.log.error({ err }, "Admin: failed to get project");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+router.get("/admin/projects/:id/access-emails", requireAdmin, async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    if (!Number.isInteger(projectId)) {
+      res.status(400).json({ message: "ID de projeto inválido" });
+      return;
+    }
+    const emails = await db
+      .select()
+      .from(projectAccessEmailsTable)
+      .where(eq(projectAccessEmailsTable.projectId, projectId))
+      .orderBy(projectAccessEmailsTable.id);
+    res.json(emails);
+  } catch (err) {
+    req.log.error({ err }, "Admin: failed to list project access emails");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+router.post("/admin/projects/:id/access-emails", requireAdmin, async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const email = String(req.body?.email ?? "").trim().toLowerCase();
+    if (!Number.isInteger(projectId) || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ message: "Informe um e-mail válido" });
+      return;
+    }
+
+    const [project] = await db
+      .select({ id: projectsTable.id, clientEmail: projectsTable.clientEmail })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, projectId))
+      .limit(1);
+    if (!project) {
+      res.status(404).json({ message: "Projeto não encontrado" });
+      return;
+    }
+    if (project.clientEmail.toLowerCase() === email) {
+      res.status(400).json({ message: "Este e-mail já é o acesso principal do projeto" });
+      return;
+    }
+
+    const [access] = await db
+      .insert(projectAccessEmailsTable)
+      .values({ projectId, email })
+      .onConflictDoNothing()
+      .returning();
+    if (!access) {
+      res.status(409).json({ message: "Este e-mail já tem acesso a este projeto" });
+      return;
+    }
+    res.status(201).json(access);
+  } catch (err) {
+    req.log.error({ err }, "Admin: failed to add project access email");
+    res.status(500).json({ message: "Erro interno" });
+  }
+});
+
+router.delete("/admin/projects/:id/access-emails/:emailId", requireAdmin, async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const emailId = Number(req.params.emailId);
+    if (!Number.isInteger(projectId) || !Number.isInteger(emailId)) {
+      res.status(400).json({ message: "ID inválido" });
+      return;
+    }
+    await db
+      .delete(projectAccessEmailsTable)
+      .where(and(eq(projectAccessEmailsTable.id, emailId), eq(projectAccessEmailsTable.projectId, projectId)));
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Admin: failed to remove project access email");
     res.status(500).json({ message: "Erro interno" });
   }
 });
@@ -489,9 +588,19 @@ router.post("/admin/projects/:id/invite", requireAdmin, async (req, res) => {
     }
 
     if (channel === "email" || channel === "both") {
-      const result = await sendInviteEmail(project.clientEmail, project.clientName);
-      if (result.ok) sent.push("email");
-      else failed.push(`email: ${result.error}`);
+      const additionalAccess = await db
+        .select({ email: projectAccessEmailsTable.email })
+        .from(projectAccessEmailsTable)
+        .where(eq(projectAccessEmailsTable.projectId, projectId));
+      const recipients = [project.clientEmail, ...additionalAccess.map((row) => row.email)];
+      const emailResults = await Promise.all(
+        recipients.map((email) => sendInviteEmail(email, project.clientName)),
+      );
+      const successful = emailResults.filter((result) => result.ok).length;
+      if (successful > 0) sent.push(`email (${successful}/${recipients.length})`);
+      emailResults.forEach((result, index) => {
+        if (!result.ok) failed.push(`email ${recipients[index]}: ${result.error}`);
+      });
     }
 
     req.log.info({ project_id: projectId, channel, sent }, "Admin: client invite sent");

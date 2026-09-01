@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FlaskConical, Loader2 } from 'lucide-react';
 import logoUrl from '@assets/001_1775433962945.png';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useInstallerAuth } from '@/hooks/use-installer-auth';
+
+const IS_DEV = import.meta.env.DEV;
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -75,6 +77,33 @@ export default function Login() {
 
   function onSubmit(values: LoginFormValues) {
     loginMutation.mutate(values);
+  }
+
+  async function handleDevLogin() {
+    if (loginMutation.isPending) return;
+    try {
+      const res = await fetch('/api/installer/auth/dev-login', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: 'Não foi possível entrar',
+          description: data.message ?? 'Falha no login de desenvolvimento.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ['installer', 'auth'] });
+      setLocation('/services');
+    } catch {
+      toast({
+        title: 'Erro de conexão',
+        description: 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
   }
 
   return (
@@ -191,6 +220,18 @@ export default function Login() {
               </Button>
             </form>
           </Form>
+
+          {IS_DEV && (
+            <button
+              type="button"
+              onClick={handleDevLogin}
+              disabled={loginMutation.isPending || authLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-semibold text-muted-foreground border border-dashed border-border hover:border-primary/40 hover:text-foreground disabled:opacity-40 transition-all"
+            >
+              {loginMutation.isPending || authLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}
+              Entrar sem senha (somente desenvolvimento)
+            </button>
+          )}
         </div>
       </div>
     </div>

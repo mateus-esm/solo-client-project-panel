@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Zap, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Zap, Lock, Eye, EyeOff, Loader2, FlaskConical } from "lucide-react";
 import logoLight from "@assets/001_1775433962945.png";
+import { ADMIN_AUTH_KEY } from "@/hooks/use-admin-auth";
+
+const IS_DEV = import.meta.env.DEV;
 
 export default function AdminLogin() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,6 +35,29 @@ export default function AdminLogin() {
         const data = await res.json().catch(() => ({}));
         setError(data.message ?? "Senha incorreta");
       }
+    } catch {
+      setError("Erro de conexão. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDevLogin() {
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/auth/dev-login", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.message ?? "Falha no login de desenvolvimento");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ADMIN_AUTH_KEY });
+      navigate("/admin");
     } catch {
       setError("Erro de conexão. Tente novamente.");
     } finally {
@@ -89,6 +117,18 @@ export default function AdminLogin() {
             Entrar no Painel
           </button>
         </form>
+
+        {IS_DEV && (
+          <button
+            type="button"
+            onClick={handleDevLogin}
+            disabled={loading}
+            className="w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-semibold text-muted-foreground border border-dashed border-white/10 hover:border-white/20 hover:text-foreground disabled:opacity-40 transition-all"
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5" />}
+            Entrar sem senha (somente desenvolvimento)
+          </button>
+        )}
 
         <p className="text-center text-xs text-muted-foreground mt-6">
           Acesso exclusivo para a equipe Solo Energia
