@@ -1,5 +1,5 @@
 import { useParams, Link } from 'wouter';
-import { useInstallerService, useUpdateServiceStatus, useUploadServicePhoto, useAcceptContract, type Service } from '@/hooks/use-installer-services';
+import { useInstallerService, useUpdateServiceStatus, useUploadServiceFile, useAcceptContract, type Service } from '@/hooks/use-installer-services';
 import { useTeamMembers, useProposeServiceMembers } from '@/hooks/use-installer-team';
 import { InstallerLayout } from '@/components/installer-layout';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -153,13 +153,12 @@ export default function ServiceDetail() {
   const id = params.id as string;
   const { data: service, isLoading } = useInstallerService(id);
   const updateStatus = useUpdateServiceStatus();
-  const uploadPhoto = useUploadServicePhoto();
+  const uploadFile = useUploadServiceFile();
   const acceptContract = useAcceptContract();
   const { toast } = useToast();
 
   const [notes, setNotes] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
-  const [photoName, setPhotoName] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
 
   const initRef = useRef<number | null>(null);
@@ -218,21 +217,20 @@ export default function ServiceDetail() {
     );
   };
 
-  const handleUploadPhoto = (e: React.FormEvent) => {
+  const handleUploadFile = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!photoUrl) return;
+    if (!selectedFile) return;
     
-    uploadPhoto.mutate(
-      { id: service.id, url: photoUrl, name: photoName || 'Foto' },
+    uploadFile.mutate(
+      { id: service.id, file: selectedFile },
       {
         onSuccess: () => {
-          toast({ title: 'Foto adicionada com sucesso' });
-          setPhotoUrl('');
-          setPhotoName('');
+          toast({ title: 'Arquivo salvo com sucesso' });
+          setSelectedFile(null);
           setIsPhotoDialogOpen(false);
         },
         onError: (err) => {
-          toast({ title: 'Erro ao adicionar foto', description: err.message, variant: 'destructive' });
+          toast({ title: 'Erro ao enviar arquivo', description: err.message, variant: 'destructive' });
         }
       }
     );
@@ -466,7 +464,9 @@ export default function ServiceDetail() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
-                    {service.files.map(file => (
+                    {service.files.map(file => {
+                      const isImage = /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || '');
+                      return (
                       <a 
                         key={file.id} 
                         href={file.url} 
@@ -474,20 +474,24 @@ export default function ServiceDetail() {
                         rel="noreferrer"
                         className="group relative block aspect-square rounded-lg border border-border/60 overflow-hidden bg-muted hover:border-primary transition-colors"
                       >
-                        <img 
-                          src={file.url} 
-                          alt={file.name || 'Foto'} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
-                            (e.target as HTMLImageElement).className = "w-full h-full p-6 object-contain opacity-50";
-                          }}
-                        />
+                        {isImage ? (
+                          <img
+                            src={file.url}
+                            alt={file.name || 'Foto'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-muted/40 p-3">
+                            <FileText className="w-8 h-8 text-primary" />
+                            <span className="text-xs text-center text-foreground line-clamp-2">{file.name || 'Arquivo'}</span>
+                          </div>
+                        )}
                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <p className="text-xs text-white truncate font-medium">{file.name || 'Foto'}</p>
                         </div>
                       </a>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -497,44 +501,40 @@ export default function ServiceDetail() {
                   <DialogTrigger asChild>
                     <Button className="w-full mt-auto" variant="outline">
                       <Camera className="w-4 h-4 mr-2" />
-                      Adicionar Foto
+                      Adicionar foto ou arquivo
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Adicionar Foto</DialogTitle>
+                      <DialogTitle>Adicionar foto ou arquivo</DialogTitle>
                       <DialogDescription>
-                        Forneça a URL da imagem para anexar ao relatório.
+                        Selecione uma foto da galeria ou um arquivo do dispositivo.
                       </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleUploadPhoto} className="space-y-4 py-4">
+                    <form onSubmit={handleUploadFile} className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="photoUrl">URL da Imagem *</Label>
-                        <Input 
-                          id="photoUrl" 
-                          placeholder="https://..." 
-                          type="url" 
-                          required 
-                          value={photoUrl}
-                          onChange={(e) => setPhotoUrl(e.target.value)}
+                        <Label htmlFor="serviceFile">Foto ou arquivo *</Label>
+                        <Input
+                          id="serviceFile"
+                          type="file"
+                          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                          required
+                          onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                         />
+                        <p className="text-xs text-muted-foreground">Até 10 MB. Imagens, PDF, Word, Excel ou TXT.</p>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="photoName">Descrição Curta</Label>
-                        <Input 
-                          id="photoName" 
-                          placeholder="Ex: Inversor instalado" 
-                          value={photoName}
-                          onChange={(e) => setPhotoName(e.target.value)}
-                        />
-                      </div>
+                      {selectedFile && (
+                        <p className="text-sm text-foreground truncate rounded-lg bg-muted/40 px-3 py-2">
+                          Selecionado: {selectedFile.name}
+                        </p>
+                      )}
                       <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsPhotoDialogOpen(false)}>
                           Cancelar
                         </Button>
-                        <Button type="submit" disabled={!photoUrl || uploadPhoto.isPending}>
-                          {uploadPhoto.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Adicionar
+                        <Button type="submit" disabled={!selectedFile || uploadFile.isPending}>
+                          {uploadFile.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Enviar arquivo
                         </Button>
                       </DialogFooter>
                     </form>

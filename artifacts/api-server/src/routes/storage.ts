@@ -12,6 +12,7 @@ import { db } from "@workspace/db";
 import {
   documentsTable,
   servicesTable,
+  serviceFilesTable,
   installerTeamMembersTable,
   homologacaoProcessosTable,
   projectsTable,
@@ -40,6 +41,19 @@ async function installerOwnsFile(
     )
     .limit(1);
   if (svc) return true;
+  const [serviceFile] = await db
+    .select({ id: serviceFilesTable.id })
+    .from(serviceFilesTable)
+    .innerJoin(servicesTable, eq(serviceFilesTable.serviceId, servicesTable.id))
+    .where(
+      and(
+        eq(servicesTable.equipeExecucao, teamName),
+        eq(serviceFilesTable.url, fileUrl),
+      ),
+    )
+    .limit(1);
+  if (serviceFile) return true;
+
   const [member] = await db
     .select({ id: installerTeamMembersTable.id })
     .from(installerTeamMembersTable)

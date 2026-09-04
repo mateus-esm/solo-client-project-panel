@@ -124,18 +124,22 @@ export function useAcceptContract() {
   });
 }
 
-export function useUploadServicePhoto() {
+export function useUploadServiceFile() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, url, name }: { id: number; url: string; name?: string }) => {
-      const res = await fetch(`/api/installer/services/${id}/photos`, {
+    mutationFn: async ({ id, file }: { id: number; file: File }) => {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch(`/api/installer/services/${id}/files`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, name }),
+        body,
       });
-      if (!res.ok) throw new Error('Failed to upload photo');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? 'Falha ao enviar arquivo');
+      }
       return res.json();
     },
     onSuccess: (data, variables) => {

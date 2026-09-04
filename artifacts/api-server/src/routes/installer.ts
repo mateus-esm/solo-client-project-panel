@@ -25,7 +25,20 @@ import {
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
 
-const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/jpg", "application/pdf"];
+const ALLOWED_UPLOAD_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+];
 const _upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const uploadSingle: RequestHandler = (req, res, next) => {
   _upload.single("file")(req, res, (err) => {
@@ -684,5 +697,69 @@ router.post("/installer/services/:id/photos", requireInstaller, async (req: Inst
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+router.post(
+  "/installer/services/:id/files",
+  requireInstaller,
+  uploadSingle,
+  async (req: InstallerRequest, res) => {
+    try {
+      const id = parseInt(String(req.params.id), 10);
+      if (isNaN(id)) {
+        res.status(400).json({ message: "ID inválido" });
+        return;
+      }
+      if (!req.file) {
+        res.status(400).json({ message: "Selecione uma foto ou arquivo" });
+        return;
+      }
+      if (!ALLOWED_UPLOAD_TYPES.includes(req.file.mimetype)) {
+        res.status(400).json({ message: "Tipo não permitido. Use imagens, PDF, Word, Excel ou TXT." });
+        return;
+      }
+
+      const [service] = await db
+        .select()
+        .from(servicesTable)
+        .where(
+          and(
+            eq(servicesTable.id, id),
+            eq(servicesTable.equipeExecucao, req.installer!.teamName),
+          ),
+        );
+      if (!service) {
+        res.status(404).json({ message: "Serviço não encontrado" });
+        return;
+      }
+
+      const uploadURL = await objectStorage.getObjectEntityUploadURL();
+      const objectPath = objectStorage.normalizeObjectEntityPath(uploadURL);
+      const gcsRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: req.file.buffer,
+        headers: { "Content-Type": req.file.mimetype },
+      });
+      if (!gcsRes.ok) {
+        res.status(502).json({ message: "Falha ao enviar para o armazenamento" });
+        return;
+      }
+
+      const [file] = await db
+        .insert(serviceFilesTable)
+        .values({
+          serviceId: id,
+          kind: "imagens_documentacao",
+          url: `/api/storage${objectPath}`,
+          name: req.file.originalname || "Arquivo do serviço",
+        })
+        .returning();
+
+      res.status(201).json(file);
+    } catch (err) {
+      req.log.error({ err }, "Failed to upload installer service file");
+      res.status(500).json({ message: "Não foi possível salvar o arquivo" });
+    }
+  },
+);
 
 export default router;
