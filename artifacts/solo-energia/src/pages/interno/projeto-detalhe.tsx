@@ -82,7 +82,7 @@ function HomologacaoAssignment({ project, invalidateKey }: { project: InternalPr
             </SelectContent>
           </Select>
           <p className="text-[11px] text-muted-foreground mt-1">
-            O técnico só vê este projeto no portal dele quando estiver atribuído e na etapa de homologação.
+            A atribuição define o acesso deste projeto no portal do técnico.
           </p>
         </div>
         <div className="flex items-center justify-between bg-background/50 rounded-xl px-4 py-3 self-end">

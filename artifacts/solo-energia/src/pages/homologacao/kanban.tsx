@@ -8,6 +8,7 @@ import {
   KANBAN_LABELS,
   homologacaoGet,
   homologacaoPatch,
+  PIPELINE_STAGE_LABELS,
   type KanbanProject,
   type KanbanStage,
 } from "@/lib/homologacao-api";
@@ -93,6 +94,9 @@ export default function HomologacaoKanbanPage() {
                               {p.city}/{p.state}
                             </span>
                           </p>
+                           <span className="inline-flex max-w-full truncate text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full mt-2">
+                             Pipeline: {PIPELINE_STAGE_LABELS[p.stage] ?? p.stage}
+                           </span>
                                               </Link>
                       <div className="flex items-center justify-between mt-2">
                         <span

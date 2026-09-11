@@ -15,7 +15,7 @@ import {
   defaultSubStage,
   type PipelineStage,
 } from "@workspace/db/schema";
-import { eq, asc, inArray, and, or, like } from "drizzle-orm";
+import { eq, asc, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { ObjectStorageService } from "../lib/objectStorage";
 import {
@@ -66,19 +66,15 @@ const ALLOWED_TECHNICIAN_STAGES = [
 /** A project is in the homologação workflow when its sub-etapa is a homologação group. */
 const HOMOLOGACAO_SUB_PREFIX = "homologacao_";
 
-const inHomologacaoScope = (p: { stage: string; subStage: string | null }) =>
-  ["pendencias", "pausado"].includes(p.stage) ||
-  (p.stage === "projeto_homologacao" && (p.subStage ?? "").startsWith(HOMOLOGACAO_SUB_PREFIX));
-
-// SQL flavor of inHomologacaoScope for list queries.
-const homologacaoScopeWhere = () =>
-  or(
-    inArray(projectsTable.stage, ["pendencias", "pausado"]),
-    and(
-      eq(projectsTable.stage, "projeto_homologacao"),
-      like(projectsTable.subStage, `${HOMOLOGACAO_SUB_PREFIX}%`)
-    )
-  );
+/**
+ * A technician's portal is assignment-scoped, not stage-scoped. The admin
+ * pipeline is the source of truth for the current project stage; filtering
+ * here by a legacy homologação sub-stage made assigned projects disappear as
+ * soon as the admin advanced them or when they were assigned from another
+ * pipeline column.
+ */
+const assignedProjectWhere = (technicianId: number) =>
+  eq(projectsTable.homologacaoTechnicianId, technicianId);
 
 type AllowedStage = (typeof ALLOWED_TECHNICIAN_STAGES)[number];
 
@@ -165,9 +161,9 @@ router.get("/homologacao/auth/check", requireHomologacao, (req: AuthenticatedReq
 // ─── Helper: assert project is in homologacao scope ───────────────────────────
 
 /**
- * Returns the project row only when it belongs to the homologação scope
- * (stage = projeto_homologacao with a homologação sub-etapa, pendencias, or pausado — i.e. currently held or
- * blocked in homologação). Returns null otherwise.
+ * Returns the project row only when it is explicitly assigned to this
+ * technician. Pipeline stage controls the displayed status and transition
+ * rules, but must not hide an assigned project from its owner.
  */
 async function requireHomologacaoProject(id: number, technicianId: number) {
   const [project] = await db
@@ -179,12 +175,6 @@ async function requireHomologacaoProject(id: number, technicianId: number) {
 
   // Only the assigned technician may access the project.
   if (project.homologacaoTechnicianId !== technicianId) {
-    return null; // treat as not found — prevents information leakage
-  }
-
-  // Allow access to projects currently in a homologação sub-etapa, or which have
-  // been paused/blocked while in the homologação workflow.
-  if (!inHomologacaoScope(project)) {
     return null; // treat as not found — prevents information leakage
   }
 
@@ -297,25 +287,23 @@ router.get("/homologacao/dashboard", requireHomologacao, async (req: Authenticat
       .where(eq(projectsTable.homologacaoTechnicianId, techId))
       .orderBy(asc(projectsTable.id));
 
-    const active = assigned.filter(
-      (p) => p.stage === "projeto_homologacao" && (p.subStage ?? "").startsWith(HOMOLOGACAO_SUB_PREFIX)
-    );
+    const active = assigned.filter((p) => p.stage !== "concluido");
     const comPendencias = assigned.filter((p) => ["pendencias", "pausado"].includes(p.stage));
-    const concluidos = assigned.filter((p) => !inHomologacaoScope(p));
+    const concluidos = assigned.filter((p) => p.stage === "concluido");
 
-    const inScopeIds = [...active, ...comPendencias].map((p) => p.id);
-    const processos = inScopeIds.length
+    const assignedIds = assigned.map((p) => p.id);
+    const processos = assignedIds.length
       ? await db
           .select()
           .from(homologacaoProcessosTable)
-          .where(inArray(homologacaoProcessosTable.projectId, inScopeIds))
+          .where(inArray(homologacaoProcessosTable.projectId, assignedIds))
       : [];
     const procByProject = new Map(processos.map((p) => [p.projectId, p]));
 
     // Upcoming deadlines: nearest expected date across ficha datasPrevistas +
     // project-level deadline fields.
     const deadlines: { projectId: number; clientName: string; label: string; date: string }[] = [];
-    for (const p of [...active, ...comPendencias]) {
+    for (const p of active) {
       const proc = procByProject.get(p.id);
       if (proc?.datasPrevistas) {
         for (const [stage, date] of Object.entries(proc.datasPrevistas as Record<string, string>)) {
@@ -336,7 +324,7 @@ router.get("/homologacao/dashboard", requireHomologacao, async (req: Authenticat
         artPendentes: processos.filter((p) => !p.artPaga).length,
       },
       upcomingDeadlines: deadlines.slice(0, 8),
-      recentProjects: [...active, ...comPendencias].slice(0, 6),
+      recentProjects: active.slice(0, 6),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to build homologacao dashboard");
@@ -381,12 +369,7 @@ router.get("/homologacao/kanban", requireHomologacao, async (req: AuthenticatedR
     const projects = await db
       .select(SAFE_PROJECT_FIELDS)
       .from(projectsTable)
-      .where(
-        and(
-          homologacaoScopeWhere(),
-          eq(projectsTable.homologacaoTechnicianId, techId)
-        )
-      )
+        .where(assignedProjectWhere(techId))
       .orderBy(asc(projectsTable.id));
     const ids = projects.map((p) => p.id);
     const processos = ids.length
@@ -514,12 +497,7 @@ router.get("/homologacao/projects", requireHomologacao, async (req: Authenticate
     const projects = await db
       .select(SAFE_PROJECT_DETAIL_FIELDS)
       .from(projectsTable)
-      .where(
-        and(
-          homologacaoScopeWhere(),
-          eq(projectsTable.homologacaoTechnicianId, req.technician!.id)
-        )
-      )
+        .where(assignedProjectWhere(req.technician!.id))
       .orderBy(asc(projectsTable.id));
     res.json(projects);
   } catch (err) {

@@ -21,6 +21,18 @@ export const KANBAN_LABELS: Record<KanbanStage, string> = {
   vistoria_concluido: "Vistoria / Concluído",
 };
 
+export const PIPELINE_STAGE_LABELS: Record<string, string> = {
+  onboarding: "Onboarding",
+  projeto_homologacao: "Projeto Técnico e Homologação",
+  planejamento_execucao: "Pré-execução",
+  execucao: "Execução",
+  ativacao: "Ativação",
+  comissionamento_treinamento: "Comissionamento",
+  concluido: "Concluído",
+  pendencias: "Pendências",
+  pausado: "Pausado",
+};
+
 export interface Processo {
   id: number;
   projectId: number;

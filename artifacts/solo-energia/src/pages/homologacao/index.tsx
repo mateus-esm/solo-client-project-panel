@@ -57,10 +57,10 @@ export default function HomologacaoProjectsPage() {
     <HomologacaoLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-display text-foreground flex items-center gap-2">
-          <ClipboardCheck className="w-5 h-5 text-primary" /> Projetos em Homologação
+          <ClipboardCheck className="w-5 h-5 text-primary" /> Meus projetos
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Projetos elétricos em trâmite com a concessionária
+          Projetos atribuídos a você pelo Pipeline Admin
         </p>
       </div>
 
@@ -81,7 +81,7 @@ export default function HomologacaoProjectsPage() {
       ) : (projects ?? []).length === 0 ? (
         <div className="border border-dashed border-white/10 rounded-3xl p-12 text-center">
           <ClipboardCheck className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-40" />
-          <p className="text-muted-foreground">Nenhum projeto em homologação.</p>
+          <p className="text-muted-foreground">Nenhum projeto atribuído.</p>
         </div>
       ) : (
         <div className="space-y-3">

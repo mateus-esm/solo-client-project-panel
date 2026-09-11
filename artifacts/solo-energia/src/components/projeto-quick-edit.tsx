@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Save, Loader2, User, Zap, MessageCircle } from "lucide-react";
+import { ExternalLink, Save, Loader2, User, Zap, MessageCircle, FileCheck2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,9 +33,11 @@ import {
   subStagesFor,
   type InternalProject,
   type StageId,
+  type Technician,
 } from "@/lib/internal-api";
 
 type Aba = "dados" | "notificar";
+const NO_TECH = "__none__";
 
 /** Campos editáveis, como texto — o formulário converte na hora de salvar. */
 interface Form {
@@ -50,6 +52,7 @@ interface Form {
   notes: string;
   stage: StageId;
   subStage: string | null;
+  homologacaoTechnicianId: number | null;
 }
 
 function paraForm(p: InternalProject): Form {
@@ -65,6 +68,7 @@ function paraForm(p: InternalProject): Form {
     notes: p.notes ?? "",
     stage: p.stage,
     subStage: p.subStage,
+    homologacaoTechnicianId: p.homologacaoTechnicianId,
   };
 }
 
@@ -89,6 +93,10 @@ export function ProjetoQuickEdit({
     queryKey: ["internal-project-quick", projectId],
     queryFn: () => api.get<InternalProject>(`/internal/projects/${projectId}/resumo`),
     enabled: projectId !== null,
+  });
+  const { data: technicians } = useQuery<Technician[]>({
+    queryKey: ["internal-technicians"],
+    queryFn: () => api.get<Technician[]>("/internal/technicians"),
   });
 
   useEffect(() => {
@@ -115,6 +123,7 @@ export function ProjetoQuickEdit({
         notes: form.notes || null,
         stage: form.stage,
         ...(form.subStage ? { subStage: form.subStage } : {}),
+        homologacaoTechnicianId: form.homologacaoTechnicianId,
       });
     },
     onSuccess: () => {
@@ -299,6 +308,43 @@ export function ProjetoQuickEdit({
                       </Select>
                     </div>
                   )}
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <FileCheck2 className="w-3 h-3 text-primary" /> Técnico de homologação
+                  </Label>
+                  <Select
+                    value={
+                      form.homologacaoTechnicianId == null
+                        ? NO_TECH
+                        : String(form.homologacaoTechnicianId)
+                    }
+                    onValueChange={(v) =>
+                      setForm((f) =>
+                        f
+                          ? {
+                              ...f,
+                              homologacaoTechnicianId: v === NO_TECH ? null : Number(v),
+                            }
+                          : f
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9 mt-1">
+                      <SelectValue placeholder="Não atribuído" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_TECH}>Não atribuído</SelectItem>
+                      {(technicians ?? []).map((technician) => (
+                        <SelectItem key={technician.id} value={String(technician.id)}>
+                          {technician.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    A atribuição define o acesso deste projeto no portal do técnico.
+                  </p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Observações</Label>
