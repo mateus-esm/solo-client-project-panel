@@ -6,6 +6,8 @@
  *
  * Rotas confirmadas contra o swagger do servidor (GET /v1/../swagger/doc.json):
  *   POST /v1/message/sendText/{instance}        { number, text }
+ *   POST /v1/message/sendMedia/{instance}       { number, mediatype, media, ... }
+ *   POST /v1/message/sendButtons/{instance}     { number, description, buttons[] }
  *   POST /v1/group/create/{instance}            { subject, participants[], description? }
  *   POST /v1/group/updateGroupPicture/{instance} { groupJid, image }
  *   POST /v1/group/updateGroupDescription/{instance} { groupJid, description }
@@ -196,6 +198,43 @@ export function normalizeGroupJid(res: CreateGroupResponse): string | null {
 export async function sendText(target: string, text: string): Promise<WhatsResult<unknown>> {
   const number = target.includes("@") ? target : normalizePhone(target);
   return call("POST", "/message/sendText/{instance}", { number, text, linkPreview: true });
+}
+
+export async function sendMedia(
+  target: string,
+  media: string,
+  caption?: string,
+  fileName?: string,
+  mimeType?: string,
+): Promise<WhatsResult<unknown>> {
+  const number = target.includes("@") ? target : normalizePhone(target);
+  return call("POST", "/message/sendMedia/{instance}", {
+    number,
+    mediatype: "document",
+    media,
+    ...(caption ? { caption } : {}),
+    ...(fileName ? { fileName } : {}),
+    ...(mimeType ? { mimetype: mimeType } : {}),
+  });
+}
+
+export interface WhatsAppReplyButton {
+  type: "reply";
+  displayText: string;
+  id: string;
+}
+
+export async function sendButtons(
+  target: string,
+  description: string,
+  buttons: WhatsAppReplyButton[],
+): Promise<WhatsResult<unknown>> {
+  const number = target.includes("@") ? target : normalizePhone(target);
+  return call("POST", "/message/sendButtons/{instance}", {
+    number,
+    description,
+    buttons,
+  });
 }
 
 export async function createGroup(

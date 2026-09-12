@@ -16,6 +16,9 @@ export const suppliersTable = pgTable("suppliers", {
   contatoNome: text("contato_nome"),
   telefone: text("telefone"),
   email: text("email"),
+  platformUrl: text("platform_url"),
+  platformLogin: text("platform_login"),
+  platformPassword: text("platform_password"),
   observacoes: text("observacoes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

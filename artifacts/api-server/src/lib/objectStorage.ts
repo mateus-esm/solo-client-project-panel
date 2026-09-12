@@ -122,6 +122,22 @@ export class ObjectStorageService {
     });
   }
 
+  async getPublicObjectUploadURL(): Promise<{ uploadURL: string; objectPath: string }> {
+    const searchPath = this.getPublicObjectSearchPaths()[0].replace(/\/$/, "");
+    const objectPath = `whatsapp/${randomUUID()}`;
+    const fullPath = `${searchPath}/${objectPath}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    return {
+      uploadURL: await signObjectURL({
+        bucketName,
+        objectName,
+        method: "PUT",
+        ttlSec: 900,
+      }),
+      objectPath,
+    };
+  }
+
   async getObjectEntityFile(objectPath: string): Promise<File> {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();

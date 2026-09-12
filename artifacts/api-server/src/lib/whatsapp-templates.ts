@@ -72,6 +72,10 @@ export interface NotificationTemplate {
   publico: "cliente" | "equipe";
   vars: TemplateVar[];
   body: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentMimeType?: string;
+  actions?: Array<{ kind: "reply" | "link"; label: string; value: string }>;
 }
 
 const NOME: TemplateVar = { key: "nome", label: "Nome do cliente", auto: "primeiroNome" };

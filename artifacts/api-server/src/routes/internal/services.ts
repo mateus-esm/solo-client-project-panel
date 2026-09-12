@@ -159,6 +159,30 @@ router.patch("/services/:id", async (req, res) => {
   }
 });
 
+router.delete("/services/:id", async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) {
+      res.status(400).json({ message: "ID inválido" });
+      return;
+    }
+    const [service] = await db.select({ id: servicesTable.id }).from(servicesTable).where(eq(servicesTable.id, id));
+    if (!service) {
+      res.status(404).json({ message: "Serviço não encontrado" });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      await tx.delete(serviceFilesTable).where(eq(serviceFilesTable.serviceId, id));
+      await tx.delete(serviceTeamMembersTable).where(eq(serviceTeamMembersTable.serviceId, id));
+      await tx.delete(servicesTable).where(eq(servicesTable.id, id));
+    });
+    res.status(204).end();
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete service");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 const addFileSchema = insertServiceFileSchema.omit({ serviceId: true });
 
 router.post("/services/:id/files", async (req, res) => {

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2 } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { ServicoFormDialog } from "@/components/servico-form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -41,6 +42,8 @@ export default function ServicosPage() {
   const [pagamentoFilter, setPagamentoFilter] = useState<string>(ALL);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ServiceItem | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: services, isLoading } = useQuery<ServiceItem[]>({
     queryKey: ["internal-services"],
@@ -70,6 +73,18 @@ export default function ServicosPage() {
     setEditing(service);
     setDialogOpen(true);
   };
+
+  const deleteService = useMutation({
+    mutationFn: (id: number) => api.del(`/internal/services/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["internal-services"] });
+      setDialogOpen(false);
+      setEditing(null);
+      toast({ title: "Serviço excluído" });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Não foi possível excluir", description: err.message, variant: "destructive" }),
+  });
 
   return (
     <InternalLayout>
@@ -133,6 +148,7 @@ export default function ServicosPage() {
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Pagamento</th>
                   <th className="px-4 py-3 font-medium">Responsável</th>
+                  <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -160,6 +176,25 @@ export default function ServicosPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{s.responsavelEmail ?? "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Excluir serviço"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (
+                            window.confirm(
+                              `Excluir o serviço "${s.name}"? Essa ação remove também os arquivos e responsáveis vinculados.`,
+                            )
+                          ) {
+                            deleteService.mutate(s.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400/70" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -82,6 +82,9 @@ export const whatsappSendsTable = pgTable(
     /** Rótulo legível do destino, congelado no envio ("Grupo do cliente"). */
     targetLabel: text("target_label"),
     body: text("body").notNull(),
+    attachmentUrl: text("attachment_url"),
+    attachmentName: text("attachment_name"),
+    actions: jsonb("actions").$type<NotificationTemplateAction[]>().notNull().default([]),
     /** enviado | falhou */
     status: text("status").notNull().default("enviado"),
     error: text("error"),
@@ -111,6 +114,12 @@ export interface NotificationTemplateVar {
   multiline?: boolean;
 }
 
+export interface NotificationTemplateAction {
+  kind: "reply" | "link";
+  label: string;
+  value: string;
+}
+
 export const notificationTemplatesTable = pgTable(
   "notification_templates",
   {
@@ -124,6 +133,10 @@ export const notificationTemplatesTable = pgTable(
     publico: text("publico").notNull().default("cliente"),
     vars: jsonb("vars").$type<NotificationTemplateVar[]>().notNull().default([]),
     body: text("body").notNull(),
+    attachmentUrl: text("attachment_url"),
+    attachmentName: text("attachment_name"),
+    attachmentMimeType: text("attachment_mime_type"),
+    actions: jsonb("actions").$type<NotificationTemplateAction[]>().notNull().default([]),
     /** Arquivado some da lista de envio mas continua explicando o histórico. */
     ativo: boolean("ativo").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),

@@ -42,6 +42,13 @@ const plantSchema = z.object({
   tipoEstrutura: z.string().nullish(),
   tipoMonitoramento: z.string().nullish(),
   monitoramentoUrl: z.string().nullish(),
+  monitoramentoLoginSolo: z.string().nullish(),
+  monitoramentoSenhaSolo: z.string().nullish(),
+  monitoramentoLoginCliente: z.string().nullish(),
+  monitoramentoSenhaCliente: z.string().nullish(),
+  monitoramentoIntegradoSolo: z.boolean().optional(),
+  plantaCriadaNoMonitoramento: z.boolean().optional(),
+  plantaCriadaNoSoloApp: z.boolean().optional(),
   driveUrl: z.string().nullish(),
   observacoes: z.string().nullish(),
 });

@@ -39,6 +39,7 @@ import {
   type GrupoDisponivel,
   type GruposDisponiveis,
   type NotificationTemplate,
+  type TemplateAction,
   type TemplateCatalog,
   type WhatsappContexto,
   type WhatsappDestino,
@@ -79,6 +80,10 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
   const [template, setTemplate] = useState<NotificationTemplate | null>(null);
   const [valores, setValores] = useState<Record<string, string>>({});
   const [texto, setTexto] = useState("");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [attachmentName, setAttachmentName] = useState("");
+  const [attachmentMimeType, setAttachmentMimeType] = useState("application/pdf");
+  const [actions, setActions] = useState<TemplateAction[]>([]);
   const [pickerAberto, setPickerAberto] = useState(false);
   /** true depois que o operador mexe no texto — aí paramos de sobrescrever. */
   const [textoTocado, setTextoTocado] = useState(false);
@@ -92,6 +97,17 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
     for (const v of t.vars) iniciais[v.key] = (v.auto ? ctx?.contexto[v.auto] : "") ?? "";
     setTemplate(t);
     setValores(iniciais);
+    const templateValues = { ...ctx?.contexto, ...iniciais };
+    setAttachmentUrl(t.attachmentUrl ? renderTemplate(t.attachmentUrl, templateValues) : "");
+    setAttachmentName(t.attachmentName ? renderTemplate(t.attachmentName, templateValues) : "");
+    setAttachmentMimeType(t.attachmentMimeType ?? "application/pdf");
+    setActions(
+      (t.actions ?? []).map((action) => ({
+        ...action,
+        label: renderTemplate(action.label, templateValues),
+        value: renderTemplate(action.value, templateValues),
+      })),
+    );
     setTextoTocado(false);
     setPickerAberto(false);
   }
@@ -161,6 +177,10 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
         destinoId,
         texto,
         templateCode: template?.code,
+        attachmentUrl: attachmentUrl.trim() || undefined,
+        attachmentName: attachmentName.trim() || undefined,
+        attachmentMimeType: attachmentMimeType.trim() || undefined,
+        actions,
         criarGrupoSeNecessario: false,
       }),
     onSuccess: () => {
@@ -169,6 +189,10 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
       setTexto("");
       setTemplate(null);
       setValores({});
+      setAttachmentUrl("");
+      setAttachmentName("");
+      setAttachmentMimeType("application/pdf");
+      setActions([]);
       setTextoTocado(false);
     },
     onError: (err: Error) =>
@@ -254,6 +278,43 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
                     />
                   )}
                 </div>
+              ))}
+            </div>
+          )}
+          {(template.attachmentUrl || attachmentUrl) && (
+            <div className="mt-4 border border-white/10 rounded-xl p-3 space-y-2">
+              <Label className="text-[11px] text-muted-foreground">Arquivo que acompanha a mensagem</Label>
+              <Input
+                value={attachmentUrl}
+                onChange={(e) => setAttachmentUrl(e.target.value)}
+                placeholder="URL pública do arquivo"
+                className="h-9 text-sm"
+              />
+              <div className="grid sm:grid-cols-2 gap-2">
+                <Input
+                  value={attachmentName}
+                  onChange={(e) => setAttachmentName(e.target.value)}
+                  placeholder="Nome do arquivo"
+                  className="h-9 text-sm"
+                />
+                <Input
+                  value={attachmentMimeType}
+                  onChange={(e) => setAttachmentMimeType(e.target.value)}
+                  placeholder="application/pdf"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Use uma URL pública; é assim que o gateway WhatsMiau busca o documento.
+              </p>
+            </div>
+          )}
+          {actions.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {actions.map((action, index) => (
+                <span key={`${action.kind}-${index}`} className="text-[11px] rounded-full bg-primary/10 text-primary px-2 py-1">
+                  {action.label}{action.kind === "link" ? " · link" : ""}
+                </span>
               ))}
             </div>
           )}

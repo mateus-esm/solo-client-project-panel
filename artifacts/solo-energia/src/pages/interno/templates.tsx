@@ -6,7 +6,7 @@
  * pedir algo que a mensagem não usa, ou a mensagem sair com um buraco que não
  * tinha onde preencher.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   MessageSquareText,
@@ -23,6 +23,7 @@ import {
   Wrench,
   UserRound,
   FileCheck2,
+  Upload,
 } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ import {
   extrairChavesDoCorpo,
   renderTemplate,
   type AutoFillOption,
+  type TemplateAction,
   type TemplateAdminPayload,
   type TemplateRow,
   type TemplateVar,
@@ -359,6 +361,12 @@ function EditorTemplate({
   const [publico, setPublico] = useState<"cliente" | "equipe">("cliente");
   const [body, setBody] = useState("");
   const [vars, setVars] = useState<TemplateVar[]>([]);
+  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [attachmentName, setAttachmentName] = useState("");
+  const [attachmentMimeType, setAttachmentMimeType] = useState("application/pdf");
+  const [actions, setActions] = useState<TemplateAction[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!alvo) return;
@@ -369,6 +377,10 @@ function EditorTemplate({
     setPublico((atual?.publico as "cliente" | "equipe") ?? "cliente");
     setBody(atual?.body ?? "");
     setVars(atual?.vars ?? []);
+    setAttachmentUrl(atual?.attachmentUrl ?? "");
+    setAttachmentName(atual?.attachmentName ?? "");
+    setAttachmentMimeType(atual?.attachmentMimeType ?? "application/pdf");
+    setActions(atual?.actions ?? []);
   }, [alvo, atual, categorias]);
 
   // As chaves vêm do corpo; rótulo e auto-preenchimento sobrevivem à edição.
@@ -400,6 +412,10 @@ function EditorTemplate({
         publico,
         body,
         vars: varsEfetivas,
+        attachmentUrl: attachmentUrl.trim() || null,
+        attachmentName: attachmentName.trim() || null,
+        attachmentMimeType: attachmentUrl.trim() ? attachmentMimeType.trim() || null : null,
+        actions,
       };
       return atual
         ? api.patch(`/internal/whatsapp/templates/${atual.id}`, payload)
@@ -412,6 +428,39 @@ function EditorTemplate({
     onError: (e: Error) =>
       toast({ title: "Não deu para salvar", description: e.message, variant: "destructive" }),
   });
+
+  async function escolherAnexo(file: File) {
+    setUploadingAttachment(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await fetch("/api/internal/whatsapp/templates/attachment", {
+        method: "POST",
+        credentials: "include",
+        body: data,
+      });
+      const result = (await response.json()) as {
+        url?: string;
+        name?: string;
+        mimeType?: string;
+        message?: string;
+      };
+      if (!response.ok || !result.url) throw new Error(result.message ?? "Não foi possível subir o arquivo");
+      setAttachmentUrl(result.url);
+      setAttachmentName(result.name ?? file.name);
+      setAttachmentMimeType(result.mimeType ?? file.type ?? "application/octet-stream");
+      toast({ title: "Arquivo anexado ao template" });
+    } catch (err) {
+      toast({
+        title: "Falha ao anexar arquivo",
+        description: err instanceof Error ? err.message : "Tente novamente",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAttachment(false);
+      if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+    }
+  }
 
   const podeSalvar = code.trim() && nome.trim() && categoria && body.trim();
 
@@ -501,6 +550,118 @@ function EditorTemplate({
                 placeholder={"💬 *Título da mensagem*\n\nOlá, {{nome}}! ☀️\n\n…"}
                 className="mt-1 text-sm font-mono leading-relaxed"
               />
+            </div>
+
+            <div className="border border-white/10 rounded-xl p-3 space-y-2">
+              <Label className="text-xs text-muted-foreground">Arquivo opcional</Label>
+              <input
+                ref={attachmentInputRef}
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void escolherAnexo(file);
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingAttachment}
+                onClick={() => attachmentInputRef.current?.click()}
+              >
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                {uploadingAttachment ? "Enviando..." : "Escolher arquivo"}
+              </Button>
+              <Input
+                value={attachmentUrl}
+                onChange={(e) => setAttachmentUrl(e.target.value)}
+                placeholder="URL pública do PDF/documento"
+                className="h-9 text-sm"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  value={attachmentName}
+                  onChange={(e) => setAttachmentName(e.target.value)}
+                  placeholder="Nome do arquivo"
+                  className="h-9 text-sm"
+                />
+                <Input
+                  value={attachmentMimeType}
+                  onChange={(e) => setAttachmentMimeType(e.target.value)}
+                  placeholder="application/pdf"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                O WhatsMiau precisa conseguir acessar essa URL publicamente.
+              </p>
+            </div>
+
+            <div className="border border-white/10 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Botões / ações (até 3)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={actions.length >= 3}
+                  onClick={() => setActions((current) => [...current, { kind: "reply", label: "", value: "" }])}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar
+                </Button>
+              </div>
+              {actions.map((action, index) => (
+                <div key={`${index}-${action.kind}`} className="grid grid-cols-[110px_1fr_1fr_auto] gap-2">
+                  <Select
+                    value={action.kind}
+                    onValueChange={(kind: "reply" | "link") =>
+                      setActions((current) =>
+                        current.map((item, i) => (i === index ? { ...item, kind } : item)),
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="reply">Resposta</SelectItem>
+                      <SelectItem value="link">Link no texto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={action.label}
+                    onChange={(e) =>
+                      setActions((current) =>
+                        current.map((item, i) => (i === index ? { ...item, label: e.target.value } : item)),
+                      )
+                    }
+                    placeholder="Texto"
+                    className="h-9 text-xs"
+                  />
+                  <Input
+                    value={action.value}
+                    onChange={(e) =>
+                      setActions((current) =>
+                        current.map((item, i) => (i === index ? { ...item, value: e.target.value } : item)),
+                      )
+                    }
+                    placeholder={action.kind === "link" ? "https://..." : "id_da_acao"}
+                    className="h-9 text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    title="Remover ação"
+                    onClick={() => setActions((current) => current.filter((_item, i) => i !== index))}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-400/70" />
+                  </Button>
+                </div>
+              ))}
+              <p className="text-[10px] text-muted-foreground">
+                Resposta usa botão interativo do WhatsApp. Link é enviado como link clicável no texto,
+                porque o endpoint atual do WhatsMiau não oferece botão URL.
+              </p>
             </div>
           </div>
 

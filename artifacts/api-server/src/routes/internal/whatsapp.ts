@@ -23,6 +23,8 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, ne, desc, isNotNull } from "drizzle-orm";
 import { z } from "zod/v4";
+import multer from "multer";
+import { ObjectStorageService } from "../../lib/objectStorage";
 import {
   AUTO_FILL_OPTIONS,
   TEMPLATE_CATEGORIAS,
@@ -45,9 +47,20 @@ import {
   vincularGrupo,
   desvincularGrupo,
 } from "../../lib/whatsapp-groups";
-import { isPlausibleBrazilianPhone, isWhatsAppConfigured, sendText } from "../../lib/whatsmiau";
+import {
+  isPlausibleBrazilianPhone,
+  isWhatsAppConfigured,
+  sendButtons,
+  sendMedia,
+  sendText,
+} from "../../lib/whatsmiau";
 
 const router: IRouter = Router();
+const objectStorage = new ObjectStorageService();
+const attachmentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 const kindSchema = z.enum(WHATSAPP_GROUP_KINDS);
 
@@ -75,6 +88,19 @@ const templateSchema = z.object({
   quandoUsar: z.string().default(""),
   publico: z.enum(["cliente", "equipe"]).default("cliente"),
   body: z.string().min(1).max(4096),
+  attachmentUrl: z.string().url().nullish(),
+  attachmentName: z.string().max(180).nullish(),
+  attachmentMimeType: z.string().max(120).nullish(),
+  actions: z
+    .array(
+      z.object({
+        kind: z.enum(["reply", "link"]),
+        label: z.string().min(1).max(60),
+        value: z.string().min(1).max(500),
+      }),
+    )
+    .max(3)
+    .default([]),
   ativo: z.boolean().default(true),
   sortOrder: z.coerce.number().int().optional(),
   vars: z
@@ -117,6 +143,34 @@ router.post("/whatsapp/templates", async (req, res) => {
     }
     req.log.error({ err }, "Falha ao criar template");
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/templates/attachment", attachmentUpload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ message: "Selecione um arquivo" });
+    return;
+  }
+  try {
+    const { uploadURL, objectPath } = await objectStorage.getPublicObjectUploadURL();
+    const upload = await fetch(uploadURL, {
+      method: "PUT",
+      body: req.file.buffer,
+      headers: { "Content-Type": req.file.mimetype || "application/octet-stream" },
+    });
+    if (!upload.ok) {
+      res.status(502).json({ message: "Não foi possível salvar o arquivo" });
+      return;
+    }
+    const origin = `${req.protocol}://${req.get("host")}`;
+    res.status(201).json({
+      url: `${origin}/api/storage/public-objects/${objectPath}`,
+      name: req.file.originalname,
+      mimeType: req.file.mimetype || "application/octet-stream",
+    });
+  } catch (err) {
+    req.log.error({ err }, "Falha ao subir anexo de template");
+    res.status(500).json({ message: "Não foi possível subir o arquivo" });
   }
 });
 
@@ -432,6 +486,19 @@ const enviarSchema = z.object({
   /** Texto final, já editado pelo operador — é ele que vai para o WhatsApp. */
   texto: z.string().min(1).max(4096),
   templateCode: z.string().optional(),
+  attachmentUrl: z.string().url().nullish(),
+  attachmentName: z.string().max(180).nullish(),
+  attachmentMimeType: z.string().max(120).nullish(),
+  actions: z
+    .array(
+      z.object({
+        kind: z.enum(["reply", "link"]),
+        label: z.string().min(1).max(60),
+        value: z.string().min(1).max(500),
+      }),
+    )
+    .max(3)
+    .default([]),
   /** Cria o grupo na hora se o destino for um grupo que ainda não existe. */
   criarGrupoSeNecessario: z.boolean().default(false),
 });
@@ -448,7 +515,16 @@ router.post("/whatsapp/:projectId/enviar", async (req, res) => {
       res.status(503).json({ message: "WhatsApp não configurado no servidor" });
       return;
     }
-    const { destinoId, texto, templateCode, criarGrupoSeNecessario } = parsed.data;
+    const {
+      destinoId,
+      texto,
+      templateCode,
+      attachmentUrl,
+      attachmentName,
+      attachmentMimeType,
+      actions,
+      criarGrupoSeNecessario,
+    } = parsed.data;
 
     const [tipo, kindRaw] = destinoId.split(":");
     const kindParsed = kindSchema.safeParse(kindRaw);
@@ -513,7 +589,51 @@ router.post("/whatsapp/:projectId/enviar", async (req, res) => {
       return;
     }
 
-    const envio = await sendText(target, texto);
+    const linkActions = actions.filter((action) => action.kind === "link");
+    for (const action of linkActions) {
+      try {
+        new URL(action.value);
+      } catch {
+        res.status(400).json({ message: `Link inválido no botão "${action.label}"` });
+        return;
+      }
+    }
+    const replyActions = actions.filter((action) => action.kind === "reply");
+    const textoComLinks =
+      linkActions.length > 0
+        ? `${texto}\n\n${linkActions.map((action) => `🔗 ${action.label}: ${action.value}`).join("\n")}`
+        : texto;
+
+    let envio;
+    if (attachmentUrl) {
+      envio = await sendMedia(
+        target,
+        attachmentUrl,
+        replyActions.length > 0 ? undefined : textoComLinks,
+        attachmentName ?? undefined,
+        attachmentMimeType ?? undefined,
+      );
+    } else if (replyActions.length === 0) {
+      envio = await sendText(target, textoComLinks);
+    } else {
+      envio = await sendButtons(target, textoComLinks, replyActions.map((action) => ({
+        type: "reply" as const,
+        displayText: action.label,
+        id: action.value,
+      })));
+    }
+
+    if (envio.ok && attachmentUrl && replyActions.length > 0) {
+      envio = await sendButtons(
+        target,
+        textoComLinks,
+        replyActions.map((action) => ({
+          type: "reply" as const,
+          displayText: action.label,
+          id: action.value,
+        })),
+      );
+    }
 
     // O log guarda a falha também: saber que a tentativa existiu evita mandar
     // duas vezes achando que a primeira não saiu.
@@ -526,7 +646,10 @@ router.post("/whatsapp/:projectId/enviar", async (req, res) => {
         targetKind: kind,
         targetJid: target,
         targetLabel: label,
-        body: texto,
+          body: textoComLinks,
+          attachmentUrl: attachmentUrl ?? null,
+          attachmentName: attachmentName ?? null,
+          actions,
         status: envio.ok ? "enviado" : "falhou",
         error: envio.ok ? null : envio.error,
         sentBy: "admin",

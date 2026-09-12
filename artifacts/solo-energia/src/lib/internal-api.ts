@@ -136,6 +136,9 @@ export const SERVICE_TIPOS = [
   "Manutenção",
   "Visita Técnica",
   "Projeto Elétrico",
+  "Retorno ao Cliente",
+  "Vistoria de Pós-Obra",
+  "Acompanhamento de Obra",
   "Outro",
 ] as const;
 
@@ -280,6 +283,9 @@ export interface Supplier {
   contatoNome: string | null;
   telefone: string | null;
   email: string | null;
+  platformUrl: string | null;
+  platformLogin: string | null;
+  platformPassword: string | null;
   observacoes: string | null;
   createdAt: string;
 }
@@ -581,6 +587,13 @@ export interface Plant {
   tipoEstrutura: string | null;
   tipoMonitoramento: string | null;
   monitoramentoUrl: string | null;
+  monitoramentoLoginSolo: string | null;
+  monitoramentoSenhaSolo: string | null;
+  monitoramentoLoginCliente: string | null;
+  monitoramentoSenhaCliente: string | null;
+  monitoramentoIntegradoSolo: boolean;
+  plantaCriadaNoMonitoramento: boolean;
+  plantaCriadaNoSoloApp: boolean;
   driveUrl: string | null;
   observacoes: string | null;
 }
@@ -730,6 +743,16 @@ export interface NotificationTemplate {
   publico: "cliente" | "equipe";
   vars: TemplateVar[];
   body: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentMimeType?: string;
+  actions?: TemplateAction[];
+}
+
+export interface TemplateAction {
+  kind: "reply" | "link";
+  label: string;
+  value: string;
 }
 
 export interface TemplateCatalog {
@@ -765,6 +788,9 @@ export interface WhatsappSend {
   targetJid: string;
   targetLabel: string | null;
   body: string;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  actions: TemplateAction[];
   status: "enviado" | "falhou";
   error: string | null;
   sentBy: string | null;
@@ -831,6 +857,10 @@ export interface TemplateRow {
   publico: string;
   vars: TemplateVar[];
   body: string;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentMimeType: string | null;
+  actions: TemplateAction[];
   ativo: boolean;
   sortOrder: number;
   createdAt: string;

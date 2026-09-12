@@ -7,9 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { api, type Plant } from "@/lib/internal-api";
 
-// Campos da ficha: texto livre e números. Série/datalogger/credenciais do inversor
-// ficam para a Sprint 2, junto com a criptografia.
-const FIELDS: [keyof Plant, string, "text" | "number"][] = [
+const FIELDS: [keyof Plant, string, "text" | "number" | "password"][] = [
   ["potenciaInstaladaKwp", "Potência instalada (kWp)", "number"],
   ["concessionaria", "Concessionária", "text"],
   ["enderecoInstalacao", "Endereço de instalação", "text"],
@@ -23,9 +21,19 @@ const FIELDS: [keyof Plant, string, "text" | "number"][] = [
   ["tipoEstrutura", "Tipo de estrutura", "text"],
   ["tipoMonitoramento", "Tipo de monitoramento", "text"],
   ["monitoramentoUrl", "Link do monitoramento", "text"],
+  ["monitoramentoLoginSolo", "Login Solo", "text"],
+  ["monitoramentoSenhaSolo", "Senha Solo", "password"],
+  ["monitoramentoLoginCliente", "Login do cliente", "text"],
+  ["monitoramentoSenhaCliente", "Senha do cliente", "password"],
   ["driveUrl", "Drive", "text"],
   ["geracaoEstimadaKwh", "Geração estimada (kWh)", "number"],
   ["dataAtivacao", "Data de ativação", "text"],
+];
+
+const STATUS_FIELDS: [keyof Plant, string][] = [
+  ["monitoramentoIntegradoSolo", "Monitoramento integrado ao Solo"],
+  ["plantaCriadaNoMonitoramento", "Planta criada no monitoramento"],
+  ["plantaCriadaNoSoloApp", "Planta criada no Solo App"],
 ];
 
 export function PlantCard({ projectId }: { projectId: number }) {
@@ -43,17 +51,23 @@ export function PlantCard({ projectId }: { projectId: number }) {
   useEffect(() => {
     if (!plant) return;
     const p = plant as unknown as Record<string, unknown>;
-    setForm(Object.fromEntries(FIELDS.map(([k]) => [k as string, String(p[k as string] ?? "")])));
+    setForm(
+      Object.fromEntries([
+        ...FIELDS.map(([k]) => [k as string, String(p[k as string] ?? "")]),
+        ...STATUS_FIELDS.map(([k]) => [k as string, String(Boolean(p[k as string]))]),
+      ]),
+    );
   }, [plant]);
 
   const body = () =>
-    Object.fromEntries(
-      FIELDS.map(([k, , type]) => {
+    Object.fromEntries([
+      ...FIELDS.map(([k, , type]) => {
         const raw = form[k as string]?.trim();
         if (!raw) return [k, null];
         return [k, type === "number" ? Number(raw) : raw];
       }),
-    );
+      ...STATUS_FIELDS.map(([k]) => [k, form[k as string] === "true"]),
+    ]);
 
   const save = useMutation({
     mutationFn: () =>
@@ -126,6 +140,19 @@ export function PlantCard({ projectId }: { projectId: number }) {
               />
             </div>
           ))}
+          <div className="md:col-span-3 grid sm:grid-cols-3 gap-2 pt-2 border-t border-white/10">
+            {STATUS_FIELDS.map(([key, label]) => (
+              <label key={key as string} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={form[key as string] === "true"}
+                  onChange={(e) => setForm((f) => ({ ...f, [key as string]: String(e.target.checked) }))}
+                  className="accent-primary"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
         </div>
       ) : !plant ? (
         <p className="text-sm text-muted-foreground">
@@ -153,6 +180,19 @@ export function PlantCard({ projectId }: { projectId: number }) {
             {info("Consumo médio", plant.consumoMedioMensal, " kWh")}
             {info("Ativação", plant.dataAtivacao)}
           </div>
+           <div className="flex flex-wrap gap-2 mt-4">
+             {STATUS_FIELDS.map(([key, label]) => (
+               <span
+                 key={key as string}
+                 className={`text-[11px] rounded-full px-2.5 py-1 ${
+                   plant[key] ? "bg-emerald-400/10 text-emerald-300" : "bg-white/5 text-muted-foreground"
+                 }`}
+               >
+                 {plant[key] ? "✓ " : "○ "}
+                 {label}
+               </span>
+             ))}
+           </div>
           {plant.enderecoInstalacao && (
             <p className="text-xs text-muted-foreground mt-4">{plant.enderecoInstalacao}</p>
           )}

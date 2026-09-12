@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Pencil, Truck, Package } from "lucide-react";
+import { Plus, Trash2, Pencil, Truck, Package, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { InternalLayout } from "@/components/internal-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,9 @@ const EMPTY = {
   contatoNome: "",
   telefone: "",
   email: "",
+  platformUrl: "",
+  platformLogin: "",
+  platformPassword: "",
   observacoes: "",
 };
 
@@ -46,6 +49,7 @@ function SupplierDialog({
   supplier: Supplier | null;
 }) {
   const [form, setForm] = useState(EMPTY);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -63,6 +67,9 @@ function SupplierDialog({
               contatoNome: supplier.contatoNome ?? "",
               telefone: supplier.telefone ?? "",
               email: supplier.email ?? "",
+              platformUrl: supplier.platformUrl ?? "",
+              platformLogin: supplier.platformLogin ?? "",
+              platformPassword: supplier.platformPassword ?? "",
               observacoes: supplier.observacoes ?? "",
             }
           : EMPTY,
@@ -78,6 +85,9 @@ function SupplierDialog({
         contatoNome: form.contatoNome.trim() || null,
         telefone: form.telefone.trim() || null,
         email: form.email.trim() || null,
+        platformUrl: form.platformUrl.trim() || null,
+        platformLogin: form.platformLogin.trim() || null,
+        platformPassword: form.platformPassword || null,
         observacoes: form.observacoes.trim() || null,
       };
       return supplier
@@ -135,6 +145,42 @@ function SupplierDialog({
           <div>
             <Label className="text-xs">E-mail</Label>
             <Input type="email" value={form.email} onChange={set("email")} className="h-9" />
+          </div>
+          <div className="border border-white/10 rounded-xl p-3 space-y-3">
+            <p className="text-xs font-medium text-foreground">Acesso à plataforma do fornecedor</p>
+            <div>
+              <Label className="text-xs">Site / plataforma</Label>
+              <Input
+                type="url"
+                value={form.platformUrl}
+                onChange={set("platformUrl")}
+                placeholder="https://..."
+                className="h-9"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Nosso login</Label>
+                <Input value={form.platformLogin} onChange={set("platformLogin")} className="h-9" />
+              </div>
+              <div className="relative">
+                <Label className="text-xs">Nossa senha</Label>
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={form.platformPassword}
+                  onChange={set("platformPassword")}
+                  className="h-9 pr-9"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 bottom-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
           </div>
           <div>
             <Label className="text-xs">Observações</Label>
@@ -221,6 +267,17 @@ export default function FornecedoresPage() {
                           <p className="text-xs text-muted-foreground truncate">
                             {[s.contatoNome, s.telefone, s.email].filter(Boolean).join(" · ") || "Sem contato"}
                           </p>
+                           {s.platformUrl && (
+                             <a
+                               href={s.platformUrl}
+                               target="_blank"
+                               rel="noreferrer"
+                               className="text-[11px] text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                               onClick={(e) => e.stopPropagation()}
+                             >
+                               Plataforma <ExternalLink className="w-3 h-3" />
+                             </a>
+                           )}
                           {s.observacoes && (
                             <p className="text-[11px] text-muted-foreground mt-0.5">{s.observacoes}</p>
                           )}

@@ -13,6 +13,7 @@
 import { db } from "@workspace/db";
 import {
   notificationTemplatesTable,
+  type NotificationTemplateAction,
   type NotificationTemplateRow,
   type NotificationTemplateVar,
 } from "@workspace/db/schema";
@@ -94,6 +95,10 @@ function paraApi(row: NotificationTemplateRow): NotificationTemplate {
     publico: row.publico as NotificationTemplate["publico"],
     vars: sanitizarVars(row.vars),
     body: row.body,
+    ...(row.attachmentUrl ? { attachmentUrl: row.attachmentUrl } : {}),
+    ...(row.attachmentName ? { attachmentName: row.attachmentName } : {}),
+    ...(row.attachmentMimeType ? { attachmentMimeType: row.attachmentMimeType } : {}),
+    actions: row.actions ?? [],
   };
 }
 
@@ -136,6 +141,10 @@ export interface DadosTemplate {
   sortOrder?: number;
   /** Rótulos e `auto` informados pelo usuário; as chaves vêm sempre do corpo. */
   vars?: NotificationTemplateVar[];
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentMimeType?: string | null;
+  actions?: NotificationTemplateAction[];
 }
 
 export async function criarTemplate(d: DadosTemplate): Promise<NotificationTemplateRow> {
@@ -149,6 +158,10 @@ export async function criarTemplate(d: DadosTemplate): Promise<NotificationTempl
       publico: d.publico ?? "cliente",
       body: d.body,
       vars: reconciliarVars(d.body, d.vars ?? []),
+      attachmentUrl: d.attachmentUrl?.trim() || null,
+      attachmentName: d.attachmentName?.trim() || null,
+      attachmentMimeType: d.attachmentMimeType?.trim() || null,
+      actions: d.actions ?? [],
       ativo: d.ativo ?? true,
       sortOrder: d.sortOrder ?? 999,
     })
@@ -181,6 +194,12 @@ export async function atualizarTemplate(
       // Mesmo sem mexer no corpo, revalidamos: o usuário pode ter editado só os
       // rótulos das variáveis.
       vars: reconciliarVars(body, d.vars ?? atual.vars),
+      ...(d.attachmentUrl !== undefined ? { attachmentUrl: d.attachmentUrl?.trim() || null } : {}),
+      ...(d.attachmentName !== undefined ? { attachmentName: d.attachmentName?.trim() || null } : {}),
+      ...(d.attachmentMimeType !== undefined
+        ? { attachmentMimeType: d.attachmentMimeType?.trim() || null }
+        : {}),
+      ...(d.actions !== undefined ? { actions: d.actions } : {}),
       updatedAt: new Date(),
     })
     .where(eq(notificationTemplatesTable.id, id))

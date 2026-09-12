@@ -1,4 +1,4 @@
-import { pgTable, serial, text, real, timestamp, integer, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, real, timestamp, integer, boolean, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -77,6 +77,13 @@ export const plantsTable = pgTable(
     // Monitoramento — o que é entregue ao cliente no fim do projeto.
     tipoMonitoramento: text("tipo_monitoramento"),
     monitoramentoUrl: text("monitoramento_url"),
+  monitoramentoLoginSolo: text("monitoramento_login_solo"),
+  monitoramentoSenhaSolo: text("monitoramento_senha_solo"),
+  monitoramentoLoginCliente: text("monitoramento_login_cliente"),
+  monitoramentoSenhaCliente: text("monitoramento_senha_cliente"),
+  monitoramentoIntegradoSolo: boolean("monitoramento_integrado_solo").notNull().default(false),
+  plantaCriadaNoMonitoramento: boolean("planta_criada_no_monitoramento").notNull().default(false),
+  plantaCriadaNoSoloApp: boolean("planta_criada_no_solo_app").notNull().default(false),
     driveUrl: text("drive_url"),
     observacoes: text("observacoes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
