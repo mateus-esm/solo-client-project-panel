@@ -24,6 +24,8 @@ export interface RequestOtpBody {
 export interface VerifyOtpBody {
   email: string;
   code: string;
+  /** @minimum 1 */
+  projectId?: number;
 }
 
 export type VerifyOtpResponse =

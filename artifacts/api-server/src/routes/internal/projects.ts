@@ -32,7 +32,7 @@ import { sendWhatsApp } from "../../lib/notifications";
 import {
   buildClientIntakeInviteText,
   buildMessageWhatsAppText,
-  getPortalUrl,
+  getClientIntakeUrl,
   sendWhatsApp as sendMessagingWhatsApp,
   sendMessageEmail,
 } from "../../lib/messaging";
@@ -257,7 +257,7 @@ router.post("/projects/:id/client-intake/invite", async (req, res) => {
 
     await ensureClientIntakeDocuments(projectId);
     const title = "Preencha os dados do seu projeto elétrico";
-    const intakeUrl = `${getPortalUrl()}/login?next=/client-intake`;
+    const intakeUrl = getClientIntakeUrl(projectId);
     const body = `Olá, ${project.clientName.split(" ")[0]}!\n\nPara prepararmos o projeto elétrico da sua instalação, precisamos receber algumas informações e documentos.\n\nAcesse o portal e preencha a ficha: ${intakeUrl}\n\nO acesso é feito com seu e-mail cadastrado e um código de verificação. Você pode salvar o rascunho e continuar depois.`;
     const customMessage = typeof req.body?.customMessage === "string" ? req.body.customMessage.trim() : "";
     const sent: string[] = [];
@@ -276,7 +276,7 @@ router.post("/projects/:id/client-intake/invite", async (req, res) => {
       } else {
         const result = await sendMessagingWhatsApp(
           project.clientPhone,
-          customMessage || buildClientIntakeInviteText(project.clientName),
+          customMessage || buildClientIntakeInviteText(project.clientName, projectId),
         );
         if (result.ok) sent.push("whatsapp");
         else failed.push(`whatsapp: ${result.error}`);

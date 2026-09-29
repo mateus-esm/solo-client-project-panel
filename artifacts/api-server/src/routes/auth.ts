@@ -93,17 +93,21 @@ router.post("/auth/request-otp", async (req, res) => {
 });
 
 router.post("/auth/verify-otp", async (req, res) => {
-  const { email, code } = req.body;
+  const { email, code, projectId } = req.body;
 
   if (!email || !code) {
     res.status(400).json({ message: "Email e código são obrigatórios" });
+    return;
+  }
+  if (projectId !== undefined && (!Number.isSafeInteger(projectId) || projectId <= 0)) {
+    res.status(400).json({ message: "Projeto inválido" });
     return;
   }
 
   const normalizedEmail = email.toLowerCase().trim();
 
   try {
-    const result = await verifyOtp(normalizedEmail, String(code));
+    const result = await verifyOtp(normalizedEmail, String(code), projectId);
 
     if (!result.ok) {
       if (result.reason === "rate_limited") {

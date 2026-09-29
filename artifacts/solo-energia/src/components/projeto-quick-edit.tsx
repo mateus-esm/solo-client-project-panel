@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Save, Loader2, User, Zap, MessageCircle, FileCheck2 } from "lucide-react";
+import { ExternalLink, Save, Loader2, User, Zap, MessageCircle, FileCheck2, ClipboardList, Copy } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,9 +34,10 @@ import {
   type InternalProject,
   type StageId,
   type Technician,
+  type WhatsappContexto,
 } from "@/lib/internal-api";
 
-type Aba = "dados" | "notificar";
+type Aba = "dados" | "formulario" | "notificar";
 const NO_TECH = "__none__";
 
 /** Campos editáveis, como texto — o formulário converte na hora de salvar. */
@@ -87,6 +88,7 @@ export function ProjetoQuickEdit({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [aba, setAba] = useState<Aba>("dados");
+  const [enviandoFormulario, setEnviandoFormulario] = useState(false);
   const [form, setForm] = useState<Form | null>(null);
 
   const { data: projeto } = useQuery<InternalProject>({
@@ -98,6 +100,11 @@ export function ProjetoQuickEdit({
     queryKey: ["internal-technicians"],
     queryFn: () => api.get<Technician[]>("/internal/technicians"),
   });
+  const { data: whatsappContexto } = useQuery<WhatsappContexto>({
+    queryKey: ["whatsapp-contexto", projectId],
+    queryFn: () => api.get<WhatsappContexto>(`/internal/whatsapp/${projectId}/contexto`),
+    enabled: projectId !== null && aba === "formulario",
+  });
 
   useEffect(() => {
     if (projeto) setForm(paraForm(projeto));
@@ -105,7 +112,10 @@ export function ProjetoQuickEdit({
 
   // Cada abertura começa nos dados — é para isso que a gaveta existe.
   useEffect(() => {
-    if (projectId !== null) setAba("dados");
+    if (projectId !== null) {
+      setAba("dados");
+      setEnviandoFormulario(false);
+    }
   }, [projectId]);
 
   const salvar = useMutation({
@@ -171,12 +181,16 @@ export function ProjetoQuickEdit({
           {(
             [
               ["dados", "Dados", User],
+              ["formulario", "Formulário", ClipboardList],
               ["notificar", "Notificar", MessageCircle],
             ] as const
           ).map(([id, label, Icone]) => (
             <button
               key={id}
-              onClick={() => setAba(id)}
+              onClick={() => {
+                setAba(id);
+                setEnviandoFormulario(false);
+              }}
               className={
                 "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs transition-colors " +
                 (aba === id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")
@@ -364,10 +378,62 @@ export function ProjetoQuickEdit({
           </div>
         )}
 
+        {aba === "formulario" && projectId !== null && (
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-background/50 p-4">
+            <div>
+              <h3 className="text-sm font-medium">Dados para projeto elétrico</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                O cliente acessa o formulário com o e-mail cadastrado e um código de verificação.
+                Este link seleciona o projeto correto, mesmo quando o e-mail atende outros projetos.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="client-intake-link">Link do formulário</Label>
+              <Input
+                id="client-intake-link"
+                className="mt-2 text-xs"
+                readOnly
+                value={whatsappContexto?.contexto.linkFormulario ?? ""}
+                placeholder="Carregando link…"
+                onFocus={(event) => event.target.select()}
+              />
+            </div>
+            <Button
+              variant="outline"
+              disabled={!whatsappContexto?.contexto.linkFormulario}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(whatsappContexto!.contexto.linkFormulario);
+                  toast({ title: "Link copiado", description: "Cole o link na conversa com o cliente." });
+                } catch {
+                  toast({ title: "Não foi possível copiar", description: "Selecione o link acima e copie manualmente.", variant: "destructive" });
+                }
+              }}
+            >
+              <Copy className="w-4 h-4 mr-2" /> Copiar link
+            </Button>
+            <Button
+              className="w-full"
+              onClick={() => {
+                setEnviandoFormulario(true);
+                setAba("notificar");
+              }}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" /> Preparar envio no grupo do cliente
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Revise a mensagem do modelo PRJ-01 antes de enviar. Se o grupo ainda não estiver vinculado, crie ou vincule o grupo na próxima tela.
+            </p>
+          </div>
+        )}
+
         {aba === "notificar" && projectId !== null && (
           // O mesmo bloco da ficha do projeto: template, ajuste, envio, grupos.
           <NotificarWhatsApp
+            key={`${projectId}-${enviandoFormulario ? "formulario" : "padrao"}`}
             projectId={projectId}
+            initialTemplateCode={enviandoFormulario ? "PRJ-01" : undefined}
+            initialDestinationId={enviandoFormulario ? "grupo:cliente" : undefined}
             invalidateKeys={[["internal-projects"], ["internal-project-quick", projectId]]}
           />
         )}

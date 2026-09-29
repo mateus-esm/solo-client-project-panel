@@ -28,9 +28,11 @@ export const RequestOtpResponse = zod.object({
 /**
  * @summary Verify the OTP code and create a session
  */
+
 export const VerifyOtpBody = zod.object({
   email: zod.string(),
   code: zod.string(),
+  projectId: zod.number().min(1).optional(),
 });
 
 export const VerifyOtpResponse = zod.union([

@@ -37,6 +37,7 @@ export type AutoFill =
   | "transportadora"
   | "codigoRastreio"
   | "linkPortal"
+  | "linkFormulario"
   | "linkMonitoramento";
 
 export interface TemplateVar {
@@ -60,6 +61,7 @@ export const AUTO_FILL_OPTIONS: Array<{ value: AutoFill; label: string }> = [
   { value: "transportadora", label: "Transportadora" },
   { value: "codigoRastreio", label: "Código de rastreio" },
   { value: "linkPortal", label: "Link do portal do cliente" },
+  { value: "linkFormulario", label: "Link do formulário de dados" },
   { value: "linkMonitoramento", label: "Link do monitoramento" },
 ];
 

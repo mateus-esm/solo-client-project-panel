@@ -98,7 +98,7 @@ export async function createOtp(email: string): Promise<RequestOtpResult> {
   return { ok: true, code };
 }
 
-export async function verifyOtp(email: string, code: string): Promise<VerifyOtpResult> {
+export async function verifyOtp(email: string, code: string, requestedProjectId?: number): Promise<VerifyOtpResult> {
   const now = new Date();
 
   const [otp] = await db
@@ -133,6 +133,27 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyOtpR
     .where(eq(otpCodesTable.id, otp.id));
 
   resetVerifyAttempts(email);
+
+  if (requestedProjectId !== undefined) {
+    const [requested] = await db
+      .select({ project: projectsTable })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, requestedProjectId))
+      .limit(1);
+    if (!requested || (
+      requested.project.clientEmail.toLowerCase() !== email.toLowerCase() &&
+      !(await db.select({ id: projectAccessEmailsTable.projectId })
+        .from(projectAccessEmailsTable)
+        .where(and(
+          eq(projectAccessEmailsTable.projectId, requestedProjectId),
+          eq(projectAccessEmailsTable.email, email.toLowerCase()),
+        ))
+        .limit(1)).length
+    )) {
+      return { ok: false, reason: "no_project" };
+    }
+    return { ok: true, projectId: requestedProjectId };
+  }
 
   let [project] = await db
     .select()

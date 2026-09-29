@@ -5,7 +5,7 @@
  * variáveis → revisar o texto final → enviar. O texto do preview é editável: o
  * que sai é exatamente o que está na caixa, nunca o template cru.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   MessageCircle,
@@ -49,11 +49,13 @@ import {
 
 interface Props {
   projectId: number;
+  initialTemplateCode?: string;
+  initialDestinationId?: string;
   /** Chaves a invalidar depois de criar grupo (o item-ação do checklist muda). */
   invalidateKeys?: unknown[][];
 }
 
-export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
+export function NotificarWhatsApp({ projectId, initialTemplateCode, initialDestinationId, invalidateKeys = [] }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -76,7 +78,8 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
     queryFn: () => api.get<WhatsappSend[]>(`/internal/whatsapp/${projectId}/historico`),
   });
 
-  const [destinoId, setDestinoId] = useState<string>("privado:cliente");
+  const [destinoId, setDestinoId] = useState<string>(initialDestinationId ?? "privado:cliente");
+  const initializedTemplate = useRef(false);
   const [template, setTemplate] = useState<NotificationTemplate | null>(null);
   const [valores, setValores] = useState<Record<string, string>>({});
   const [texto, setTexto] = useState("");
@@ -94,7 +97,7 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
   // Preenche as variáveis com o contexto do projeto ao escolher um template.
   function escolherTemplate(t: NotificationTemplate) {
     const iniciais: Record<string, string> = {};
-    for (const v of t.vars) iniciais[v.key] = (v.auto ? ctx?.contexto[v.auto] : "") ?? "";
+    for (const v of t.vars) iniciais[v.key] = ctx?.contexto[v.auto ?? v.key] ?? "";
     setTemplate(t);
     setValores(iniciais);
     const templateValues = { ...ctx?.contexto, ...iniciais };
@@ -111,6 +114,15 @@ export function NotificarWhatsApp({ projectId, invalidateKeys = [] }: Props) {
     setTextoTocado(false);
     setPickerAberto(false);
   }
+
+  useEffect(() => {
+    if (!initialTemplateCode || !ctx || !catalogo || initializedTemplate.current) return;
+    const selected = catalogo.templates.find((t) => t.code === initialTemplateCode);
+    if (selected) {
+      initializedTemplate.current = true;
+      escolherTemplate(selected);
+    }
+  }, [initialTemplateCode, ctx, catalogo]);
 
   // Enquanto o operador não editar o texto à mão, ele acompanha as variáveis.
   useEffect(() => {

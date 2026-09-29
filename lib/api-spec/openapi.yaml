@@ -583,6 +583,9 @@ components:
           type: string
         code:
           type: string
+        projectId:
+          type: integer
+          minimum: 1
       required:
         - email
         - code

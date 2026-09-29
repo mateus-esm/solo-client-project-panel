@@ -54,6 +54,7 @@ import {
   sendMedia,
   sendText,
 } from "../../lib/whatsmiau";
+import { getClientIntakeUrl } from "../../lib/messaging";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -291,6 +292,7 @@ router.get("/whatsapp/:projectId/contexto", async (req, res) => {
       transportadora: compra?.transportadora ?? project.trackingCarrier ?? "",
       codigoRastreio: compra?.rastreio ?? project.trackingCode ?? "",
       linkPortal: process.env.PORTAL_URL ?? "",
+      linkFormulario: getClientIntakeUrl(projectId),
       linkMonitoramento: plant?.monitoramento ?? "",
     };
 

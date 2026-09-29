@@ -89,7 +89,8 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
-      const result = await verifyOtp({ email, code });
+      const projectId = Number(new URLSearchParams(window.location.search).get("projectId"));
+      const result = await verifyOtp({ email, code, ...(Number.isSafeInteger(projectId) && projectId > 0 ? { projectId } : {}) });
 
       if (result.status === "no_project") {
         setStep("no_project");
