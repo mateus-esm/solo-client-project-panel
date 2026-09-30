@@ -88,7 +88,7 @@ export function ProjetoQuickEdit({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [aba, setAba] = useState<Aba>("dados");
-  const [enviandoFormulario, setEnviandoFormulario] = useState(false);
+  const [enviandoFormulario, setEnviandoFormulario] = useState<string | null>(null);
   const [form, setForm] = useState<Form | null>(null);
 
   const { data: projeto } = useQuery<InternalProject>({
@@ -114,7 +114,7 @@ export function ProjetoQuickEdit({
   useEffect(() => {
     if (projectId !== null) {
       setAba("dados");
-      setEnviandoFormulario(false);
+      setEnviandoFormulario(null);
     }
   }, [projectId]);
 
@@ -189,7 +189,7 @@ export function ProjetoQuickEdit({
               key={id}
               onClick={() => {
                 setAba(id);
-                setEnviandoFormulario(false);
+                setEnviandoFormulario(null);
               }}
               className={
                 "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs transition-colors " +
@@ -412,17 +412,27 @@ export function ProjetoQuickEdit({
             >
               <Copy className="w-4 h-4 mr-2" /> Copiar link
             </Button>
-            <Button
-              className="w-full"
-              onClick={() => {
-                setEnviandoFormulario(true);
-                setAba("notificar");
-              }}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" /> Preparar envio no grupo do cliente
-            </Button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                onClick={() => {
+                  setEnviandoFormulario("privado:cliente");
+                  setAba("notificar");
+                }}
+              >
+                <MessageCircle className="w-4 h-4 mr-2" /> Enviar direto ao cliente
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setEnviandoFormulario("grupo:cliente");
+                  setAba("notificar");
+                }}
+              >
+                <MessageCircle className="w-4 h-4 mr-2" /> Enviar ao grupo do cliente
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Revise a mensagem do modelo PRJ-01 antes de enviar. Se o grupo ainda não estiver vinculado, crie ou vincule o grupo na próxima tela.
+              Revise a mensagem do modelo PRJ-01 antes de enviar. Para o grupo, crie ou vincule o grupo na próxima tela se ainda não existir.
             </p>
           </div>
         )}
@@ -430,10 +440,10 @@ export function ProjetoQuickEdit({
         {aba === "notificar" && projectId !== null && (
           // O mesmo bloco da ficha do projeto: template, ajuste, envio, grupos.
           <NotificarWhatsApp
-            key={`${projectId}-${enviandoFormulario ? "formulario" : "padrao"}`}
+            key={`${projectId}-${enviandoFormulario ?? "padrao"}`}
             projectId={projectId}
             initialTemplateCode={enviandoFormulario ? "PRJ-01" : undefined}
-            initialDestinationId={enviandoFormulario ? "grupo:cliente" : undefined}
+            initialDestinationId={enviandoFormulario ?? undefined}
             invalidateKeys={[["internal-projects"], ["internal-project-quick", projectId]]}
           />
         )}

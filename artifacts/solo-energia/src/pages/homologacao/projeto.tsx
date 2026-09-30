@@ -56,6 +56,7 @@ interface ProjectDetail {
   checklist: ChecklistItem[];
   documents: Document[];
   services: Service[];
+  clientIntake: { status: string; data: Record<string, string | undefined> } | null;
 }
 
 // ─── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -304,6 +305,43 @@ function ChecklistPanel({
   );
 }
 
+function ClientIntakePanel({ intake }: { intake: ProjectDetail["clientIntake"] }) {
+  const d = intake?.data ?? {};
+  const rows = [
+    ["Titular", d.nomeCompleto],
+    ["CPF/CNPJ", d.cpf],
+    ["RG/CNH", d.rgCnh],
+    ["Titularidade", d.titularidadeUnidadeConsumidora],
+    ["Endereço da instalação", d.enderecoInstalacao],
+    ["Telefone", d.telefone],
+    ["E-mail", d.email],
+    ["UC titular", d.numeroUnidadeConsumidora],
+    ["UC de rateio", d.numeroUnidadeRateio],
+  ].filter(([, v]) => Boolean(v));
+  return (
+    <div className="bg-card border border-white/5 rounded-3xl p-6">
+      <h2 className="text-sm font-medium text-foreground mb-1">Dados preenchidos pelo cliente</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        {!intake
+          ? "O cliente ainda não iniciou o formulário."
+          : intake.status === "submitted"
+            ? "Formulário enviado pelo cliente."
+            : "Rascunho — o cliente ainda não enviou o formulário."}
+      </p>
+      {rows.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+          {rows.map(([label, value]) => (
+            <div key={label} className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">{label}</p>
+              <p className="text-sm text-foreground mt-0.5 break-words">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DocumentsPanel({ documents }: { documents: Document[] }) {
   const required = documents.filter((d) => d.required);
   const optional = documents.filter((d) => !d.required);
@@ -470,7 +508,7 @@ export default function HomologacaoProjetoPage() {
     );
   }
 
-  const { project, checklist, documents, services } = data;
+  const { project, checklist, documents, services, clientIntake } = data;
   // Homologação items now live under the merged macro stage — filter by group slug.
   const homoChecklist = checklist.filter((i) => i.checklistSlug.startsWith("homologacao_"));
   const deadline =
@@ -578,6 +616,10 @@ export default function HomologacaoProjetoPage() {
           items={homoChecklist}
           onItemToggle={(id, done) => checklistMutation.mutate({ id, done })}
         />
+      </div>
+
+      <div className="mb-5">
+        <ClientIntakePanel intake={clientIntake} />
       </div>
 
       {/* Documents */}

@@ -7,6 +7,7 @@ import {
   HOMOLOGACAO_KANBAN_STAGES,
   projectsTable,
   documentsTable,
+  clientIntakeSubmissionsTable,
   servicesTable,
   projectChecklistItemsTable,
   notificationsTable,
@@ -521,7 +522,7 @@ router.get("/homologacao/projects/:id", requireHomologacao, async (req, res) => 
     }
 
     await ensureClientIntakeDocuments(id);
-    const [checklist, documents, services] = await Promise.all([
+    const [checklist, documents, services, [intake]] = await Promise.all([
       db
         .select()
         .from(projectChecklistItemsTable)
@@ -552,9 +553,34 @@ router.get("/homologacao/projects/:id", requireHomologacao, async (req, res) => 
         .from(servicesTable)
         .where(eq(servicesTable.projectId, id))
         .orderBy(asc(servicesTable.id)),
+      db
+        .select()
+        .from(clientIntakeSubmissionsTable)
+        .where(eq(clientIntakeSubmissionsTable.projectId, id))
+        .limit(1),
     ]);
 
-    res.json({ project: toSafeProject(project), checklist, documents, services });
+    // Ficha do cliente: lista fixa de campos, sem as senhas das unidades.
+    const d = intake?.data ?? {};
+    const clientIntake = intake
+      ? {
+          status: intake.status,
+          submittedAt: intake.submittedAt,
+          data: {
+            nomeCompleto: d.nomeCompleto,
+            cpf: d.cpf,
+            rgCnh: d.rgCnh,
+            titularidadeUnidadeConsumidora: d.titularidadeUnidadeConsumidora,
+            enderecoInstalacao: d.enderecoInstalacao,
+            telefone: d.telefone,
+            email: d.email,
+            numeroUnidadeConsumidora: d.numeroUnidadeConsumidora,
+            numeroUnidadeRateio: d.numeroUnidadeRateio,
+          },
+        }
+      : null;
+
+    res.json({ project: toSafeProject(project), checklist, documents, services, clientIntake });
   } catch (err) {
     req.log.error({ err }, "Failed to get homologacao project detail");
     res.status(500).json({ message: "Internal server error" });
